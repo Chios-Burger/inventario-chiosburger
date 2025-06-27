@@ -3,8 +3,6 @@ export interface Producto {
   fields: {
     'Nombre Producto': string;
     'Categoría'?: string;
-    'Código'?: string;
-    'Codigo'?: string;
     'Equivalencias Inventarios'?: string;
     // Campos de control por bodega
     'Conteo Bodega Principal'?: string;
@@ -13,7 +11,6 @@ export interface Producto {
     'Conteo Chios'?: string;
     'Conteo Simón Bolón'?: string;
     'Conteo Santo Cachón'?: string;
-    'Conteo Bodega Pulmon'?: string;
     // Campos de unidad por bodega
     'Unidad Conteo Bodega Principal'?: string;
     'Unidad Conteo Bodega Materia Prima'?: string;
@@ -21,9 +18,6 @@ export interface Producto {
     'Unidad Conteo Chios'?: string;
     'Unidad Conteo Simón Bolón'?: string;
     'Unidad Conteo Santo Cachón'?: string;
-    'Unidad Conteo Bodega Pulmon'?: string;
-    // Permitir acceso dinámico a campos
-    [key: string]: any;
   };
 }
 
@@ -40,7 +34,6 @@ export interface Conteo {
   c2: number;
   c3: number;
   cantidadPedir: number;
-  touched?: boolean;
 }
 
 export interface AirtableResponse {
@@ -49,42 +42,38 @@ export interface AirtableResponse {
 }
 
 export interface Usuario {
-  id?: string;
-  nombre: string;
   email: string;
   pin: string;
-  esAdmin: boolean;
-  bodegasPermitidas: number[];
-}
-
-export interface ProductoHistorico {
-  id: string;
-  codigo?: string;
   nombre: string;
-  categoria?: string;
-  c1: number;
-  c2: number;
-  c3: number;
-  total: number;
-  unidad: string;
-  unidadBodega: string;
-  cantidadPedir: number;
-  equivalencia?: string;
+  bodegasPermitidas: number[];
+  esAdmin: boolean;
 }
 
 export interface RegistroHistorico {
   id: string;
   fecha: string;
   hora: string;
+  usuario: string;
   bodega: string;
   bodegaId: number;
-  usuario: string;
   productos: ProductoHistorico[];
-  totalProductos: number;
-  productosGuardados: number;
   duracion: string;
-  timestamp: number;
-  origen?: 'local' | 'database'; // Indicador del origen de los datos
+  productosGuardados: number;
+  totalProductos: number;
+}
+
+export interface ProductoHistorico {
+  id: string;
+  nombre: string;
+  categoria?: string;
+  c1: number;
+  c2: number;
+  c3: number;
+  total: number;
+  cantidadPedir: number;
+  unidad: string;
+  unidadBodega: string;
+  equivalencia?: string;
 }
 
 export interface RegistroDiario {

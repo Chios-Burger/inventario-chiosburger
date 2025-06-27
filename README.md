@@ -1,54 +1,102 @@
-# React + TypeScript + Vite
+# Sistema de Inventario - ChiosBurger
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 🚀 Instalación Rápida
 
-Currently, two official plugins are available:
+### Windows
+1. Descomprime el archivo
+2. Doble clic en `install.bat`
+3. Doble clic en `start.bat`
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Linux/Mac
+1. Descomprime el archivo
+2. Ejecuta: `bash install.sh`
+3. Ejecuta: `bash start.sh`
 
-## Expanding the ESLint configuration
+## 📋 Requisitos Previos
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- Node.js 18 o superior
+- npm (incluido con Node.js)
+- Conexión a Internet (para la base de datos)
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+## 🛠️ Instalación Manual
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Si los scripts automáticos no funcionan:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+1. **Instalar dependencias del frontend:**
+   ```bash
+   npm install
+   ```
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+2. **Instalar dependencias del servidor:**
+   ```bash
+   cd server
+   npm install
+   cd ..
+   ```
+
+3. **Configurar variables de entorno:**
+
+   Crear archivo `.env` en la raíz:
+   ```
+   VITE_API_URL=http://localhost:3001/api
+   ```
+
+   Crear archivo `server/.env`:
+   ```
+   DB_HOST=chiosburguer.postgres.database.azure.com
+   DB_USER=adminChios
+   DB_PASSWORD=Burger2023
+   DB_NAME=InventariosLocales
+   DB_PORT=5432
+   PORT=3001
+   ```
+
+4. **Ejecutar el proyecto:**
+
+   Terminal 1:
+   ```bash
+   cd server
+   npm start
+   ```
+
+   Terminal 2:
+   ```bash
+   npm run dev
+   ```
+
+## 👤 Usuarios de Prueba
+
+| Usuario | PIN | Acceso |
+|---------|-----|--------|
+| gerencia@chiosburger.com | 9999 | Todas las bodegas |
+| bodegaprincipal@chiosburger.com | 4321 | Bodega Principal y Bodega Pulmon |
+
+## 🏢 Bodegas Disponibles
+
+1. Bodega Principal
+2. Bodega Materia Prima
+3. Planta De Producción
+4. Chios Real Audiencia
+5. Chios Floreana
+6. Chios Portugal
+7. Simón Bolón
+8. Santo Cachón
+9. Bodega Pulmon
+
+## ❓ Problemas Comunes
+
+### Error de conexión a la base de datos
+- Verifica tu conexión a Internet
+- Asegúrate que las credenciales en `server/.env` sean correctas
+
+### Puerto ocupado
+- Si el puerto 3001 o 5173 están ocupados, cierra las aplicaciones que los usen
+- O modifica los puertos en los archivos `.env`
+
+### No se cargan los productos
+- Verifica estar logueado con un usuario válido
+- Asegúrate de tener permisos para la bodega seleccionada
+
+## 📞 Soporte
+
+Para soporte adicional, contacta al equipo de desarrollo.

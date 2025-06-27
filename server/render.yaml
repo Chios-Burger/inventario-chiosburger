@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: inventario-chiosburger-api
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "node index.js"
+    envVars:
+      - key: DB_HOST
+        value: chiosburguer.postgres.database.azure.com
+      - key: DB_USER
+        value: adminChios
+      - key: DB_PASSWORD
+        value: Burger2023
+      - key: DB_NAME
+        value: InventariosLocales
+      - key: DB_PORT
+        value: 5432
+      - key: NODE_VERSION
+        value: 18

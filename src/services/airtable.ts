@@ -5,8 +5,19 @@ import type { Producto, AirtableResponse } from '../types/index';
 const BASE_URL = `https://api.airtable.com/v0/${AIRTABLE_CONFIG.baseId}/${AIRTABLE_CONFIG.tableId}`;
 const PROXY_URL = 'https://corsproxy.io/?';
 
+// Cache para productos
+const productosCache = new Map<string, Producto[]>();
+
 export const airtableService = {
   async obtenerProductos(bodegaId: number): Promise<Producto[]> {
+    const cacheKey = `productos_${bodegaId}`;
+    
+    // Verificar si hay datos en cache
+    if (productosCache.has(cacheKey)) {
+      console.log(`🎯 Usando productos del cache para bodega ${bodegaId}`);
+      return productosCache.get(cacheKey)!;
+    }
+    
     let allRecords: Producto[] = [];
     let offset: string | undefined = undefined;
     let useProxy = false;
@@ -55,7 +66,17 @@ export const airtableService = {
       }
     } while (offset);
 
+    // Guardar en cache
+    productosCache.set(cacheKey, allRecords);
+    console.log(`💾 Productos guardados en cache para bodega ${bodegaId}`);
+    
     return allRecords;
+  },
+  
+  // Método para limpiar el cache si es necesario
+  limpiarCache() {
+    productosCache.clear();
+    console.log('🧹 Cache de productos limpiado');
   },
 
   obtenerCampoControl(bodegaId: number): string | null {
@@ -67,7 +88,8 @@ export const airtableService = {
       5: 'Conteo Chios',
       6: 'Conteo Chios',
       7: 'Conteo Simón Bolón',
-      8: 'Conteo Santo Cachón'
+      8: 'Conteo Santo Cachón',
+      9: 'Conteo Bodega Pulmon'
     };
     return campos[bodegaId] || null;
   },
@@ -81,7 +103,8 @@ export const airtableService = {
       5: 'Unidad Conteo Chios',
       6: 'Unidad Conteo Chios',
       7: 'Unidad Conteo Simón Bolón',
-      8: 'Unidad Conteo Santo Cachón'
+      8: 'Unidad Conteo Santo Cachón',
+      9: 'Unidad Conteo Bodega Pulmon'
     };
     return campos[bodegaId] || '';
   }
