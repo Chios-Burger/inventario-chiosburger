@@ -47,7 +47,7 @@ export const historicoService = {
     const ahora = new Date();
     // Formato para mostrar
     const fechaDisplay = ahora.toLocaleDateString('es-EC');
-    // Formato para el ID (YYYY-MM-DD)
+    // Formato para el ID y la base de datos (YYYY-MM-DD)
     const fechaISO = ahora.toISOString().split('T')[0];
     const hora = ahora.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
 
@@ -94,7 +94,8 @@ export const historicoService = {
 
     const registro: RegistroHistorico = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      fecha: fechaDisplay,
+      fecha: fechaISO, // Usar formato ISO para la base de datos
+      fechaDisplay, // Mantener fecha en formato display para localStorage
       hora,
       usuario: usuario.nombre,
       bodega: bodegaNombre,
@@ -107,9 +108,14 @@ export const historicoService = {
       origen: 'local' // Marcar como origen local
     };
 
-    // Guardar en localStorage primero
+    // Guardar en localStorage primero (con fechaDisplay para mostrar)
+    const registroParaLocalStorage = {
+      ...registro,
+      fecha: fechaDisplay, // En localStorage guardamos la fecha en formato display
+      sincronizado: false // Marcar como no sincronizado inicialmente
+    };
     const registrosExistentes = this.obtenerHistoricosLocales();
-    registrosExistentes.push(registro);
+    registrosExistentes.push(registroParaLocalStorage);
     localStorage.setItem('historicos', JSON.stringify(registrosExistentes));
     console.log('✅ Guardado en localStorage', { registroId: registro.id });
 
@@ -144,6 +150,15 @@ export const historicoService = {
       } else {
         const result = await response.json();
         console.log('✅ Inventario guardado en base de datos exitosamente', result);
+        
+        // Marcar como sincronizado en localStorage
+        const registrosActualizados = this.obtenerHistoricosLocales();
+        const indice = registrosActualizados.findIndex(r => r.id === registro.id);
+        if (indice !== -1) {
+          registrosActualizados[indice].sincronizado = true;
+          registrosActualizados[indice].fechaSincronizacion = new Date().toISOString();
+          localStorage.setItem('historicos', JSON.stringify(registrosActualizados));
+        }
       }
     } catch (error) {
       console.error('❌ Error de conexión con el servidor:', error);
@@ -229,10 +244,118 @@ export const historicoService = {
       });
   },
 
-  async eliminarHistorico(id: string): Promise<void> {
-    const historicos = await this.obtenerHistoricos();
-    const nuevosHistoricos = historicos.filter(h => h.id !== id);
-    localStorage.setItem('historicos', JSON.stringify(nuevosHistoricos));
+  async eliminarHistorico(id: string, usuario: any, eliminarDeBD: boolean = false): Promise<void> {
+    console.log('🔍 Eliminando registro con ID:', id);
+    console.log('👤 Usuario:', usuario.email);
+    console.log('🗄️ Eliminar de BD:', eliminarDeBD);
+    
+    // Obtener TODOS los registros (locales y de BD)
+    const todosLosHistoricos = await this.obtenerHistoricos();
+    console.log('📋 Total de registros encontrados:', todosLosHistoricos.length);
+    console.log('🔎 IDs disponibles:', todosLosHistoricos.map(h => h.id));
+    console.log('🔍 Buscando coincidencia exacta para ID:', id);
+    console.log('🧐 Tipo de ID buscado:', typeof id);
+    console.log('📊 Primeros 5 registros con sus IDs y tipos:', 
+      todosLosHistoricos.slice(0, 5).map(h => ({ 
+        id: h.id, 
+        tipo: typeof h.id,
+        origen: h.origen,
+        fecha: h.fecha 
+      }))
+    );
+    
+    const registroAEliminar = todosLosHistoricos.find(h => h.id === id);
+    
+    // Si no encontramos el registro y el usuario es super admin, intentar eliminarlo de todos modos
+    if (!registroAEliminar && usuario.email === 'analisis@chiosburger.com') {
+      console.warn('⚠️ Registro no encontrado localmente, pero intentando eliminar de BD para super admin');
+      console.log('📋 IDs disponibles:', todosLosHistoricos.map(h => h.id));
+      
+      // Crear un registro temporal solo para la eliminación
+      const registroTemporal = {
+        id: id,
+        origen: 'database',
+        fecha: new Date().toISOString(),
+        productos: []
+      };
+      
+      // Intentar eliminar directamente de BD
+      const response = await fetch(`${API_URL}/inventario/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          usuarioEmail: usuario.email,
+          usuarioNombre: usuario.nombre,
+          registroData: registroTemporal,
+          eliminarDeBD: true,
+          esDeBD: true,
+          forzarEliminacion: true
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al eliminar registro de BD');
+      }
+      
+      console.log('✅ Registro eliminado de BD (forzado para super admin)');
+      return;
+    }
+    
+    if (!registroAEliminar) {
+      console.error('❌ Registro no encontrado con ID:', id);
+      console.error('📋 Registros disponibles:', todosLosHistoricos.map(h => ({ id: h.id, fecha: h.fecha, origen: h.origen })));
+      throw new Error('Registro no encontrado');
+    }
+    
+    console.log('✅ Registro encontrado:', registroAEliminar);
+    
+    try {
+      // Para registros de database, necesitamos información adicional
+      let bodyData: any = {
+        usuarioEmail: usuario.email,
+        usuarioNombre: usuario.nombre,
+        registroData: registroAEliminar,
+        eliminarDeBD: eliminarDeBD
+      };
+
+      // Si es un registro de database, incluir información para identificarlo en BD
+      if (registroAEliminar.origen === 'database') {
+        bodyData.esDeBD = true;
+        bodyData.fecha = registroAEliminar.fecha;
+        bodyData.bodegaId = registroAEliminar.bodegaId;
+        // Incluir los productos para poder identificar el registro en BD
+        bodyData.productos = registroAEliminar.productos;
+      }
+
+      // Enviar a auditoría y eliminar de BD si es necesario
+      const response = await fetch(`${API_URL}/inventario/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bodyData)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al eliminar registro');
+      }
+
+      // Eliminar de localStorage solo si es un registro local
+      if (registroAEliminar.origen === 'local' || !registroAEliminar.origen) {
+        const historicosLocales = this.obtenerHistoricosLocales();
+        const nuevosHistoricos = historicosLocales.filter(h => h.id !== id);
+        localStorage.setItem('historicos', JSON.stringify(nuevosHistoricos));
+      }
+      
+      console.log('✅ Registro eliminado y auditado correctamente');
+    } catch (error) {
+      console.error('❌ Error al eliminar registro:', error);
+      throw error;
+    }
   },
 
   limpiarHistoricos(): void {
@@ -257,6 +380,100 @@ export const historicoService = {
       }
     }
     return [];
+  },
+
+  // Editar un producto de un registro
+  async editarProducto(
+    registroId: string,
+    productoId: string,
+    nuevoTotal: number,
+    nuevaCantidadPedir: number,
+    motivo: string,
+    usuario: any,
+    registro: any
+  ): Promise<void> {
+    try {
+      // Buscar el registro en localStorage o BD
+      const todosLosHistoricos = await this.obtenerHistoricos();
+      const registroActual = todosLosHistoricos.find(h => h.id === registroId);
+      
+      if (!registroActual) {
+        throw new Error('Registro no encontrado');
+      }
+      
+      // Buscar el producto específico
+      const productoIndex = registroActual.productos.findIndex(p => p.id === productoId);
+      if (productoIndex === -1) {
+        throw new Error('Producto no encontrado');
+      }
+      
+      const producto = registroActual.productos[productoIndex];
+      const valorAnteriorTotal = producto.total;
+      const valorAnteriorCantidad = producto.cantidadPedir;
+      const diferenciaTotal = nuevoTotal - valorAnteriorTotal;
+      const diferenciaCantidad = nuevaCantidadPedir - valorAnteriorCantidad;
+      
+      // Preparar datos para auditoría y actualización
+      const datosEdicion = {
+        registroId: registroId,
+        productoId: productoId,
+        valorAnteriorTotal: valorAnteriorTotal,
+        valorNuevoTotal: nuevoTotal,
+        diferenciaTotal: diferenciaTotal,
+        valorAnteriorCantidad: valorAnteriorCantidad,
+        valorNuevoCantidad: nuevaCantidadPedir,
+        diferenciaCantidad: diferenciaCantidad,
+        motivo: motivo || '',
+        usuarioEmail: usuario.email,
+        usuarioNombre: usuario.nombre,
+        productoNombre: producto.nombre,
+        productoCodigo: producto.codigo || '',
+        bodegaId: registro.bodegaId,
+        bodegaNombre: registro.bodega,
+        fechaRegistro: new Date(registroActual.timestamp || Date.now()).toISOString()
+      };
+      
+      console.log('📤 Enviando datos de edición:', datosEdicion);
+      console.log('📌 URL:', `${API_URL}/inventario/${registroId}/editar`);
+      
+      // Enviar al backend para actualizar BD y crear auditoría
+      const response = await fetch(`${API_URL}/inventario/${registroId}/editar`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(datosEdicion)
+      });
+      
+      if (!response.ok) {
+        let errorMessage = 'Error al editar el producto';
+        try {
+          const error = await response.json();
+          errorMessage = error.message || error.error || errorMessage;
+          console.error('❌ Error del servidor:', error);
+        } catch (e) {
+          console.error('❌ Error al parsear respuesta:', e);
+        }
+        throw new Error(errorMessage);
+      }
+      
+      // Actualizar en localStorage si es un registro local
+      if (registroActual.origen === 'local' || !registroActual.origen) {
+        const historicosLocales = this.obtenerHistoricosLocales();
+        const registroLocalIndex = historicosLocales.findIndex(h => h.id === registroId);
+        
+        if (registroLocalIndex !== -1) {
+          historicosLocales[registroLocalIndex].productos[productoIndex].total = nuevoTotal;
+          historicosLocales[registroLocalIndex].productos[productoIndex].cantidadPedir = nuevaCantidadPedir;
+          localStorage.setItem('historicos', JSON.stringify(historicosLocales));
+        }
+      }
+      
+      console.log('✅ Producto editado correctamente');
+    } catch (error) {
+      console.error('❌ Error al editar producto:', error);
+      throw error;
+    }
   },
 
   // Función auxiliar para convertir datos de BD al formato RegistroHistorico
@@ -348,8 +565,15 @@ export const historicoService = {
         };
       });
 
-      // Generar ID único para la sesión
-      const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      // Generar ID único y consistente para la sesión basado en los datos
+      // Usar el ID del primer producto si existe, o generar uno basado en fecha+usuario+bodega
+      let sessionId = primerProducto.id || '';
+      if (!sessionId || sessionId.length < 10) {
+        // Si no hay ID o es muy corto, generar uno consistente basado en los datos
+        const fechaTimestamp = new Date(primerProducto.fecha).getTime() || Date.now();
+        const usuarioHash = usuario.replace(/[^a-zA-Z0-9]/g, '').substring(0, 5);
+        sessionId = `${fechaTimestamp}-${bodegaId}-${usuarioHash}`;
+      }
 
       return {
         id: sessionId,

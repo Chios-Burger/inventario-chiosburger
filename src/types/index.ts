@@ -75,6 +75,7 @@ export interface ProductoHistorico {
 export interface RegistroHistorico {
   id: string;
   fecha: string;
+  fechaDisplay?: string; // Para mostrar en formato local
   hora: string;
   bodega: string;
   bodegaId: number;
@@ -85,6 +86,8 @@ export interface RegistroHistorico {
   duracion: string;
   timestamp: number;
   origen?: 'local' | 'database'; // Indicador del origen de los datos
+  sincronizado?: boolean; // Estado de sincronización
+  fechaSincronizacion?: string; // Fecha ISO de última sincronización
 }
 
 export interface RegistroDiario {

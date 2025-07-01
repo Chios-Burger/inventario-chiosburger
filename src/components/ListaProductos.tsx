@@ -33,6 +33,7 @@ export const ListaProductos = ({
   const [mostrarSinContarPrimero, setMostrarSinContarPrimero] = useState(false);
   const [reordenandoAnimacion, setReordenandoAnimacion] = useState(false);
   const [ordenSnapshot, setOrdenSnapshot] = useState<string[]>([]); // Guardar el orden en el momento del clic
+  const [guardandoInventario, setGuardandoInventario] = useState(false); // Estado para mostrar mensaje de guardado
   const intervalRef = useRef<number | null>(null);
   const isOnline = useOnlineStatus();
   const debouncedBusqueda = useDebounce(busqueda, 300);
@@ -231,19 +232,20 @@ export const ListaProductos = ({
       return;
     }
 
+    // Mostrar mensaje de guardado
+    setGuardandoInventario(true);
+    
     try {
       if (isOnline) {
         // Guardar en histórico y base de datos
         const duracion = formatTime(elapsedTime);
-        // Crear un Set con TODOS los productos (no solo los marcados como guardados)
-        const todosLosProductosIds = new Set(productos.map(p => p.id));
         
         await historicoService.guardarInventario(
           bodegaId,
           bodegaNombre,
           productos,
           conteos,
-          todosLosProductosIds, // Enviar TODOS los productos
+          productosGuardados, // Enviar solo los productos guardados explícitamente
           duracion
         );
         
@@ -262,6 +264,9 @@ export const ListaProductos = ({
     } catch (error) {
       console.error('Error al guardar inventario:', error);
       setToast({ message: 'Error al guardar el inventario', type: 'error' });
+    } finally {
+      // Ocultar mensaje de guardado
+      setGuardandoInventario(false);
     }
   };
 
@@ -340,6 +345,28 @@ export const ListaProductos = ({
           type={toast.type}
           onClose={() => setToast(null)}
         />
+      )}
+
+      {/* Mensaje de guardado */}
+      {guardandoInventario && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full animate-in fade-in zoom-in duration-300">
+            <div className="flex flex-col items-center">
+              <div className="w-20 h-20 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center mb-6">
+                <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 text-center">
+                Guardando Inventario
+              </h3>
+              <p className="text-gray-600 text-center text-sm sm:text-base">
+                Espera mientras se guardan los datos ingresados...
+              </p>
+              <p className="text-gray-500 text-xs sm:text-sm mt-4 text-center">
+                Por favor, no cierres la aplicación
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Status Cards flotantes - móvil y desktop */}
@@ -599,6 +626,7 @@ export const ListaProductos = ({
                   onGuardarProducto={handleGuardarProducto}
                   guardando={guardandoProductos.has(producto.id)}
                   isGuardado={productosGuardados.has(producto.id)}
+                  conteoInicial={conteos[producto.id]}
                 />
               </div>
             );
@@ -677,41 +705,16 @@ export const ListaProductos = ({
           )}
           
           <button
+            disabled={!sePuedeGuardar}
             onClick={() => {
-              if (!sePuedeGuardar) {
-                // Capturar el orden actual con productos sin guardar primero
-                const productosConOrden = [...productos].sort((a, b) => {
-                  // Un producto está sin contar si NO ha sido guardado
-                  const aSinContar = !productosGuardados.has(a.id);
-                  const bSinContar = !productosGuardados.has(b.id);
-                  
-                  // Si uno está sin contar y otro no, el sin contar va primero
-                  if (aSinContar && !bSinContar) return -1;
-                  if (!aSinContar && bSinContar) return 1;
-                  
-                  // Mantener el orden original para los demás
-                  return 0;
-                });
-                
-                // Guardar el snapshot del orden
-                setOrdenSnapshot(productosConOrden.map(p => p.id));
-                setMostrarSinContarPrimero(true);
-                setShowBlockedMessage(true);
-                setReordenandoAnimacion(true);
-                
-                setTimeout(() => {
-                  setShowBlockedMessage(false);
-                }, 2000);
-                
-                setTimeout(() => {
-                  setReordenandoAnimacion(false);
-                }, 500);
-                return;
+              if (sePuedeGuardar) {
+                if (window.confirm('¿Estás seguro de que deseas guardar el inventario completo?')) {
+                  handleGuardar();
+                }
               }
-              handleGuardar();
             }}
             className={`group relative px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-semibold text-white transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base ${
-              sePuedeGuardar 
+              sePuedeGuardar
                 ? 'bg-gradient-to-r from-purple-500 to-blue-600 hover:shadow-2xl hover:scale-105' 
                 : 'bg-gray-400 cursor-not-allowed'
             }`}

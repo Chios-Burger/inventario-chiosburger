@@ -16,6 +16,13 @@ interface ProductoConteoProps {
   onGuardarProducto?: (productoId: string) => void;
   guardando?: boolean;
   isGuardado?: boolean;
+  conteoInicial?: {
+    c1: number;
+    c2: number;
+    c3: number;
+    cantidadPedir: number;
+    touched?: boolean;
+  };
 }
 
 const ProductoConteoComponent = ({ 
@@ -25,18 +32,30 @@ const ProductoConteoComponent = ({
   onConteoChange,
   onGuardarProducto,
   guardando = false,
-  isGuardado = false
+  isGuardado = false,
+  conteoInicial
 }: ProductoConteoProps) => {
-  const [c1, setC1] = useState<number>(0);
-  const [c2, setC2] = useState<number>(0);
-  const [c3, setC3] = useState<number>(0);
-  const [cantidadPedir, setCantidadPedir] = useState<number>(0);
-  const [touched, setTouched] = useState(false);
+  const [c1, setC1] = useState<number>(conteoInicial?.c1 || 0);
+  const [c2, setC2] = useState<number>(conteoInicial?.c2 || 0);
+  const [c3, setC3] = useState<number>(conteoInicial?.c3 || 0);
+  const [cantidadPedir, setCantidadPedir] = useState<number>(conteoInicial?.cantidadPedir || 0);
+  const [touched, setTouched] = useState(conteoInicial?.touched || false);
   const [savedValues, setSavedValues] = useState<{c1: number; c2: number; c3: number; cantidadPedir: number} | null>(null);
 
   const total = c1 + c2 + c3;
   const hasData = touched && (c1 > 0 || c2 > 0 || c3 > 0 || cantidadPedir > 0);
   const isInactive = c1 === -1 && c2 === -1 && c3 === -1; // Producto marcado como inactivo
+  
+  // Actualizar valores cuando cambie el conteoInicial (por ejemplo, después de filtrar)
+  useEffect(() => {
+    if (conteoInicial) {
+      setC1(conteoInicial.c1 || 0);
+      setC2(conteoInicial.c2 || 0);
+      setC3(conteoInicial.c3 || 0);
+      setCantidadPedir(conteoInicial.cantidadPedir || 0);
+      setTouched(conteoInicial.touched || false);
+    }
+  }, [conteoInicial]);
   
   // Función para obtener cantidad de decimales
   const getDecimalPlaces = (num: number): number => {

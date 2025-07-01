@@ -111,6 +111,45 @@ function formatearFecha(fecha) {
   return new Date().toISOString().split('T')[0];
 }
 
+// Crear tabla de auditoría si no existe
+async function crearTablaAuditoria() {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS auditoria_ediciones (
+        id SERIAL PRIMARY KEY,
+        registro_id VARCHAR(50) NOT NULL,
+        fecha_registro TIMESTAMP NOT NULL,
+        usuario_email VARCHAR(100) NOT NULL,
+        usuario_nombre VARCHAR(100),
+        producto_codigo VARCHAR(20),
+        producto_nombre VARCHAR(100),
+        campo_modificado VARCHAR(20) DEFAULT 'total',
+        valor_anterior DECIMAL(10,3),
+        valor_nuevo DECIMAL(10,3),
+        diferencia DECIMAL(10,3),
+        motivo TEXT,
+        bodega_id INTEGER,
+        bodega_nombre VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Crear índices
+    await client.query('CREATE INDEX IF NOT EXISTS idx_auditoria_ediciones_registro_id ON auditoria_ediciones(registro_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_auditoria_ediciones_usuario_email ON auditoria_ediciones(usuario_email)');
+    
+    console.log('✅ Tabla auditoria_ediciones verificada/creada');
+  } catch (error) {
+    console.error('❌ Error al crear tabla de auditoría:', error);
+  } finally {
+    client.release();
+  }
+}
+
+// Llamar a la función al iniciar el servidor
+crearTablaAuditoria();
+
 // Endpoint para verificar conexión
 app.get('/api/health', async (req, res) => {
   try {
@@ -192,7 +231,7 @@ app.post('/api/inventario', async (req, res) => {
           `;
           values = [
             registro.fecha,
-            `0${producto.codigo || producto.id}`,
+            generarId(producto.id), // Usar el mismo formato que las demás bodegas: YYMMDD-[bodegaId][codigo]+[timestamp]
             producto.codigo || producto.id, // Usar código de Airtable si existe
             producto.nombre,
             producto.unidadBodega,
@@ -420,6 +459,387 @@ app.get('/api/inventarios/:bodegaId', async (req, res) => {
     
   } catch (error) {
     console.error('Error al obtener inventarios:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+// Endpoint para eliminar inventario y registrar en auditoría
+app.delete('/api/inventario/:registroId', async (req, res) => {
+  const { registroId } = req.params;
+  const { 
+    usuarioEmail, 
+    usuarioNombre, 
+    registroData,
+    eliminarDeBD 
+  } = req.body;
+
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // 1. Registrar en auditoría
+    const queryAuditoria = `
+      INSERT INTO public.auditoria_eliminaciones 
+      (usuario_email, usuario_nombre, registro_id, registro_fecha, 
+       registro_bodega, registro_origen, registro_productos_count, detalles_completos)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `;
+    
+    await client.query(queryAuditoria, [
+      usuarioEmail,
+      usuarioNombre,
+      registroId,
+      registroData.fecha,
+      registroData.bodega,
+      registroData.origen || 'local',
+      registroData.productos?.length || 0,
+      JSON.stringify(registroData)
+    ]);
+    
+    // 2. Si es necesario, eliminar de las tablas de inventario
+    if (eliminarDeBD && registroData.productos) {
+      const bodegaIdStr = String(registroData.bodegaId);
+      const tabla = TABLA_POR_BODEGA[bodegaIdStr];
+      
+      if (tabla) {
+        // Eliminar cada producto del registro
+        for (const producto of registroData.productos) {
+          let deleteQuery;
+          
+          switch (tabla) {
+            case 'tomasFisicas':
+              deleteQuery = `DELETE FROM public."tomasFisicas" WHERE codtomas = $1`;
+              break;
+            default:
+              deleteQuery = `DELETE FROM public.${tabla} WHERE id = $1`;
+              break;
+          }
+          
+          try {
+            await client.query(deleteQuery, [producto.id]);
+          } catch (err) {
+            console.log(`No se pudo eliminar producto ${producto.id}:`, err.message);
+          }
+        }
+      }
+    }
+    
+    await client.query('COMMIT');
+    res.json({ 
+      success: true, 
+      message: 'Registro eliminado y auditado correctamente' 
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error al eliminar registro:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// Editar un producto en un registro de inventario
+app.put('/api/inventario/:registroId/editar', async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { registroId } = req.params;
+    const {
+      productoId,
+      valorAnteriorTotal,
+      valorNuevoTotal,
+      diferenciaTotal,
+      valorAnteriorCantidad,
+      valorNuevoCantidad,
+      diferenciaCantidad,
+      motivo,
+      usuarioEmail,
+      usuarioNombre,
+      productoNombre,
+      productoCodigo,
+      bodegaId,
+      bodegaNombre,
+      fechaRegistro
+    } = req.body;
+
+    console.log('=== EDICIÓN DE PRODUCTO ===');
+    console.log('Registro ID:', registroId);
+    console.log('Producto:', productoNombre);
+    console.log('Total anterior:', valorAnteriorTotal, '→ nuevo:', valorNuevoTotal);
+    console.log('Cantidad anterior:', valorAnteriorCantidad, '→ nueva:', valorNuevoCantidad);
+    console.log('Usuario:', usuarioEmail);
+    console.log('BodegaId:', bodegaId);
+    console.log('Todos los datos recibidos:', JSON.stringify(req.body, null, 2));
+    
+    // Validar y convertir valores
+    const totalAnterior = parseFloat(valorAnteriorTotal) || 0;
+    const totalNuevo = parseFloat(valorNuevoTotal) || 0;
+    const cantidadAnterior = parseFloat(valorAnteriorCantidad) || 0;
+    const cantidadNueva = parseFloat(valorNuevoCantidad) || 0;
+    const diferenciaTotalCalc = totalNuevo - totalAnterior;
+    const diferenciaCantidadCalc = cantidadNueva - cantidadAnterior;
+    
+    console.log('📊 Valores procesados:', {
+      totalAnterior,
+      totalNuevo,
+      cantidadAnterior,
+      cantidadNueva,
+      diferenciaTotalCalc,
+      diferenciaCantidadCalc
+    });
+
+    // Verificar que la tabla existe para la bodega
+    const tablaInventario = TABLA_POR_BODEGA[bodegaId];
+    if (!tablaInventario) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `No se encontró tabla para la bodega ${bodegaId}` 
+      });
+    }
+
+    await client.query('BEGIN');
+
+    // 1. Actualizar el registro en la tabla de inventario correspondiente
+    // Extraer fecha del registroId si es posible
+    let fechaExtraida = null;
+    
+    // Verificar si el ID es un timestamp (registros locales)
+    if (registroId && registroId.match(/^\d{13}-/)) {
+      // Es un timestamp, extraer la fecha de fechaRegistro
+      console.log('📅 ID es un timestamp, usando fechaRegistro');
+      if (fechaRegistro) {
+        fechaExtraida = fechaRegistro.split('T')[0]; // Obtener solo la fecha
+      }
+    } else if (registroId && registroId.length >= 6) {
+      // Formato: DDMMYY-... (registros de base de datos)
+      const fechaPart = registroId.substring(0, 6);
+      const day = fechaPart.substring(0, 2);    // DD
+      const month = fechaPart.substring(2, 4);   // MM
+      const year = fechaPart.substring(4, 6);  // YY
+      
+      // Corregir el año - si es 25, es 2025, no 2001
+      const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
+      
+      fechaExtraida = `${fullYear}-${month}-${day}`;
+      console.log('📅 Fecha extraída del ID (DDMMYY):', fechaExtraida);
+      console.log('   Día:', day, 'Mes:', month, 'Año:', fullYear);
+    }
+    
+    // Si no se pudo extraer fecha, usar fechaRegistro
+    if (!fechaExtraida && fechaRegistro) {
+      fechaExtraida = fechaRegistro.split('T')[0];
+      console.log('📅 Usando fechaRegistro:', fechaExtraida);
+    }
+
+    // Construir UPDATE query según la estructura de cada tabla
+    let updateQuery;
+    let updateParams;
+    
+    switch (tablaInventario) {
+      case 'toma_bodega':
+      case 'toma_materiaprima':
+      case 'toma_planta':
+      case 'toma_bodegapulmon':
+        // Estas tablas NO tienen columna cant_pedir
+        updateQuery = `
+          UPDATE public.${tablaInventario}
+          SET total = $1
+          WHERE fecha = $2
+          AND (producto ILIKE $3 OR codigo = $4)
+          RETURNING id, producto
+        `;
+        updateParams = [
+          totalNuevo.toString(),
+          fechaExtraida,
+          `%${productoNombre}%`,
+          productoCodigo || productoId
+        ];
+        break;
+        
+      case 'tomasFisicas':
+        // Esta tabla usa nombres de columnas diferentes
+        updateQuery = `
+          UPDATE public."tomasFisicas"
+          SET cantidad = $1,
+              "cantidadSolicitada" = $2
+          WHERE fecha = $3
+          AND (productos ILIKE $4 OR cod_prod = $5)
+          RETURNING codtomas as id, productos
+        `;
+        updateParams = [
+          totalNuevo.toString(),
+          cantidadNueva.toString(),
+          fechaExtraida,
+          `%${productoNombre}%`,
+          productoCodigo || productoId
+        ];
+        break;
+        
+      case 'toma_simon_bolon':
+      case 'toma_santo_cachon':
+        // Estas tablas SÍ tienen columna cant_pedir
+        updateQuery = `
+          UPDATE public.${tablaInventario}
+          SET total = $1,
+              cant_pedir = $2
+          WHERE fecha = $3
+          AND (producto ILIKE $4 OR codigo = $5)
+          RETURNING id, producto
+        `;
+        updateParams = [
+          totalNuevo,
+          cantidadNueva,
+          fechaExtraida,
+          `%${productoNombre}%`,
+          productoCodigo || productoId
+        ];
+        break;
+        
+      default:
+        throw new Error(`Tabla no reconocida para actualización: ${tablaInventario}`);
+    }
+
+    console.log('📝 Query de actualización:', updateQuery);
+    console.log('📊 Parámetros:', updateParams);
+    
+    try {
+      const updateResult = await client.query(updateQuery, updateParams);
+      
+      if (updateResult.rows.length > 0) {
+        console.log('✅ Registro actualizado en tabla:', tablaInventario);
+        console.log('   Filas afectadas:', updateResult.rows.length);
+      } else {
+        console.log('⚠️ No se encontró registro para actualizar en tabla:', tablaInventario);
+        console.log('   Continuando con auditoría de todos modos...');
+      }
+    } catch (updateError) {
+      console.error('❌ Error al actualizar tabla:', updateError.message);
+      console.log('   Continuando con auditoría de todos modos...');
+    }
+
+    // 2. Insertar registros de auditoría (uno por cada campo modificado)
+    const auditorias = [];
+    
+    // Si cambió el total
+    if (diferenciaTotalCalc !== 0 && !isNaN(diferenciaTotalCalc)) {
+      auditorias.push({
+        campo: 'total',
+        valorAnterior: totalAnterior,
+        valorNuevo: totalNuevo,
+        diferencia: diferenciaTotalCalc
+      });
+    }
+    
+    // Si cambió la cantidad a pedir (solo para tablas que tienen esta columna)
+    const tablasConCantPedir = ['tomasFisicas', 'toma_simon_bolon', 'toma_santo_cachon'];
+    if (tablasConCantPedir.includes(tablaInventario) && diferenciaCantidadCalc !== 0 && !isNaN(diferenciaCantidadCalc)) {
+      auditorias.push({
+        campo: 'cantidad_pedir',
+        valorAnterior: cantidadAnterior,
+        valorNuevo: cantidadNueva,
+        diferencia: diferenciaCantidadCalc
+      });
+    }
+    
+    // Si no hay cambios, registrar de todos modos
+    if (auditorias.length === 0) {
+      console.log('⚠️ No se detectaron cambios en los valores');
+      auditorias.push({
+        campo: 'sin_cambios',
+        valorAnterior: totalAnterior,
+        valorNuevo: totalNuevo,
+        diferencia: 0
+      });
+    }
+    
+    // Insertar una fila de auditoría por cada campo modificado
+    for (const audit of auditorias) {
+      const auditQuery = `
+        INSERT INTO auditoria_ediciones (
+          registro_id,
+          fecha_registro,
+          usuario_email,
+          usuario_nombre,
+          producto_codigo,
+          producto_nombre,
+          campo_modificado,
+          valor_anterior,
+          valor_nuevo,
+          diferencia,
+          motivo,
+          bodega_id,
+          bodega_nombre
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `;
+
+      await client.query(auditQuery, [
+        registroId,
+        fechaRegistro,
+        usuarioEmail,
+        usuarioNombre,
+        productoCodigo || null,
+        productoNombre,
+        audit.campo,
+        audit.valorAnterior,
+        audit.valorNuevo,
+        audit.diferencia,
+        motivo || null,
+        bodegaId,
+        bodegaNombre
+      ]);
+    }
+
+    console.log('✅ Auditoría registrada');
+
+    await client.query('COMMIT');
+
+    res.json({ 
+      success: true, 
+      message: 'Producto editado correctamente' 
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('❌ Error al editar producto:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al editar el producto: ' + error.message,
+      error: error.message,
+      details: error.stack
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// Endpoint para obtener auditoría de ediciones
+app.get('/api/auditoria/ediciones', async (req, res) => {
+  try {
+    const query = `
+      SELECT * FROM auditoria_ediciones 
+      ORDER BY created_at DESC 
+      LIMIT 100
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({ 
+      success: true, 
+      data: result.rows,
+      count: result.rows.length
+    });
+    
+  } catch (error) {
+    console.error('Error al obtener auditoría:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message 

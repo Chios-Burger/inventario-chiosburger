@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, User, Package, Download, FileText, Trash2, Search, ChevronDown, ChevronUp, BarChart, Shield, AlertTriangle, FileSpreadsheet, Database, HardDrive } from 'lucide-react';
+import { Calendar, User, Package, Download, FileText, Trash2, Search, ChevronDown, ChevronUp, BarChart, Shield, AlertTriangle, FileSpreadsheet, Database, HardDrive, Cloud, CloudOff, CheckCircle2, AlertCircle, Edit } from 'lucide-react';
+import React from 'react';
 import { historicoService } from '../services/historico';
 import { exportUtils } from '../utils/exportUtils';
 import { authService } from '../services/auth';
 import { BODEGAS } from '../config';
-import type { RegistroHistorico, RegistroDiario } from '../types/index';
+import type { RegistroHistorico, RegistroDiario, ProductoHistorico } from '../types/index';
+import { EditarProductoModal } from './EditarProductoModal';
 
 export const Historico = () => {
   const [registrosPorDia, setRegistrosPorDia] = useState<RegistroDiario[]>([]);
@@ -16,6 +18,7 @@ export const Historico = () => {
   const [mostrarSoloConCero, setMostrarSoloConCero] = useState(false);
   const [ordenarPor, setOrdenarPor] = useState<'fecha' | 'bodega' | 'usuario'>('fecha');
   const [cargando, setCargando] = useState(true);
+  const [productoEditando, setProductoEditando] = useState<{producto: ProductoHistorico, registro: RegistroHistorico} | null>(null);
   
   const usuario = authService.getUsuarioActual();
   const esAdmin = authService.esAdmin();
@@ -42,19 +45,99 @@ export const Historico = () => {
 
   // Verificar si un registro es del día actual
   const esRegistroDeHoy = (fechaRegistro: string): boolean => {
-    return fechaRegistro === fechaHoy;
+    console.log('📅 Comparando fechas:', {
+      fechaRegistro,
+      fechaHoy,
+      sonIguales: fechaRegistro === fechaHoy
+    });
+    
+    // Normalizar ambas fechas para comparación
+    const normalizarFecha = (fecha: string): string => {
+      try {
+        // Si la fecha viene en formato ISO (YYYY-MM-DD)
+        if (fecha.includes('-') && fecha.length === 10) {
+          const [year, month, day] = fecha.split('-');
+          return `${parseInt(day)}/${parseInt(month)}/${year}`;
+        }
+        // Si ya está en formato DD/MM/YYYY
+        return fecha;
+      } catch {
+        return fecha;
+      }
+    };
+    
+    const fechaRegistroNorm = normalizarFecha(fechaRegistro);
+    const fechaHoyNorm = normalizarFecha(fechaHoy);
+    
+    console.log('📅 Fechas normalizadas:', {
+      fechaRegistroNorm,
+      fechaHoyNorm,
+      sonIguales: fechaRegistroNorm === fechaHoyNorm
+    });
+    
+    return fechaRegistroNorm === fechaHoyNorm;
+  };
+
+  // Verificar si el usuario puede eliminar un registro
+  const puedeEliminar = (registro: RegistroHistorico): boolean => {
+    if (!usuario) return false;
+    
+    const esSuperAdmin = usuario.email === 'analisis@chiosburger.com';
+    const esAdminSupervisor = usuario.email === 'supervisor@chiosburger.com';
+    const esHoy = esRegistroDeHoy(registro.fecha);
+    // Un registro es local si no es de database o si no tiene origen definido
+    const esLocal = !registro.origen || registro.origen === 'local' || registro.origen !== 'database';
+    
+    console.log('🔐 Verificando permisos de eliminación:', {
+      usuario: usuario.email,
+      esAdmin,
+      esSuperAdmin,
+      esAdminSupervisor,
+      esHoy,
+      esLocal,
+      origen: registro.origen,
+      fecha: registro.fecha,
+      fechaHoy,
+      resultado: (esLocal && esHoy) ? 'DEBERÍA PERMITIR' : 'NO PERMITE'
+    });
+    
+    // Super admin puede eliminar cualquier registro
+    if (esSuperAdmin) return true;
+    
+    // Admin supervisor puede eliminar solo registros locales
+    if (esAdminSupervisor && esLocal) return true;
+    
+    // CUALQUIER usuario puede eliminar registros del día actual (sin importar origen)
+    if (esHoy) return true;
+    
+    return false;
   };
 
   const handleEliminar = async (registro: RegistroHistorico) => {
-    // Solo permitir eliminar registros del día actual
-    if (!esRegistroDeHoy(registro.fecha)) {
-      alert('Solo puedes eliminar registros del día actual');
+    console.log('🗑️ Intentando eliminar registro:', registro);
+    console.log('📌 ID del registro:', registro.id);
+    
+    if (!puedeEliminar(registro)) {
+      alert('No tienes permisos para eliminar este registro');
       return;
     }
 
-    if (window.confirm(`¿Estás seguro de eliminar este registro de ${registro.bodega} - ${registro.hora}?`)) {
-      historicoService.eliminarHistorico(registro.id);
-      await cargarHistoricos();
+    if (window.confirm('¿Estás seguro de eliminar este registro?')) {
+      try {
+        const esHoy = esRegistroDeHoy(registro.fecha);
+        // Para registros de database, necesitamos eliminar de BD
+        const eliminarDeBD = registro.origen === 'database' || (esHoy && registro.sincronizado && registro.origen === 'local');
+        
+        console.log('📅 Es registro de hoy:', esHoy);
+        console.log('🔄 Está sincronizado:', registro.sincronizado);
+        console.log('📍 Origen:', registro.origen);
+        console.log('🗄️ Eliminar de BD:', eliminarDeBD);
+        
+        await historicoService.eliminarHistorico(registro.id, usuario, eliminarDeBD);
+        await cargarHistoricos();
+      } catch (error) {
+        alert('Error al eliminar el registro: ' + (error as Error).message);
+      }
     }
   };
 
@@ -64,6 +147,55 @@ export const Historico = () => {
 
   const handleExportarPDF = (registro: RegistroHistorico) => {
     exportUtils.exportarPDF(registro);
+  };
+
+  // Verificar si se puede editar un registro
+  const puedeEditar = (registro: RegistroHistorico): boolean => {
+    if (!usuario) return false;
+    
+    // Super admin puede editar cualquier registro
+    if (usuario.email === 'analisis@chiosburger.com') return true;
+    
+    // Verificar que sea del día de hoy
+    if (!esRegistroDeHoy(registro.fecha)) return false;
+    
+    // Verificar que sea antes del mediodía (12:00 PM hora Ecuador)
+    // COMENTADO TEMPORALMENTE PARA PRUEBAS
+    /*
+    const ahora = new Date();
+    const horaActual = ahora.getHours();
+    
+    // Si son las 12 PM o después, no se puede editar
+    if (horaActual >= 12) return false;
+    */
+    
+    return true;
+  };
+
+  // Manejar la edición de un producto
+  const handleEditarProducto = async (productoId: string, nuevoTotal: number, nuevaCantidadPedir: number, motivo: string) => {
+    if (!productoEditando || !usuario) return;
+    
+    try {
+      await historicoService.editarProducto(
+        productoEditando.registro.id,
+        productoId,
+        nuevoTotal,
+        nuevaCantidadPedir,
+        motivo,
+        usuario,
+        productoEditando.registro
+      );
+      
+      // Recargar los históricos
+      await cargarHistoricos();
+      
+      // Mostrar mensaje de éxito
+      alert('Producto editado correctamente');
+    } catch (error) {
+      console.error('Error al editar producto:', error);
+      throw error;
+    }
   };
 
 
@@ -124,6 +256,7 @@ export const Historico = () => {
           return false;
         }
       }
+
 
       // Filtro por búsqueda
       if (busqueda) {
@@ -236,14 +369,18 @@ export const Historico = () => {
         
         {/* Leyenda de indicadores */}
         <div className="flex flex-wrap items-center gap-3 mt-4 px-4 sm:px-8 text-xs">
-          <span className="text-gray-500">Origen de datos:</span>
+          <span className="text-gray-500">Estados:</span>
           <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded-full">
             <Database className="w-3 h-3 text-blue-600" />
             <span className="text-blue-700 font-medium">Base de datos</span>
           </div>
-          <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded-full">
-            <HardDrive className="w-3 h-3 text-gray-600" />
-            <span className="text-gray-700 font-medium">Almacenamiento local</span>
+          <div className="flex items-center gap-1 px-2 py-1 bg-green-50 rounded-full">
+            <CheckCircle2 className="w-3 h-3 text-green-600" />
+            <span className="text-green-700 font-medium">Sincronizado</span>
+          </div>
+          <div className="flex items-center gap-1 px-2 py-1 bg-orange-50 rounded-full">
+            <CloudOff className="w-3 h-3 text-orange-600" />
+            <span className="text-orange-700 font-medium">Pendiente</span>
           </div>
         </div>
       </div>
@@ -323,6 +460,7 @@ export const Historico = () => {
           </div>
         </div>
 
+
         {/* Segunda fila - Opciones adicionales */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
@@ -399,10 +537,15 @@ export const Historico = () => {
                           <Database className="w-3 h-3" />
                           Base de datos
                         </span>
+                      ) : registro.sincronizado ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full font-medium">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Sincronizado
+                        </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full font-medium">
-                          <HardDrive className="w-3 h-3" />
-                          Local
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full font-medium">
+                          <CloudOff className="w-3 h-3" />
+                          Pendiente
                         </span>
                       )}
                     </div>
@@ -424,13 +567,22 @@ export const Historico = () => {
                   <button
                     onClick={() => handleExportarCSV(registro)}
                     className="px-3 py-2 bg-green-50 text-green-600 rounded-lg"
+                    title="Descargar CSV"
                   >
                     <Download className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleExportarPDF(registro)}
+                    className="px-3 py-2 bg-red-50 text-red-600 rounded-lg"
+                    title="Descargar PDF"
+                  >
+                    <FileText className="w-4 h-4" />
                   </button>
                   {esRegistroDeHoy(registro.fecha) && (
                     <button
                       onClick={() => handleEliminar(registro)}
-                      className="px-3 py-2 bg-red-50 text-red-600 rounded-lg"
+                      className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                      title="Eliminar registro (solo registros de hoy)"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -449,12 +601,23 @@ export const Historico = () => {
                               <p className="text-xs text-gray-500">{producto.categoria}</p>
                             )}
                           </div>
-                          <div className="text-right">
-                            <p className={`text-sm font-bold ${
-                              producto.total === 0 ? 'text-red-600' : 'text-gray-800'
-                            }`}>
-                              {formatearNumero(producto.total)} {producto.unidad}
-                            </p>
+                          <div className="flex items-center gap-2">
+                            <div className="text-right">
+                              <p className={`text-sm font-bold ${
+                                producto.total === 0 ? 'text-red-600' : 'text-gray-800'
+                              }`}>
+                                {formatearNumero(producto.total)} {producto.unidad}
+                              </p>
+                            </div>
+                            {puedeEditar(registro) && (
+                              <button
+                                onClick={() => setProductoEditando({ producto, registro })}
+                                className="p-1 hover:bg-blue-100 rounded transition-colors"
+                                title="Editar total"
+                              >
+                                <Edit className="w-3 h-3 text-blue-600" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -497,7 +660,8 @@ export const Historico = () => {
                   const productosEnCero = registro.productos.filter(p => p.total === 0).length;
                   
                   return (
-                    <tr key={registro.id} className="hover:bg-gray-50 transition-colors">
+                    <React.Fragment key={registro.id}>
+                      <tr className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           {esDeHoy && (
@@ -510,10 +674,15 @@ export const Historico = () => {
                               <Database className="w-3 h-3" />
                               BD
                             </span>
+                          ) : registro.sincronizado ? (
+                            <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full font-medium flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Sincronizado
+                            </span>
                           ) : (
-                            <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full font-medium flex items-center gap-1">
-                              <HardDrive className="w-3 h-3" />
-                              Local
+                            <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full font-medium flex items-center gap-1">
+                              <CloudOff className="w-3 h-3" />
+                              Pendiente
                             </span>
                           )}
                           <div>
@@ -573,27 +742,112 @@ export const Historico = () => {
                           >
                             <FileText className="w-4 h-4" />
                           </button>
-                          {esAdmin && (
+                          {esRegistroDeHoy(registro.fecha) && (
                             <button
                               onClick={() => handleEliminar(registro)}
-                              disabled={!esDeHoy}
-                              className={`p-2 rounded-lg transition-colors ${
-                                esDeHoy 
-                                  ? 'bg-red-100 text-red-600 hover:bg-red-200' 
-                                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              }`}
-                              title={esDeHoy ? 'Eliminar' : 'Solo se pueden eliminar registros del día actual'}
+                              className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                              title="Eliminar registro (solo registros de hoy)"
                             >
-                              {esDeHoy ? (
-                                <Trash2 className="w-4 h-4" />
-                              ) : (
-                                <Shield className="w-4 h-4" />
-                              )}
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           )}
                         </div>
                       </td>
                     </tr>
+                    {expandedRegistros.has(registro.id) && (
+                      <tr>
+                        <td colSpan={6} className="px-3 sm:px-6 py-4 bg-gray-50">
+                          <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-gray-900 mb-1">Detalle de Productos</h4>
+                            <div className="overflow-x-auto -mx-3 sm:mx-0 rounded-lg border border-gray-200">
+                              <table className="w-full text-xs sm:text-sm">
+                                <thead className="bg-gray-50">
+                                  <tr className="text-left text-xs text-gray-700 font-medium">
+                                    <th className="py-3 px-3 sm:px-4">Producto</th>
+                                    <th className="py-3 px-3 sm:px-4 hidden sm:table-cell">Categoría</th>
+                                    <th className="py-3 px-2 text-center bg-purple-50">C1</th>
+                                    <th className="py-3 px-2 text-center bg-blue-50">C2</th>
+                                    <th className="py-3 px-2 text-center bg-green-50">C3</th>
+                                    <th className="py-3 px-3 sm:px-4 text-center bg-yellow-50 font-bold">Total</th>
+                                    <th className="py-3 px-3 hidden sm:table-cell">Unidad</th>
+                                    <th className="py-3 px-3 text-center hidden sm:table-cell">Pedir</th>
+                                    <th className="py-3 px-3 hidden sm:table-cell">Unidad Pedido</th>
+                                    {puedeEditar(registro) && (
+                                      <th className="py-3 px-2 text-center hidden sm:table-cell">Acciones</th>
+                                    )}
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                  {registro.productos.map((producto, idx) => {
+                                    const esProductoEnCero = producto.total === 0;
+                                    return (
+                                      <tr key={idx} className={`${esProductoEnCero ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-blue-50/50 transition-colors`}>
+                                        <td className="py-3 px-3 sm:px-4">
+                                          <p className="font-medium text-gray-900 text-xs sm:text-sm">{producto.nombre}</p>
+                                          {producto.codigo && (
+                                            <p className="text-xs text-gray-500">Cód: {producto.codigo}</p>
+                                          )}
+                                        </td>
+                                        <td className="py-3 px-3 sm:px-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">
+                                          {producto.categoria || '-'}
+                                        </td>
+                                        <td className="py-3 px-2 text-center">
+                                          <span className={`font-mono font-medium text-xs sm:text-sm ${producto.c1 === 0 ? 'text-red-600' : 'text-purple-700'}`}>
+                                            {formatearNumero(producto.c1)}
+                                          </span>
+                                        </td>
+                                        <td className="py-3 px-2 text-center">
+                                          <span className={`font-mono font-medium text-xs sm:text-sm ${producto.c2 === 0 ? 'text-red-600' : 'text-blue-700'}`}>
+                                            {formatearNumero(producto.c2)}
+                                          </span>
+                                        </td>
+                                        <td className="py-3 px-2 text-center">
+                                          <span className={`font-mono font-medium text-xs sm:text-sm ${producto.c3 === 0 ? 'text-red-600' : 'text-green-700'}`}>
+                                            {formatearNumero(producto.c3)}
+                                          </span>
+                                        </td>
+                                        <td className="py-3 px-3 sm:px-4 text-center">
+                                          <span className={`font-mono font-bold text-sm sm:text-base ${esProductoEnCero ? 'text-red-600 bg-red-100 px-2 py-1 rounded' : 'text-gray-900'}`}>
+                                            {formatearNumero(producto.total)}
+                                          </span>
+                                        </td>
+                                        <td className="py-3 px-3 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">
+                                          <span className="bg-gray-100 px-2 py-1 rounded text-xs">
+                                            {producto.unidad || '-'}
+                                          </span>
+                                        </td>
+                                        <td className="py-3 px-3 text-center hidden sm:table-cell">
+                                          <span className={`font-mono font-medium text-xs sm:text-sm ${producto.cantidadPedir > 0 ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
+                                            {producto.cantidadPedir > 0 ? formatearNumero(producto.cantidadPedir) : '-'}
+                                          </span>
+                                        </td>
+                                        <td className="py-3 px-3 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">
+                                          <span className="bg-blue-50 px-2 py-1 rounded text-xs text-blue-700">
+                                            {producto.unidadBodega || '-'}
+                                          </span>
+                                        </td>
+                                        {puedeEditar(registro) && (
+                                          <td className="py-3 px-2 text-center hidden sm:table-cell">
+                                            <button
+                                              onClick={() => setProductoEditando({ producto, registro })}
+                                              className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-all transform hover:scale-105"
+                                              title="Editar total"
+                                            >
+                                              <Edit className="w-4 h-4 text-blue-600" />
+                                            </button>
+                                          </td>
+                                        )}
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
@@ -616,6 +870,9 @@ export const Historico = () => {
                       <th className="pb-2 pr-4 text-right">Total</th>
                       <th className="pb-2 pr-4 text-right">Cantidad Pedir</th>
                       <th className="pb-2 text-left">Unidad</th>
+                      {puedeEditar(registro) && (
+                        <th className="pb-2 text-center">Editar</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -631,18 +888,20 @@ export const Historico = () => {
                         </td>
                         <td className="py-2 pr-4 text-right font-mono">{formatearNumero(producto.cantidadPedir)}</td>
                         <td className="py-2 text-gray-600">{producto.unidadBodega}</td>
+                        {puedeEditar(registro) && (
+                          <td className="py-2 text-center">
+                            <button
+                              onClick={() => setProductoEditando({ producto, registro })}
+                              className="p-1 hover:bg-blue-100 rounded transition-colors"
+                              title="Editar total"
+                            >
+                              <Edit className="w-4 h-4 text-blue-600" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="border-t-2 border-gray-300">
-                    <tr>
-                      <td colSpan={5} className="py-2 pr-4 text-right font-medium">Total General:</td>
-                      <td className="py-2 pr-4 text-right font-mono font-bold text-lg">
-                        {formatearNumero(registro.productos.reduce((acc, p) => acc + p.total, 0))}
-                      </td>
-                      <td colSpan={2}></td>
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
             </div>
@@ -662,6 +921,21 @@ export const Historico = () => {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Modal de edición */}
+      {productoEditando && (
+        <EditarProductoModal
+          producto={productoEditando.producto}
+          registro={{
+            id: productoEditando.registro.id,
+            fecha: productoEditando.registro.fecha,
+            bodega: productoEditando.registro.bodega,
+            bodegaId: productoEditando.registro.bodegaId
+          }}
+          onClose={() => setProductoEditando(null)}
+          onGuardar={handleEditarProducto}
+        />
       )}
     </div>
   );

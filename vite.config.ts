@@ -9,7 +9,8 @@ export default defineConfig({
     port: 5173, // Puerto por defecto
     strictPort: true, // Usar siempre este puerto
     hmr: {
-      clientPort: 443 // Para que funcione el hot reload con ngrok
+      // Solo usar puerto 443 si se está usando ngrok
+      clientPort: process.env.NGROK_URL ? 443 : 5173
     },
     // Permitir todos los hosts (incluyendo ngrok)
     allowedHosts: [
