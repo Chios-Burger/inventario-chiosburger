@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, Calendar, User, Package } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FileText } from 'lucide-react';
 
 interface RegistroAuditoria {
   id: number;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, User, Package, Download, FileText, Trash2, Search, ChevronDown, ChevronUp, BarChart, Shield, AlertTriangle, FileSpreadsheet, Database, HardDrive, Cloud, CloudOff, CheckCircle2, AlertCircle, Edit } from 'lucide-react';
+import { Calendar, User, Package, Download, FileText, Trash2, Search, ChevronDown, ChevronUp, BarChart, AlertTriangle, FileSpreadsheet, Database, CloudOff, AlertCircle, Edit, Tag } from 'lucide-react';
 import React from 'react';
 import { historicoService } from '../services/historico';
 import { exportUtils } from '../utils/exportUtils';
@@ -13,6 +13,7 @@ export const Historico = () => {
   const [filtroFecha, setFiltroFecha] = useState('');
   const [filtroBodega, setFiltroBodega] = useState('todos');
   const [filtroUsuario, setFiltroUsuario] = useState('todos');
+  const [filtroTipo, setFiltroTipo] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
   const [expandedRegistros, setExpandedRegistros] = useState<Set<string>>(new Set());
   const [mostrarSoloConCero, setMostrarSoloConCero] = useState(false);
@@ -23,8 +24,12 @@ export const Historico = () => {
   const usuario = authService.getUsuarioActual();
   const esAdmin = authService.esAdmin();
 
-  // Obtener fecha de hoy en formato local
-  const fechaHoy = new Date().toLocaleDateString('es-EC');
+  // Obtener fecha de hoy en formato ISO (YYYY-MM-DD)
+  const hoy = new Date();
+  const año = hoy.getFullYear();
+  const mes = (hoy.getMonth() + 1).toString().padStart(2, '0');
+  const dia = hoy.getDate().toString().padStart(2, '0');
+  const fechaHoy = `${año}-${mes}-${dia}`;
 
   useEffect(() => {
     cargarHistoricos();
@@ -45,21 +50,18 @@ export const Historico = () => {
 
   // Verificar si un registro es del día actual
   const esRegistroDeHoy = (fechaRegistro: string): boolean => {
-    console.log('📅 Comparando fechas:', {
-      fechaRegistro,
-      fechaHoy,
-      sonIguales: fechaRegistro === fechaHoy
-    });
-    
-    // Normalizar ambas fechas para comparación
+    // Normalizar ambas fechas a formato ISO (YYYY-MM-DD)
     const normalizarFecha = (fecha: string): string => {
       try {
-        // Si la fecha viene en formato ISO (YYYY-MM-DD)
-        if (fecha.includes('-') && fecha.length === 10) {
-          const [year, month, day] = fecha.split('-');
-          return `${parseInt(day)}/${parseInt(month)}/${year}`;
+        // Si ya está en formato ISO (YYYY-MM-DD)
+        if (fecha.includes('-') && fecha.split('-')[0].length === 4) {
+          return fecha;
         }
-        // Si ya está en formato DD/MM/YYYY
+        // Si está en formato DD/MM/YYYY, convertir a ISO
+        if (fecha.includes('/')) {
+          const [d, m, y] = fecha.split('/');
+          return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
         return fecha;
       } catch {
         return fecha;
@@ -68,12 +70,6 @@ export const Historico = () => {
     
     const fechaRegistroNorm = normalizarFecha(fechaRegistro);
     const fechaHoyNorm = normalizarFecha(fechaHoy);
-    
-    console.log('📅 Fechas normalizadas:', {
-      fechaRegistroNorm,
-      fechaHoyNorm,
-      sonIguales: fechaRegistroNorm === fechaHoyNorm
-    });
     
     return fechaRegistroNorm === fechaHoyNorm;
   };
@@ -251,8 +247,23 @@ export const Historico = () => {
 
       // Filtro por fecha
       if (filtroFecha) {
-        const fechaFormateada = new Date(filtroFecha).toLocaleDateString('es-EC');
-        if (inv.fecha !== fechaFormateada) {
+        // Normalizar la fecha del registro a formato ISO para comparación
+        const normalizarAISO = (fecha: string): string => {
+          // Si ya está en formato ISO
+          if (fecha.includes('-') && fecha.split('-')[0].length === 4) {
+            return fecha;
+          }
+          // Si está en formato DD/MM/YYYY
+          if (fecha.includes('/')) {
+            const [d, m, y] = fecha.split('/');
+            return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+          }
+          return fecha;
+        };
+        
+        const fechaRegistroISO = normalizarAISO(inv.fecha);
+        
+        if (fechaRegistroISO !== filtroFecha) {
           return false;
         }
       }
@@ -277,6 +288,18 @@ export const Historico = () => {
       if (mostrarSoloConCero) {
         const tieneProductosEnCero = inv.productos.some(p => p.total === 0);
         if (!tieneProductosEnCero) {
+          return false;
+        }
+      }
+
+      // Filtro por tipo de producto
+      if (filtroTipo !== 'todos') {
+        const tieneProductosTipo = inv.productos.some(p => {
+          // Handle missing tipo field
+          if (!p.tipo || p.tipo === '') return false;
+          return p.tipo === filtroTipo;
+        });
+        if (!tieneProductosTipo) {
           return false;
         }
       }
@@ -374,10 +397,6 @@ export const Historico = () => {
             <Database className="w-3 h-3 text-blue-600" />
             <span className="text-blue-700 font-medium">Base de datos</span>
           </div>
-          <div className="flex items-center gap-1 px-2 py-1 bg-green-50 rounded-full">
-            <CheckCircle2 className="w-3 h-3 text-green-600" />
-            <span className="text-green-700 font-medium">Sincronizado</span>
-          </div>
           <div className="flex items-center gap-1 px-2 py-1 bg-orange-50 rounded-full">
             <CloudOff className="w-3 h-3 text-orange-600" />
             <span className="text-orange-700 font-medium">Pendiente</span>
@@ -445,6 +464,21 @@ export const Historico = () => {
                   {usr}
                 </option>
               ))}
+            </select>
+          </div>
+
+          {/* Filtro tipo de producto */}
+          <div className="relative">
+            <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <select
+              value={filtroTipo}
+              onChange={(e) => setFiltroTipo(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400 appearance-none"
+            >
+              <option value="todos">Todos los tipos</option>
+              <option value="A">Tipo A</option>
+              <option value="B">Tipo B</option>
+              <option value="C">Tipo C</option>
             </select>
           </div>
 
@@ -532,15 +566,10 @@ export const Historico = () => {
                     <p className="text-xs text-gray-500">{registro.fecha} - {registro.hora}</p>
                     <p className="text-xs text-gray-600 mt-1">Por: {registro.usuario}</p>
                     <div className="mt-2">
-                      {registro.origen === 'database' ? (
+                      {(registro.origen === 'database' || registro.sincronizado) ? (
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full font-medium">
                           <Database className="w-3 h-3" />
                           Base de datos
-                        </span>
-                      ) : registro.sincronizado ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full font-medium">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Sincronizado
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full font-medium">
@@ -669,15 +698,10 @@ export const Historico = () => {
                               HOY
                             </span>
                           )}
-                          {registro.origen === 'database' ? (
+                          {(registro.origen === 'database' || registro.sincronizado) ? (
                             <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full font-medium flex items-center gap-1">
                               <Database className="w-3 h-3" />
                               BD
-                            </span>
-                          ) : registro.sincronizado ? (
-                            <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full font-medium flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" />
-                              Sincronizado
                             </span>
                           ) : (
                             <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full font-medium flex items-center gap-1">
@@ -784,12 +808,27 @@ export const Historico = () => {
                                       <tr key={idx} className={`${esProductoEnCero ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-blue-50/50 transition-colors`}>
                                         <td className="py-3 px-3 sm:px-4">
                                           <p className="font-medium text-gray-900 text-xs sm:text-sm">{producto.nombre}</p>
-                                          {producto.codigo && (
-                                            <p className="text-xs text-gray-500">Cód: {producto.codigo}</p>
-                                          )}
+                                          <div className="flex gap-2 mt-1">
+                                            {producto.codigo && <span className="text-xs text-gray-500">Cód: {producto.codigo}</span>}
+                                            {producto.tipo ? (
+                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
+                                                Tipo {producto.tipo}
+                                              </span>
+                                            ) : (
+                                              registro.origen === 'database' ? (
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs text-gray-400 italic">
+                                                  Sin tipo
+                                                </span>
+                                              ) : (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200 italic">
+                                                  Sin tipo
+                                                </span>
+                                              )
+                                            )}
+                                          </div>
                                         </td>
                                         <td className="py-3 px-3 sm:px-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">
-                                          {producto.categoria || '-'}
+                                          {producto.categoria || <span className="text-gray-400 italic">Sin categoría</span>}
                                         </td>
                                         <td className="py-3 px-2 text-center">
                                           <span className={`font-mono font-medium text-xs sm:text-sm ${producto.c1 === 0 ? 'text-red-600' : 'text-purple-700'}`}>
@@ -879,7 +918,7 @@ export const Historico = () => {
                     {registro.productos.map(producto => (
                       <tr key={producto.id} className={producto.total === 0 ? 'bg-red-50' : ''}>
                         <td className="py-2 pr-4">{producto.nombre}</td>
-                        <td className="py-2 pr-4 text-gray-600">{producto.categoria || '-'}</td>
+                        <td className="py-2 pr-4 text-gray-600">{producto.categoria || <span className="text-gray-400 italic">Sin categoría</span>}</td>
                         <td className="py-2 pr-4 text-right font-mono">{formatearNumero(producto.c1)}</td>
                         <td className="py-2 pr-4 text-right font-mono">{formatearNumero(producto.c2)}</td>
                         <td className="py-2 pr-4 text-right font-mono">{formatearNumero(producto.c3)}</td>
@@ -918,6 +957,20 @@ export const Historico = () => {
             <p className="text-xs sm:text-sm text-amber-800 font-medium">Protección de datos históricos</p>
             <p className="text-xs text-amber-700 mt-0.5 sm:mt-1">
               Solo puedes eliminar registros del día actual. Los registros históricos están protegidos para mantener la integridad de los datos.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Mensaje informativo sobre campos faltantes */}
+      {registrosFiltrados.some(r => r.origen === 'database') && (
+        <div className="mt-4 sm:mt-6 bg-blue-50 border border-blue-200 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
+          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs sm:text-sm text-blue-800 font-medium">Información sobre categorías y tipos</p>
+            <p className="text-xs text-blue-700 mt-0.5 sm:mt-1">
+              Los campos "Categoría" y "Tipo A,B o C" pueden aparecer vacíos en registros históricos de la base de datos. 
+              Estos campos se muestran cuando están disponibles y se incluyen en todas las exportaciones.
             </p>
           </div>
         </div>

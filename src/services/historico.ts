@@ -4,6 +4,39 @@ import { authService } from './auth';
 // URL del API backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
+// Helper function to find the tipo field with various possible names
+function obtenerTipoProducto(fields: any): string {
+  // Lista de posibles nombres del campo tipo
+  const posiblesNombres = [
+    'Tipo A,B o C',
+    'Tipo A, B o C',
+    'Tipo A,B,C',
+    'Tipo A, B, C',
+    'Tipo ABC',
+    'TipoABC',
+    'Tipo',
+    'tipo'
+  ];
+  
+  // Buscar el campo con cualquiera de los nombres posibles
+  for (const nombre of posiblesNombres) {
+    if (fields[nombre]) {
+      return fields[nombre];
+    }
+  }
+  
+  // Si no se encuentra, buscar cualquier campo que contenga "tipo" (case insensitive)
+  const campoTipo = Object.keys(fields).find(key => 
+    key.toLowerCase().includes('tipo') && fields[key]
+  );
+  
+  if (campoTipo) {
+    return fields[campoTipo];
+  }
+  
+  return '';
+}
+
 
 // Función para generar ID único con formato: YYMMDD-[número]codigo+timestamp
 function generarIdUnico(fecha: string, bodegaId: number, codigoProducto: string): string {
@@ -52,13 +85,39 @@ export const historicoService = {
     const hora = ahora.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
 
     // Convertir productos guardados a formato histórico
-    const productosHistorico: ProductoHistorico[] = Array.from(productosGuardados).map(productoId => {
+    const productosHistorico: ProductoHistorico[] = Array.from(productosGuardados).map((productoId, index) => {
       const producto = productos.find(p => p.id === productoId);
       const conteo = conteos[productoId];
       
       if (!producto || !conteo) return null;
 
       const total = conteo.c1 + conteo.c2 + conteo.c3;
+      
+      // Debug: Ver campos del producto (solo el primero)
+      if (index === 0) {
+        console.log('🔍 Campos disponibles del producto:', Object.keys(producto.fields));
+        console.log('🔍 Producto completo:', producto.fields);
+        
+        // Buscar cualquier campo que contenga "tipo" (case insensitive)
+        const camposTipo = Object.keys(producto.fields).filter(key => 
+          key.toLowerCase().includes('tipo')
+        );
+        console.log('🔍 Campos que contienen "tipo":', camposTipo);
+        
+        // Mostrar valores de posibles campos tipo
+        console.log('🔍 Valores de campos tipo:', {
+          'Tipo A,B o C': producto.fields['Tipo A,B o C'],
+          'Tipo A, B o C': producto.fields['Tipo A, B o C'],
+          'Tipo': producto.fields['Tipo'],
+          ...camposTipo.reduce((acc, campo) => {
+            acc[campo] = producto.fields[campo];
+            return acc;
+          }, {} as any)
+        });
+        
+        // Debug: Mostrar categoría
+        console.log('🔍 Categoría del producto:', producto.fields['Categoría']);
+      }
       
       // Obtener el código del producto desde los campos de Airtable
       let codigoProducto = '';
@@ -76,6 +135,15 @@ export const historicoService = {
       // Generar ID único con el nuevo formato
       const idUnico = generarIdUnico(fechaISO, bodegaId, codigoProducto);
       
+      // Log para depuración de categoría y tipo
+      if (index === 0) {
+        console.log('🎯 Datos finales del producto:', {
+          nombre: producto.fields['Nombre Producto'],
+          categoria: producto.fields['Categoría'],
+          tipo: obtenerTipoProducto(producto.fields)
+        });
+      }
+      
       return {
         id: idUnico,
         codigo: codigoProducto, // Código de Airtable
@@ -88,7 +156,8 @@ export const historicoService = {
         cantidadPedir: conteo.cantidadPedir,
         unidad: producto.fields['Unidad Conteo Bodega Principal'] || 'unidades',
         unidadBodega: producto.fields[`Unidad Conteo ${bodegaNombre}`] || 'unidades',
-        equivalencia: producto.fields['Equivalencias Inventarios']
+        equivalencia: producto.fields['Equivalencias Inventarios'],
+        tipo: obtenerTipoProducto(producto.fields)
       };
     }).filter(Boolean) as ProductoHistorico[];
 
@@ -489,6 +558,12 @@ export const historicoService = {
       8: 'Santo Cachón',
       9: 'Bodega Pulmon'
     };
+    
+    // Log para verificar estructura de datos de BD
+    if (datos.length > 0) {
+      console.log('📊 Datos de BD - Primer registro:', datos[0]);
+      console.log('📊 Campos disponibles:', Object.keys(datos[0]));
+    }
 
     // Agrupar productos por fecha y usuario (sesión de inventario)
     const sesiones: { [key: string]: any[] } = {};
@@ -542,6 +617,18 @@ export const historicoService = {
 
       // Convertir cada fila en un ProductoHistorico
       const productosHistorico: ProductoHistorico[] = productos.map(row => {
+        // Debug log para el primer producto
+        if (productos.indexOf(row) === 0) {
+          console.log('🔍 Datos DB - Campos disponibles:', Object.keys(row));
+          console.log('🔍 Datos DB - Valores:', {
+            categoria: row.categoria,
+            categoría: row.categoría,
+            tipo: row.tipo,
+            tipo_abc: row.tipo_abc,
+            tipo_a_b_c: row.tipo_a_b_c
+          });
+        }
+        
         // Parsear cantidades (formato: "1+2+3+0")
         const cantidadesStr = row.cantidades || row.cantidad || '';
         const cantidadesParts = cantidadesStr.split('+').map((n: string) => parseFloat(n) || 0);
@@ -553,7 +640,8 @@ export const historicoService = {
           id: row.id || row.codtomas || '',
           codigo: row.codigo || row.cod_prod || '',
           nombre: row.producto || row.productos || '',
-          categoria: row.categoria || '',
+          categoria: row.categoria || row.categoría || '', // Try both 'categoria' and 'categoría'
+          tipo: row.tipo || row['tipo_abc'] || row['tipo_a_b_c'] || '', // Try different field names
           c1,
           c2,
           c3,

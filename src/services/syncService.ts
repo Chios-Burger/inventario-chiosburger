@@ -34,14 +34,15 @@ class SyncService {
     return [];
   }
 
-  // Marcar registro como sincronizado
+  // Eliminar registro pendiente después de sincronizar exitosamente
   private markAsSynced(registroId: string): void {
     const historicos = this.getLocalRecords();
     const index = historicos.findIndex(h => h.id === registroId);
     if (index !== -1) {
-      historicos[index].sincronizado = true;
-      historicos[index].fechaSincronizacion = new Date().toISOString();
+      // En lugar de marcar como sincronizado, eliminar el registro pendiente
+      historicos.splice(index, 1);
       localStorage.setItem('historicos', JSON.stringify(historicos));
+      console.log(`🗑️ Registro pendiente ${registroId} eliminado después de sincronizar`);
     }
   }
 
@@ -132,14 +133,13 @@ class SyncService {
   // Obtener estado actual de sincronización
   getStatus(): SyncStatus {
     const pendientes = this.getPendingRecords().length;
-    const historicos = this.getLocalRecords();
-    const sincronizados = historicos.filter(h => h.sincronizado).length;
     const ultimaSincStr = localStorage.getItem('ultimaSincronizacion');
     const ultimaSincronizacion = ultimaSincStr ? new Date(ultimaSincStr) : null;
-
+    
+    // Ya no contamos sincronizados porque se eliminan automáticamente
     return {
       pendientes,
-      sincronizados,
+      sincronizados: 0,
       errores: 0,
       ultimaSincronizacion
     };
