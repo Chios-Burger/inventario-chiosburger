@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Loader2, AlertCircle, Package2, X, Save, Clock, TrendingUp, BarChart3, Award, ArrowUp, Sparkles, Activity, ArrowUpDown, ArrowUp01, ArrowDown01, Hash, Tag, XCircle } from 'lucide-react';
+import { Search, Loader2, AlertCircle, Package2, X, Save, Clock, TrendingUp, BarChart3, Award, ArrowUp, Sparkles, Activity, ArrowUpDown, ArrowUp01, ArrowDown01, Hash, Tag } from 'lucide-react';
 import type { Producto } from '../types/index';
 import { ProductoConteo } from './ProductoConteo';
 import { Toast } from './Toast';
 import { Timer } from './Timer';
 import { airtableService } from '../services/airtable';
 import { historicoService } from '../services/historico';
+import { authService } from '../services/auth';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useDebounce } from '../hooks/useDebounce';
 
@@ -13,6 +14,52 @@ interface ListaProductosProps {
   bodegaId: number;
   bodegaNombre: string;
 }
+
+// Función helper para obtener el día actual
+const getDiaActual = (): number => {
+  return new Date().getDay(); // 0 = Domingo, 1 = Lunes, etc.
+};
+
+// Función helper para obtener los tipos permitidos según bodega y día
+const getTiposPermitidos = (bodegaId: number, dia: number, userEmail?: string): string[] | null => {
+  // Super admin ve todo
+  if (userEmail === 'analisis@chiosburger.com') {
+    return ['A', 'B', 'C']; // Todos los tipos
+  }
+
+  // Chios (IDs: 4, 5, 6)
+  if ([4, 5, 6].includes(bodegaId)) {
+    switch (dia) {
+      case 1: return ['A', 'C']; // Lunes
+      case 2: return ['B', 'A']; // Martes (igual que miércoles)
+      case 3: return ['B', 'A']; // Miércoles
+      case 5: return ['B', 'A']; // Viernes
+      default: return null; // No hay toma otros días
+    }
+  }
+  
+  // Simón Bolívar (ID: 7)
+  if (bodegaId === 7) {
+    switch (dia) {
+      case 0: return ['A', 'B', 'C']; // Domingo
+      case 2: return ['A', 'B']; // Martes (igual que miércoles)
+      case 3: return ['A', 'B']; // Miércoles
+      default: return null; // No hay toma otros días
+    }
+  }
+  
+  // Santo Cachón (ID: 8)
+  if (bodegaId === 8) {
+    switch (dia) {
+      case 1: return ['A', 'B']; // Lunes
+      case 5: return ['A', 'B', 'C']; // Viernes
+      default: return null; // No hay toma otros días
+    }
+  }
+  
+  // Otras bodegas: mostrar todos
+  return ['A', 'B', 'C'];
+};
 
 export const ListaProductos = ({ 
   bodegaId, 
@@ -29,11 +76,10 @@ export const ListaProductos = ({
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showMetrics, setShowMetrics] = useState(false);
-  const [showBlockedMessage, setShowBlockedMessage] = useState(false);
   const [mostrarSinContarPrimero, setMostrarSinContarPrimero] = useState(false);
-  const [reordenandoAnimacion, setReordenandoAnimacion] = useState(false);
   const [ordenSnapshot, setOrdenSnapshot] = useState<string[]>([]); // Guardar el orden en el momento del clic
-  const intervalRef = useRef<number | null>(null);
+  const [guardandoInventario, setGuardandoInventario] = useState(false); // Estado para mostrar mensaje de guardado
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isOnline = useOnlineStatus();
   const debouncedBusqueda = useDebounce(busqueda, 300);
   
@@ -78,7 +124,7 @@ export const ListaProductos = ({
   };
 
   // Calcular métricas
-  const calculateMetrics = () => {
+  const calculateMetrics = (totalProductos: number) => {
     const totalTime = elapsedTime;
     const productosPorMinuto = totalTime > 0 ? ((productosGuardados.size / totalTime) * 60).toFixed(1) : '0';
     const tiempoPromedio = productosGuardados.size > 0 ? Math.round(totalTime / productosGuardados.size) : 0;
@@ -92,7 +138,7 @@ export const ListaProductos = ({
       productosPorMinuto,
       tiempoPromedio: formatTime(tiempoPromedio),
       productosConCero,
-      eficiencia: Math.round((productosGuardados.size / productos.length) * 100)
+      eficiencia: Math.round((productosGuardados.size / totalProductos) * 100)
     };
   };
 
@@ -103,6 +149,13 @@ export const ListaProductos = ({
       setConteos(JSON.parse(datosGuardados));
       setToast({ message: 'Datos locales cargados', type: 'info' });
     }
+    
+    // Cargar productos guardados del localStorage
+    const productosGuardadosLocal = localStorage.getItem(`productosGuardados_${bodegaId}`);
+    if (productosGuardadosLocal) {
+      setProductosGuardados(new Set(JSON.parse(productosGuardadosLocal)));
+    }
+    
     cargarProductos();
   }, [bodegaId]);
 
@@ -120,13 +173,41 @@ export const ListaProductos = ({
     }
   };
 
+
+  // Obtener tipos permitidos para hoy (memoizado para evitar recálculos)
+  const usuario = useMemo(() => authService.getUsuarioActual(), []);
+  const diaActual = useMemo(() => getDiaActual(), []);
+  const tiposPermitidosHoy = useMemo(() => getTiposPermitidos(bodegaId, diaActual, usuario?.email), [bodegaId, diaActual, usuario?.email]);
+  const hayTomaHoy = tiposPermitidosHoy !== null;
+
   const productosFiltrados = useMemo(() => {
-    // Primero filtrar por búsqueda
+    // Si no hay toma hoy, retornar array vacío
+    if (!hayTomaHoy) {
+      return [];
+    }
+
+    // Primero filtrar por tipo permitido
+    // COMENTADO TEMPORALMENTE: Mostrar todos los productos sin filtrar por tipo A,B,C
+    // let productosFiltrados = productos.filter(producto => {
+    //   const tipoProducto = producto.fields['Tipo A,B o C'] as string;
+    //   
+    //   
+    //   // Si no tiene tipo o es un valor no válido, no mostrar
+    //   if (!tipoProducto || !['A', 'B', 'C'].includes(tipoProducto)) {
+    //     return false;
+    //   }
+    //   
+    //   // Verificar si el tipo está permitido hoy
+    //   return tiposPermitidosHoy?.includes(tipoProducto) || false;
+    // });
+    
+    // Mostrar todos los productos sin filtro de tipo
     let productosFiltrados = productos;
     
+    // Luego filtrar por búsqueda
     if (debouncedBusqueda.trim()) {
       const busquedaLower = debouncedBusqueda.toLowerCase();
-      productosFiltrados = productos.filter(producto => {
+      productosFiltrados = productosFiltrados.filter(producto => {
         const nombre = producto.fields['Nombre Producto']?.toLowerCase() || '';
         const categoria = producto.fields['Categoría']?.toLowerCase() || '';
         const codigo = producto.fields['Código']?.toLowerCase() || producto.fields['Codigo']?.toLowerCase() || '';
@@ -181,7 +262,7 @@ export const ListaProductos = ({
     });
     
     return productosOrdenados;
-  }, [productos, debouncedBusqueda, ordenCategoria, ordenCodigo, mostrarSinContarPrimero, ordenSnapshot]);
+  }, [productos, debouncedBusqueda, ordenCategoria, ordenCodigo, mostrarSinContarPrimero, ordenSnapshot, hayTomaHoy, tiposPermitidosHoy]);
 
   const handleConteoChange = useCallback((productoId: string, nuevoConteo: any) => {
     setConteos(prev => {
@@ -194,18 +275,58 @@ export const ListaProductos = ({
     });
   }, [bodegaId]);
 
-  const handleGuardarProducto = useCallback(async (productoId: string) => {
-    if (!conteos[productoId]) return;
+  // Nueva función para manejar acciones rápidas (Producto en 0, Producto Inactivo)
+  const handleAccionRapida = useCallback((productoId: string, valores: any) => {
+    // Primero actualizar el conteo
+    setConteos(prev => {
+      const nuevosConteos = {
+        ...prev,
+        [productoId]: valores
+      };
+      localStorage.setItem(`conteos_${bodegaId}`, JSON.stringify(nuevosConteos));
+      return nuevosConteos;
+    });
+    
+    // Luego marcar como guardado inmediatamente
+    setProductosGuardados(prev => {
+      const newSet = new Set(prev).add(productoId);
+      localStorage.setItem(`productosGuardados_${bodegaId}`, JSON.stringify([...newSet]));
+      return newSet;
+    });
+    
+    setToast({ message: '✨ Producto guardado exitosamente', type: 'success' });
+  }, [bodegaId]);
+
+  const handleGuardarProducto = useCallback(async (productoId: string, esAccionRapida?: boolean, valoresRapidos?: any) => {
+    // Si es acción rápida, usar la nueva función
+    if (esAccionRapida && valoresRapidos) {
+      handleAccionRapida(productoId, valoresRapidos);
+      return;
+    }
+    
+    // Verificar que el producto tenga un conteo válido
+    const conteo = conteos[productoId];
+    if (!conteo) return;
     
     setGuardandoProductos(prev => new Set(prev).add(productoId));
     
     try {
       if (isOnline) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        setProductosGuardados(prev => new Set(prev).add(productoId));
+        setProductosGuardados(prev => {
+          const newSet = new Set(prev).add(productoId);
+          // Persistir en localStorage
+          localStorage.setItem(`productosGuardados_${bodegaId}`, JSON.stringify([...newSet]));
+          return newSet;
+        });
         setToast({ message: '✨ Producto guardado exitosamente', type: 'success' });
       } else {
-        setProductosGuardados(prev => new Set(prev).add(productoId));
+        setProductosGuardados(prev => {
+          const newSet = new Set(prev).add(productoId);
+          // Persistir en localStorage
+          localStorage.setItem(`productosGuardados_${bodegaId}`, JSON.stringify([...newSet]));
+          return newSet;
+        });
         setToast({ message: '📱 Guardado localmente', type: 'offline' });
       }
     } catch (error) {
@@ -217,10 +338,12 @@ export const ListaProductos = ({
         return newSet;
       });
     }
-  }, [conteos]);
+  }, [conteos, handleAccionRapida]);
 
   const handleGuardar = async () => {
-    // Verificar productos sin contar antes de guardar
+    // CAMBIO TEMPORAL: Permitir guardar sin completar todos los productos
+    // Comentado para pruebas
+    /*
     const productosSinContarActual = productos.filter(producto => {
       // Un producto está contado SOLO si ha sido guardado explícitamente
       return !productosGuardados.has(producto.id);
@@ -230,20 +353,22 @@ export const ListaProductos = ({
       setToast({ message: `Aún hay ${productosSinContarActual.length} productos sin guardar`, type: 'error' });
       return;
     }
+    */
 
+    // Mostrar mensaje de guardado
+    setGuardandoInventario(true);
+    
     try {
       if (isOnline) {
         // Guardar en histórico y base de datos
         const duracion = formatTime(elapsedTime);
-        // Crear un Set con TODOS los productos (no solo los marcados como guardados)
-        const todosLosProductosIds = new Set(productos.map(p => p.id));
         
         await historicoService.guardarInventario(
           bodegaId,
           bodegaNombre,
           productos,
           conteos,
-          todosLosProductosIds, // Enviar TODOS los productos
+          productosGuardados, // Enviar solo los productos guardados explícitamente
           duracion
         );
         
@@ -256,12 +381,16 @@ export const ListaProductos = ({
         
         setToast({ message: '🎉 Inventario guardado exitosamente', type: 'success' });
         localStorage.removeItem(`conteos_${bodegaId}`);
+        localStorage.removeItem(`productosGuardados_${bodegaId}`);
       } else {
         setToast({ message: '📱 Guardado offline - Se sincronizará cuando haya conexión', type: 'offline' });
       }
     } catch (error) {
       console.error('Error al guardar inventario:', error);
       setToast({ message: 'Error al guardar el inventario', type: 'error' });
+    } finally {
+      // Ocultar mensaje de guardado
+      setGuardandoInventario(false);
     }
   };
 
@@ -274,8 +403,9 @@ export const ListaProductos = ({
     return !estaGuardado;
   }).length;
   
-  // Verificar si se puede guardar inventario
-  const sePuedeGuardar = productosSinContar === 0 && productos.length > 0;
+  // CAMBIO TEMPORAL: Permitir guardar inventario siempre
+  // const sePuedeGuardar = productosSinContar === 0 && productos.length > 0;
+  const sePuedeGuardar = productos.length > 0; // Solo verificar que haya productos
   
   // Desactivar el reordenamiento cuando todos los productos estén contados
   useEffect(() => {
@@ -295,8 +425,9 @@ export const ListaProductos = ({
   };
 
   const productosGuardadosCount = productosGuardados.size;
+  // Usar el total de productos en lugar de productos filtrados para el porcentaje
   const porcentajeCompletado = productos.length > 0 ? Math.min(Math.round((productosGuardadosCount / productos.length) * 100), 100) : 0;
-  const metrics = showMetrics ? calculateMetrics() : null;
+  const metrics = showMetrics ? calculateMetrics(productos.length) : null;
 
   if (loading) {
     return (
@@ -340,6 +471,28 @@ export const ListaProductos = ({
           type={toast.type}
           onClose={() => setToast(null)}
         />
+      )}
+
+      {/* Mensaje de guardado */}
+      {guardandoInventario && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full animate-in fade-in zoom-in duration-300">
+            <div className="flex flex-col items-center">
+              <div className="w-20 h-20 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center mb-6">
+                <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 text-center">
+                Guardando Inventario
+              </h3>
+              <p className="text-gray-600 text-center text-sm sm:text-base">
+                Espera mientras se guardan los datos ingresados...
+              </p>
+              <p className="text-gray-500 text-xs sm:text-sm mt-4 text-center">
+                Por favor, no cierres la aplicación
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Status Cards flotantes - móvil y desktop */}
@@ -402,6 +555,19 @@ export const ListaProductos = ({
           )}
         </div>
         
+        
+        {/* Información de tipos permitidos hoy - COMENTADO */}
+        {/* hayTomaHoy && tiposPermitidosHoy && (
+          <div className="mb-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-blue-600" />
+              <p className="text-sm text-blue-800">
+                <span className="font-semibold">Productos del día:</span> 
+                {' Tipo ' + tiposPermitidosHoy.join(', ')}
+              </p>
+            </div>
+          </div>
+        ) */}
         
         {/* Filtros de ordenamiento */}
         <div className="mt-4">
@@ -571,8 +737,23 @@ export const ListaProductos = ({
       )}
 
       {/* Lista de productos */}
-      <div className={`space-y-4 ${reordenandoAnimacion ? 'transition-all duration-500' : ''}`}>
-        {productosFiltrados.length === 0 ? (
+      <div className="space-y-4">
+        {!hayTomaHoy ? (
+          <div className="text-center py-20">
+            <div className="w-24 h-24 bg-orange-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="w-12 h-12 text-orange-500" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              No hay toma física programada para hoy
+            </h3>
+            <p className="text-gray-600">
+              {bodegaId === 7 ? 'Las tomas físicas son: Domingo (todos), Martes y Miércoles (A y B)' :
+               bodegaId === 8 ? 'Las tomas físicas son: Lunes (A y B) y Viernes (todos)' :
+               [4, 5, 6].includes(bodegaId) ? 'Las tomas físicas son: Lunes (A y C), Martes/Miércoles/Viernes (B y A)' :
+               'Esta bodega no tiene restricciones por día'}
+            </p>
+          </div>
+        ) : productosFiltrados.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-24 h-24 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
               <Package2 className="w-12 h-12 text-gray-400" />
@@ -587,9 +768,7 @@ export const ListaProductos = ({
             return (
               <div 
                 key={producto.id} 
-                className={`${sinContar ? 'ring-2 ring-red-400 rounded-2xl' : ''} ${
-                  reordenandoAnimacion ? 'animate-pulse' : ''
-                } transition-all duration-300`}
+                className={`${sinContar ? 'ring-2 ring-red-400 rounded-2xl' : ''} transition-all duration-300`}
               >
                 <ProductoConteo
                   producto={producto}
@@ -599,6 +778,7 @@ export const ListaProductos = ({
                   onGuardarProducto={handleGuardarProducto}
                   guardando={guardandoProductos.has(producto.id)}
                   isGuardado={productosGuardados.has(producto.id)}
+                  conteoInicial={conteos[producto.id]}
                 />
               </div>
             );
@@ -606,60 +786,9 @@ export const ListaProductos = ({
         )}
       </div>
 
-      {/* Mensaje flotante de productos sin contar */}
-      {showBlockedMessage && (
-        <div 
-          className="fixed bottom-32 sm:bottom-40 right-4 sm:right-8 z-50 transition-all duration-300"
-          style={{
-            animation: 'fadeInOut 2s ease-in-out',
-            opacity: 0,
-            transform: 'translateY(10px)',
-            animationFillMode: 'forwards'
-          }}
-        >
-          <div className="bg-red-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2">
-            <XCircle className="w-5 h-5" />
-            <span className="font-medium">Productos sin contar: {productosSinContar}</span>
-          </div>
-          <style>{`
-            @keyframes fadeInOut {
-              0% {
-                opacity: 0;
-                transform: translateY(10px);
-              }
-              20% {
-                opacity: 1;
-                transform: translateY(0);
-              }
-              80% {
-                opacity: 1;
-                transform: translateY(0);
-              }
-              100% {
-                opacity: 0;
-                transform: translateY(-10px);
-              }
-            }
-            
-            @keyframes fadeIn {
-              from {
-                opacity: 0;
-                transform: translateY(-10px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-            
-            .animate-fade-in {
-              animation: fadeIn 0.3s ease-out;
-            }
-          `}</style>
-        </div>
-      )}
 
       {/* Floating Action Buttons - Responsivo para móviles */}
+      {hayTomaHoy && (
       <div className="fixed bottom-4 sm:bottom-8 right-4 sm:right-8 z-50 flex flex-col items-end gap-3 sm:gap-4">
         {/* Botón principal */}
         <div className="relative">
@@ -677,41 +806,16 @@ export const ListaProductos = ({
           )}
           
           <button
+            disabled={!sePuedeGuardar}
             onClick={() => {
-              if (!sePuedeGuardar) {
-                // Capturar el orden actual con productos sin guardar primero
-                const productosConOrden = [...productos].sort((a, b) => {
-                  // Un producto está sin contar si NO ha sido guardado
-                  const aSinContar = !productosGuardados.has(a.id);
-                  const bSinContar = !productosGuardados.has(b.id);
-                  
-                  // Si uno está sin contar y otro no, el sin contar va primero
-                  if (aSinContar && !bSinContar) return -1;
-                  if (!aSinContar && bSinContar) return 1;
-                  
-                  // Mantener el orden original para los demás
-                  return 0;
-                });
-                
-                // Guardar el snapshot del orden
-                setOrdenSnapshot(productosConOrden.map(p => p.id));
-                setMostrarSinContarPrimero(true);
-                setShowBlockedMessage(true);
-                setReordenandoAnimacion(true);
-                
-                setTimeout(() => {
-                  setShowBlockedMessage(false);
-                }, 2000);
-                
-                setTimeout(() => {
-                  setReordenandoAnimacion(false);
-                }, 500);
-                return;
+              if (sePuedeGuardar) {
+                if (window.confirm('¿Estás seguro de que deseas guardar el inventario completo?')) {
+                  handleGuardar();
+                }
               }
-              handleGuardar();
             }}
             className={`group relative px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-semibold text-white transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base ${
-              sePuedeGuardar 
+              sePuedeGuardar
                 ? 'bg-gradient-to-r from-purple-500 to-blue-600 hover:shadow-2xl hover:scale-105' 
                 : 'bg-gray-400 cursor-not-allowed'
             }`}
@@ -722,6 +826,7 @@ export const ListaProductos = ({
           </button>
         </div>
       </div>
+      )}
 
       {/* Botón scroll to top - Solo visible en desktop */}
       <button

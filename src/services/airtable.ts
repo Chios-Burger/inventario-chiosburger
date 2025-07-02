@@ -41,6 +41,11 @@ export const airtableService = {
 
         // Filtrar solo productos donde el campo de control = "Sí"
         params.filterByFormula = `{${campoControl}} = "Sí"`;
+        
+        // Comentar los campos específicos para que Airtable devuelva todos
+        // params.fields = ['Nombre Producto', 'Categoría', 'Código', 'Codigo', 
+        //                 'Unidad Conteo Bodega Principal', 'Equivalencias Inventarios',
+        //                 campoControl, this.obtenerCampoUnidad(bodegaId)];
 
         const response = await axios.get<AirtableResponse>(url, {
           headers: {

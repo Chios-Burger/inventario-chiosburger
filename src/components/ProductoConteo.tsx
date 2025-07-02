@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo, useRef } from 'react';
 import type { Producto } from '../types/index';
 import { Package, Loader2, Check, Hash, Edit3, XCircle, Ban } from 'lucide-react';
 
@@ -13,9 +13,16 @@ interface ProductoConteoProps {
     cantidadPedir: number;
     touched?: boolean;
   }) => void;
-  onGuardarProducto?: (productoId: string) => void;
+  onGuardarProducto?: (productoId: string, esAccionRapida?: boolean, valoresRapidos?: any) => void;
   guardando?: boolean;
   isGuardado?: boolean;
+  conteoInicial?: {
+    c1: number;
+    c2: number;
+    c3: number;
+    cantidadPedir: number;
+    touched?: boolean;
+  };
 }
 
 const ProductoConteoComponent = ({ 
@@ -25,18 +32,30 @@ const ProductoConteoComponent = ({
   onConteoChange,
   onGuardarProducto,
   guardando = false,
-  isGuardado = false
+  isGuardado = false,
+  conteoInicial
 }: ProductoConteoProps) => {
-  const [c1, setC1] = useState<number>(0);
-  const [c2, setC2] = useState<number>(0);
-  const [c3, setC3] = useState<number>(0);
-  const [cantidadPedir, setCantidadPedir] = useState<number>(0);
-  const [touched, setTouched] = useState(false);
+  const [c1, setC1] = useState<number>(conteoInicial?.c1 || 0);
+  const [c2, setC2] = useState<number>(conteoInicial?.c2 || 0);
+  const [c3, setC3] = useState<number>(conteoInicial?.c3 || 0);
+  const [cantidadPedir, setCantidadPedir] = useState<number>(conteoInicial?.cantidadPedir || 0);
+  const [touched, setTouched] = useState(conteoInicial?.touched || false);
   const [savedValues, setSavedValues] = useState<{c1: number; c2: number; c3: number; cantidadPedir: number} | null>(null);
 
   const total = c1 + c2 + c3;
   const hasData = touched && (c1 > 0 || c2 > 0 || c3 > 0 || cantidadPedir > 0);
   const isInactive = c1 === -1 && c2 === -1 && c3 === -1; // Producto marcado como inactivo
+  
+  // Actualizar valores solo cuando cambie el producto (no cuando el usuario esté escribiendo)
+  useEffect(() => {
+    if (conteoInicial && !touched) {
+      setC1(conteoInicial.c1 || 0);
+      setC2(conteoInicial.c2 || 0);
+      setC3(conteoInicial.c3 || 0);
+      setCantidadPedir(conteoInicial.cantidadPedir || 0);
+      setTouched(conteoInicial.touched || false);
+    }
+  }, [producto.id]); // Solo cuando cambie el producto
   
   // Función para obtener cantidad de decimales
   const getDecimalPlaces = (num: number): number => {
@@ -60,12 +79,30 @@ const ProductoConteoComponent = ({
     savedValues.cantidadPedir !== cantidadPedir
   );
 
+  // Usar un ref para el timeout de debounce
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     // Solo enviar el cambio si el usuario ha tocado el producto
     if (touched || isGuardado) {
-      onConteoChange(producto.id, { c1, c2, c3, cantidadPedir, touched: true });
+      // Cancelar el timeout anterior si existe
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+      
+      // Establecer un nuevo timeout para enviar los cambios después de 300ms
+      debounceTimer.current = setTimeout(() => {
+        onConteoChange(producto.id, { c1, c2, c3, cantidadPedir, touched: true });
+      }, 300);
     }
-  }, [c1, c2, c3, cantidadPedir, producto.id, touched, isGuardado]);
+    
+    // Limpiar el timeout cuando el componente se desmonte
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [c1, c2, c3, cantidadPedir, producto.id, touched, isGuardado, onConteoChange]);
 
   // Cuando se guarda, almacenar los valores actuales
   useEffect(() => {
@@ -102,42 +139,41 @@ const ProductoConteoComponent = ({
   };
 
   const handleProductoEnCero = () => {
-    if (onGuardarProducto) {
-      // Establecer todos los valores en 0
-      setC1(0);
-      setC2(0);
-      setC3(0);
-      setCantidadPedir(0);
-      setTouched(true);
-      
-      // Esperar un ciclo para que se actualicen los valores
-      setTimeout(() => {
-        onGuardarProducto(producto.id);
-        // Actualizar los valores guardados
-        setSavedValues({ c1: 0, c2: 0, c3: 0, cantidadPedir: 0 });
-        setIsEditing(false);
-      }, 100);
-    }
+    if (!onGuardarProducto) return;
+    
+    // Valores para producto en 0
+    const nuevosValores = { c1: 0, c2: 0, c3: 0, cantidadPedir: 0, touched: true };
+    
+    // Actualizar estado local inmediatamente
+    setC1(0);
+    setC2(0);
+    setC3(0);
+    setCantidadPedir(0);
+    setTouched(true);
+    setSavedValues(nuevosValores);
+    setIsEditing(false);
+    
+    // Llamar a guardar con flag de acción rápida
+    onGuardarProducto(producto.id, true, nuevosValores);
   };
 
   const handleProductoInactivo = () => {
-    if (onGuardarProducto) {
-      // Para marcar como inactivo, usamos -1 como valor especial
-      // que el backend interpretará como NULL
-      setC1(-1);
-      setC2(-1);
-      setC3(-1);
-      setCantidadPedir(-1);
-      setTouched(true);
-      
-      // Esperar un ciclo para que se actualicen los valores
-      setTimeout(() => {
-        onGuardarProducto(producto.id);
-        // Actualizar los valores guardados
-        setSavedValues({ c1: -1, c2: -1, c3: -1, cantidadPedir: -1 });
-        setIsEditing(false);
-      }, 100);
-    }
+    if (!onGuardarProducto) return;
+    
+    // Valores para producto inactivo
+    const nuevosValores = { c1: -1, c2: -1, c3: -1, cantidadPedir: -1, touched: true };
+    
+    // Actualizar estado local inmediatamente
+    setC1(-1);
+    setC2(-1);
+    setC3(-1);
+    setCantidadPedir(-1);
+    setTouched(true);
+    setSavedValues(nuevosValores);
+    setIsEditing(false);
+    
+    // Llamar a guardar con flag de acción rápida
+    onGuardarProducto(producto.id, true, nuevosValores);
   };
 
   // Estado para rastrear si estamos en modo edición

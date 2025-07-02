@@ -6,6 +6,14 @@ export interface Producto {
     'Código'?: string;
     'Codigo'?: string;
     'Equivalencias Inventarios'?: string;
+    // Campos de tipo de producto (diferentes variaciones posibles)
+    'Tipo A,B o C'?: string;
+    'Tipo A, B o C'?: string;
+    'Tipo A,B,C'?: string;
+    'Tipo A, B, C'?: string;
+    'Tipo ABC'?: string;
+    'TipoABC'?: string;
+    'Tipo'?: string;
     // Campos de control por bodega
     'Conteo Bodega Principal'?: string;
     'Conteo Bodega Materia Prima'?: string;
@@ -62,6 +70,7 @@ export interface ProductoHistorico {
   codigo?: string;
   nombre: string;
   categoria?: string;
+  tipo?: string; // Tipo A, B o C
   c1: number;
   c2: number;
   c3: number;
@@ -75,6 +84,7 @@ export interface ProductoHistorico {
 export interface RegistroHistorico {
   id: string;
   fecha: string;
+  fechaDisplay?: string; // Para mostrar en formato local
   hora: string;
   bodega: string;
   bodegaId: number;
@@ -85,6 +95,8 @@ export interface RegistroHistorico {
   duracion: string;
   timestamp: number;
   origen?: 'local' | 'database'; // Indicador del origen de los datos
+  sincronizado?: boolean; // Estado de sincronización
+  fechaSincronizacion?: string; // Fecha ISO de última sincronización
 }
 
 export interface RegistroDiario {

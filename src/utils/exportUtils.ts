@@ -15,8 +15,10 @@ export const exportUtils = {
   exportarCSV(registro: RegistroHistorico): void {
     // Crear contenido CSV con separador de punto y coma para mejor compatibilidad con Excel
     const headers = [
+      'Código',
       'Producto',
       'Categoría',
+      'Tipo',
       'Conteo 1',
       'Conteo 2',
       'Conteo 3',
@@ -28,8 +30,10 @@ export const exportUtils = {
     ];
 
     const rows = registro.productos.map(p => [
+      p.codigo || '',
       p.nombre,
-      p.categoria || '',
+      p.categoria || 'Sin categoría',
+      p.tipo || 'Sin tipo',
       this.formatearNumeroParaExport(p.c1),
       this.formatearNumeroParaExport(p.c2),
       this.formatearNumeroParaExport(p.c3),
@@ -44,9 +48,11 @@ export const exportUtils = {
     const totalGeneral = registro.productos.reduce((acc, p) => acc + p.total, 0);
     const totalCantidadPedir = registro.productos.reduce((acc, p) => acc + p.cantidadPedir, 0);
     
-    rows.push(['', '', '', '', '', '', '', '', '', '']); // Línea vacía
+    rows.push(['', '', '', '', '', '', '', '', '', '', '', '']); // Línea vacía
     rows.push([
+      '',
       'TOTALES',
+      '',
       '',
       '',
       '',
@@ -231,8 +237,10 @@ export const exportUtils = {
         <table>
           <thead>
             <tr>
+              <th>Código</th>
               <th>Producto</th>
               <th>Categoría</th>
+              <th>Tipo</th>
               <th class="numeric">C1</th>
               <th class="numeric">C2</th>
               <th class="numeric">C3</th>
@@ -245,8 +253,10 @@ export const exportUtils = {
           <tbody>
             ${registro.productos.map(p => `
               <tr class="${p.total === 0 ? 'zero-row' : ''}">
+                <td>${p.codigo || '-'}</td>
                 <td>${p.nombre}</td>
-                <td>${p.categoria || '-'}</td>
+                <td>${p.categoria || 'Sin categoría'}</td>
+                <td>${p.tipo || 'Sin tipo'}</td>
                 <td class="numeric">${formatNum(p.c1)}</td>
                 <td class="numeric">${formatNum(p.c2)}</td>
                 <td class="numeric">${formatNum(p.c3)}</td>
@@ -257,7 +267,7 @@ export const exportUtils = {
               </tr>
             `).join('')}
             <tr class="totals-row">
-              <td colspan="5" style="text-align: right;">TOTAL GENERAL:</td>
+              <td colspan="7" style="text-align: right;">TOTAL GENERAL:</td>
               <td class="numeric">${formatNum(registro.productos.reduce((acc, p) => acc + p.total, 0))}</td>
               <td class="numeric">${formatNum(registro.productos.reduce((acc, p) => acc + p.cantidadPedir, 0))}</td>
               <td colspan="2"></td>
@@ -315,8 +325,10 @@ export const exportUtils = {
       'Hora',
       'Bodega',
       'Usuario',
+      'Código',
       'Producto',
       'Categoría',
+      'Tipo',
       'Conteo 1',
       'Conteo 2',
       'Conteo 3',
@@ -348,8 +360,10 @@ export const exportUtils = {
           registro.hora,
           registro.bodega,
           registro.usuario,
+          p.codigo || '',
           p.nombre,
-          p.categoria || '',
+          p.categoria || 'Sin categoría',
+          p.tipo || 'Sin tipo',
           this.formatearNumeroParaExport(p.c1),
           this.formatearNumeroParaExport(p.c2),
           this.formatearNumeroParaExport(p.c3),

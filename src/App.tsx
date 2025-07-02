@@ -5,6 +5,7 @@ import { SelectorBodega } from './components/SelectorBodega';
 import { ListaProductos } from './components/ListaProductos';
 import { Historico } from './components/Historico';
 import { authService } from './services/auth';
+import { syncService } from './services/syncService';
 import type { Usuario } from './types/index';
 import './App.css';
 
@@ -22,6 +23,14 @@ function App() {
     if (usuarioGuardado) {
       setUsuario(usuarioGuardado);
     }
+    
+    // Iniciar sincronización automática
+    syncService.startAutoSync();
+    
+    return () => {
+      // Detener sincronización al desmontar
+      syncService.stopAutoSync();
+    };
   }, []);
 
   const handleLogin = () => {

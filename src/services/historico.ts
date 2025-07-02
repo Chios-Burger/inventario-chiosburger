@@ -4,6 +4,39 @@ import { authService } from './auth';
 // URL del API backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
+// Helper function to find the tipo field with various possible names
+function obtenerTipoProducto(fields: any): string {
+  // Lista de posibles nombres del campo tipo
+  const posiblesNombres = [
+    'Tipo A,B o C',
+    'Tipo A, B o C',
+    'Tipo A,B,C',
+    'Tipo A, B, C',
+    'Tipo ABC',
+    'TipoABC',
+    'Tipo',
+    'tipo'
+  ];
+  
+  // Buscar el campo con cualquiera de los nombres posibles
+  for (const nombre of posiblesNombres) {
+    if (fields[nombre]) {
+      return fields[nombre];
+    }
+  }
+  
+  // Si no se encuentra, buscar cualquier campo que contenga "tipo" (case insensitive)
+  const campoTipo = Object.keys(fields).find(key => 
+    key.toLowerCase().includes('tipo') && fields[key]
+  );
+  
+  if (campoTipo) {
+    return fields[campoTipo];
+  }
+  
+  return '';
+}
+
 
 // Función para generar ID único con formato: YYMMDD-[número]codigo+timestamp
 function generarIdUnico(fecha: string, bodegaId: number, codigoProducto: string): string {
@@ -47,18 +80,44 @@ export const historicoService = {
     const ahora = new Date();
     // Formato para mostrar
     const fechaDisplay = ahora.toLocaleDateString('es-EC');
-    // Formato para el ID (YYYY-MM-DD)
+    // Formato para el ID y la base de datos (YYYY-MM-DD)
     const fechaISO = ahora.toISOString().split('T')[0];
     const hora = ahora.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
 
     // Convertir productos guardados a formato histórico
-    const productosHistorico: ProductoHistorico[] = Array.from(productosGuardados).map(productoId => {
+    const productosHistorico: ProductoHistorico[] = Array.from(productosGuardados).map((productoId, index) => {
       const producto = productos.find(p => p.id === productoId);
       const conteo = conteos[productoId];
       
       if (!producto || !conteo) return null;
 
       const total = conteo.c1 + conteo.c2 + conteo.c3;
+      
+      // Debug: Ver campos del producto (solo el primero)
+      if (index === 0) {
+        console.log('🔍 Campos disponibles del producto:', Object.keys(producto.fields));
+        console.log('🔍 Producto completo:', producto.fields);
+        
+        // Buscar cualquier campo que contenga "tipo" (case insensitive)
+        const camposTipo = Object.keys(producto.fields).filter(key => 
+          key.toLowerCase().includes('tipo')
+        );
+        console.log('🔍 Campos que contienen "tipo":', camposTipo);
+        
+        // Mostrar valores de posibles campos tipo
+        console.log('🔍 Valores de campos tipo:', {
+          'Tipo A,B o C': producto.fields['Tipo A,B o C'],
+          'Tipo A, B o C': producto.fields['Tipo A, B o C'],
+          'Tipo': producto.fields['Tipo'],
+          ...camposTipo.reduce((acc, campo) => {
+            acc[campo] = producto.fields[campo];
+            return acc;
+          }, {} as any)
+        });
+        
+        // Debug: Mostrar categoría
+        console.log('🔍 Categoría del producto:', producto.fields['Categoría']);
+      }
       
       // Obtener el código del producto desde los campos de Airtable
       let codigoProducto = '';
@@ -76,6 +135,15 @@ export const historicoService = {
       // Generar ID único con el nuevo formato
       const idUnico = generarIdUnico(fechaISO, bodegaId, codigoProducto);
       
+      // Log para depuración de categoría y tipo
+      if (index === 0) {
+        console.log('🎯 Datos finales del producto:', {
+          nombre: producto.fields['Nombre Producto'],
+          categoria: producto.fields['Categoría'],
+          tipo: obtenerTipoProducto(producto.fields)
+        });
+      }
+      
       return {
         id: idUnico,
         codigo: codigoProducto, // Código de Airtable
@@ -88,13 +156,15 @@ export const historicoService = {
         cantidadPedir: conteo.cantidadPedir,
         unidad: producto.fields['Unidad Conteo Bodega Principal'] || 'unidades',
         unidadBodega: producto.fields[`Unidad Conteo ${bodegaNombre}`] || 'unidades',
-        equivalencia: producto.fields['Equivalencias Inventarios']
+        equivalencia: producto.fields['Equivalencias Inventarios'],
+        tipo: obtenerTipoProducto(producto.fields)
       };
     }).filter(Boolean) as ProductoHistorico[];
 
     const registro: RegistroHistorico = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      fecha: fechaDisplay,
+      fecha: fechaISO, // Usar formato ISO para la base de datos
+      fechaDisplay, // Mantener fecha en formato display para localStorage
       hora,
       usuario: usuario.nombre,
       bodega: bodegaNombre,
@@ -107,9 +177,14 @@ export const historicoService = {
       origen: 'local' // Marcar como origen local
     };
 
-    // Guardar en localStorage primero
+    // Guardar en localStorage primero (con fechaDisplay para mostrar)
+    const registroParaLocalStorage = {
+      ...registro,
+      fecha: fechaDisplay, // En localStorage guardamos la fecha en formato display
+      sincronizado: false // Marcar como no sincronizado inicialmente
+    };
     const registrosExistentes = this.obtenerHistoricosLocales();
-    registrosExistentes.push(registro);
+    registrosExistentes.push(registroParaLocalStorage);
     localStorage.setItem('historicos', JSON.stringify(registrosExistentes));
     console.log('✅ Guardado en localStorage', { registroId: registro.id });
 
@@ -144,6 +219,15 @@ export const historicoService = {
       } else {
         const result = await response.json();
         console.log('✅ Inventario guardado en base de datos exitosamente', result);
+        
+        // Marcar como sincronizado en localStorage
+        const registrosActualizados = this.obtenerHistoricosLocales();
+        const indice = registrosActualizados.findIndex(r => r.id === registro.id);
+        if (indice !== -1) {
+          registrosActualizados[indice].sincronizado = true;
+          registrosActualizados[indice].fechaSincronizacion = new Date().toISOString();
+          localStorage.setItem('historicos', JSON.stringify(registrosActualizados));
+        }
       }
     } catch (error) {
       console.error('❌ Error de conexión con el servidor:', error);
@@ -229,10 +313,118 @@ export const historicoService = {
       });
   },
 
-  async eliminarHistorico(id: string): Promise<void> {
-    const historicos = await this.obtenerHistoricos();
-    const nuevosHistoricos = historicos.filter(h => h.id !== id);
-    localStorage.setItem('historicos', JSON.stringify(nuevosHistoricos));
+  async eliminarHistorico(id: string, usuario: any, eliminarDeBD: boolean = false): Promise<void> {
+    console.log('🔍 Eliminando registro con ID:', id);
+    console.log('👤 Usuario:', usuario.email);
+    console.log('🗄️ Eliminar de BD:', eliminarDeBD);
+    
+    // Obtener TODOS los registros (locales y de BD)
+    const todosLosHistoricos = await this.obtenerHistoricos();
+    console.log('📋 Total de registros encontrados:', todosLosHistoricos.length);
+    console.log('🔎 IDs disponibles:', todosLosHistoricos.map(h => h.id));
+    console.log('🔍 Buscando coincidencia exacta para ID:', id);
+    console.log('🧐 Tipo de ID buscado:', typeof id);
+    console.log('📊 Primeros 5 registros con sus IDs y tipos:', 
+      todosLosHistoricos.slice(0, 5).map(h => ({ 
+        id: h.id, 
+        tipo: typeof h.id,
+        origen: h.origen,
+        fecha: h.fecha 
+      }))
+    );
+    
+    const registroAEliminar = todosLosHistoricos.find(h => h.id === id);
+    
+    // Si no encontramos el registro y el usuario es super admin, intentar eliminarlo de todos modos
+    if (!registroAEliminar && usuario.email === 'analisis@chiosburger.com') {
+      console.warn('⚠️ Registro no encontrado localmente, pero intentando eliminar de BD para super admin');
+      console.log('📋 IDs disponibles:', todosLosHistoricos.map(h => h.id));
+      
+      // Crear un registro temporal solo para la eliminación
+      const registroTemporal = {
+        id: id,
+        origen: 'database',
+        fecha: new Date().toISOString(),
+        productos: []
+      };
+      
+      // Intentar eliminar directamente de BD
+      const response = await fetch(`${API_URL}/inventario/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          usuarioEmail: usuario.email,
+          usuarioNombre: usuario.nombre,
+          registroData: registroTemporal,
+          eliminarDeBD: true,
+          esDeBD: true,
+          forzarEliminacion: true
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al eliminar registro de BD');
+      }
+      
+      console.log('✅ Registro eliminado de BD (forzado para super admin)');
+      return;
+    }
+    
+    if (!registroAEliminar) {
+      console.error('❌ Registro no encontrado con ID:', id);
+      console.error('📋 Registros disponibles:', todosLosHistoricos.map(h => ({ id: h.id, fecha: h.fecha, origen: h.origen })));
+      throw new Error('Registro no encontrado');
+    }
+    
+    console.log('✅ Registro encontrado:', registroAEliminar);
+    
+    try {
+      // Para registros de database, necesitamos información adicional
+      let bodyData: any = {
+        usuarioEmail: usuario.email,
+        usuarioNombre: usuario.nombre,
+        registroData: registroAEliminar,
+        eliminarDeBD: eliminarDeBD
+      };
+
+      // Si es un registro de database, incluir información para identificarlo en BD
+      if (registroAEliminar.origen === 'database') {
+        bodyData.esDeBD = true;
+        bodyData.fecha = registroAEliminar.fecha;
+        bodyData.bodegaId = registroAEliminar.bodegaId;
+        // Incluir los productos para poder identificar el registro en BD
+        bodyData.productos = registroAEliminar.productos;
+      }
+
+      // Enviar a auditoría y eliminar de BD si es necesario
+      const response = await fetch(`${API_URL}/inventario/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bodyData)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al eliminar registro');
+      }
+
+      // Eliminar de localStorage solo si es un registro local
+      if (registroAEliminar.origen === 'local' || !registroAEliminar.origen) {
+        const historicosLocales = this.obtenerHistoricosLocales();
+        const nuevosHistoricos = historicosLocales.filter(h => h.id !== id);
+        localStorage.setItem('historicos', JSON.stringify(nuevosHistoricos));
+      }
+      
+      console.log('✅ Registro eliminado y auditado correctamente');
+    } catch (error) {
+      console.error('❌ Error al eliminar registro:', error);
+      throw error;
+    }
   },
 
   limpiarHistoricos(): void {
@@ -259,6 +451,100 @@ export const historicoService = {
     return [];
   },
 
+  // Editar un producto de un registro
+  async editarProducto(
+    registroId: string,
+    productoId: string,
+    nuevoTotal: number,
+    nuevaCantidadPedir: number,
+    motivo: string,
+    usuario: any,
+    registro: any
+  ): Promise<void> {
+    try {
+      // Buscar el registro en localStorage o BD
+      const todosLosHistoricos = await this.obtenerHistoricos();
+      const registroActual = todosLosHistoricos.find(h => h.id === registroId);
+      
+      if (!registroActual) {
+        throw new Error('Registro no encontrado');
+      }
+      
+      // Buscar el producto específico
+      const productoIndex = registroActual.productos.findIndex(p => p.id === productoId);
+      if (productoIndex === -1) {
+        throw new Error('Producto no encontrado');
+      }
+      
+      const producto = registroActual.productos[productoIndex];
+      const valorAnteriorTotal = producto.total;
+      const valorAnteriorCantidad = producto.cantidadPedir;
+      const diferenciaTotal = nuevoTotal - valorAnteriorTotal;
+      const diferenciaCantidad = nuevaCantidadPedir - valorAnteriorCantidad;
+      
+      // Preparar datos para auditoría y actualización
+      const datosEdicion = {
+        registroId: registroId,
+        productoId: productoId,
+        valorAnteriorTotal: valorAnteriorTotal,
+        valorNuevoTotal: nuevoTotal,
+        diferenciaTotal: diferenciaTotal,
+        valorAnteriorCantidad: valorAnteriorCantidad,
+        valorNuevoCantidad: nuevaCantidadPedir,
+        diferenciaCantidad: diferenciaCantidad,
+        motivo: motivo || '',
+        usuarioEmail: usuario.email,
+        usuarioNombre: usuario.nombre,
+        productoNombre: producto.nombre,
+        productoCodigo: producto.codigo || '',
+        bodegaId: registro.bodegaId,
+        bodegaNombre: registro.bodega,
+        fechaRegistro: new Date(registroActual.timestamp || Date.now()).toISOString()
+      };
+      
+      console.log('📤 Enviando datos de edición:', datosEdicion);
+      console.log('📌 URL:', `${API_URL}/inventario/${registroId}/editar`);
+      
+      // Enviar al backend para actualizar BD y crear auditoría
+      const response = await fetch(`${API_URL}/inventario/${registroId}/editar`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(datosEdicion)
+      });
+      
+      if (!response.ok) {
+        let errorMessage = 'Error al editar el producto';
+        try {
+          const error = await response.json();
+          errorMessage = error.message || error.error || errorMessage;
+          console.error('❌ Error del servidor:', error);
+        } catch (e) {
+          console.error('❌ Error al parsear respuesta:', e);
+        }
+        throw new Error(errorMessage);
+      }
+      
+      // Actualizar en localStorage si es un registro local
+      if (registroActual.origen === 'local' || !registroActual.origen) {
+        const historicosLocales = this.obtenerHistoricosLocales();
+        const registroLocalIndex = historicosLocales.findIndex(h => h.id === registroId);
+        
+        if (registroLocalIndex !== -1) {
+          historicosLocales[registroLocalIndex].productos[productoIndex].total = nuevoTotal;
+          historicosLocales[registroLocalIndex].productos[productoIndex].cantidadPedir = nuevaCantidadPedir;
+          localStorage.setItem('historicos', JSON.stringify(historicosLocales));
+        }
+      }
+      
+      console.log('✅ Producto editado correctamente');
+    } catch (error) {
+      console.error('❌ Error al editar producto:', error);
+      throw error;
+    }
+  },
+
   // Función auxiliar para convertir datos de BD al formato RegistroHistorico
   convertirDatosBD(datos: any[], bodegaId: number): RegistroHistorico[] {
     const NOMBRES_BODEGAS: { [key: number]: string } = {
@@ -272,6 +558,12 @@ export const historicoService = {
       8: 'Santo Cachón',
       9: 'Bodega Pulmon'
     };
+    
+    // Log para verificar estructura de datos de BD
+    if (datos.length > 0) {
+      console.log('📊 Datos de BD - Primer registro:', datos[0]);
+      console.log('📊 Campos disponibles:', Object.keys(datos[0]));
+    }
 
     // Agrupar productos por fecha y usuario (sesión de inventario)
     const sesiones: { [key: string]: any[] } = {};
@@ -325,6 +617,18 @@ export const historicoService = {
 
       // Convertir cada fila en un ProductoHistorico
       const productosHistorico: ProductoHistorico[] = productos.map(row => {
+        // Debug log para el primer producto
+        if (productos.indexOf(row) === 0) {
+          console.log('🔍 Datos DB - Campos disponibles:', Object.keys(row));
+          console.log('🔍 Datos DB - Valores:', {
+            categoria: row.categoria,
+            categoría: row.categoría,
+            tipo: row.tipo,
+            tipo_abc: row.tipo_abc,
+            tipo_a_b_c: row.tipo_a_b_c
+          });
+        }
+        
         // Parsear cantidades (formato: "1+2+3+0")
         const cantidadesStr = row.cantidades || row.cantidad || '';
         const cantidadesParts = cantidadesStr.split('+').map((n: string) => parseFloat(n) || 0);
@@ -336,7 +640,8 @@ export const historicoService = {
           id: row.id || row.codtomas || '',
           codigo: row.codigo || row.cod_prod || '',
           nombre: row.producto || row.productos || '',
-          categoria: row.categoria || '',
+          categoria: row.categoria || row.categoría || '', // Try both 'categoria' and 'categoría'
+          tipo: row.tipo || row['tipo_abc'] || row['tipo_a_b_c'] || '', // Try different field names
           c1,
           c2,
           c3,
@@ -348,8 +653,15 @@ export const historicoService = {
         };
       });
 
-      // Generar ID único para la sesión
-      const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      // Generar ID único y consistente para la sesión basado en los datos
+      // Usar el ID del primer producto si existe, o generar uno basado en fecha+usuario+bodega
+      let sessionId = primerProducto.id || '';
+      if (!sessionId || sessionId.length < 10) {
+        // Si no hay ID o es muy corto, generar uno consistente basado en los datos
+        const fechaTimestamp = new Date(primerProducto.fecha).getTime() || Date.now();
+        const usuarioHash = usuario.replace(/[^a-zA-Z0-9]/g, '').substring(0, 5);
+        sessionId = `${fechaTimestamp}-${bodegaId}-${usuarioHash}`;
+      }
 
       return {
         id: sessionId,

@@ -8,7 +8,7 @@ interface TimerProps {
 
 const TimerComponent = ({ startTime, className = "" }: TimerProps) => {
   const [elapsedTime, setElapsedTime] = useState(0);
-  const intervalRef = useRef<number | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const updateElapsedTime = () => {
