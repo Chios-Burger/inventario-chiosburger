@@ -34,7 +34,7 @@ const getTiposPermitidos = (bodegaId: number, dia: number, userEmail?: string): 
       case 2: return ['B', 'A']; // Martes (igual que miércoles)
       case 3: return ['B', 'A']; // Miércoles
       case 5: return ['B', 'A']; // Viernes
-      default: return null; // No hay toma otros días
+      default: return ['A', 'B', 'C'];  // No hay toma otros días
     }
   }
   
@@ -44,7 +44,7 @@ const getTiposPermitidos = (bodegaId: number, dia: number, userEmail?: string): 
       case 0: return ['A', 'B', 'C']; // Domingo
       case 2: return ['A', 'B']; // Martes (igual que miércoles)
       case 3: return ['A', 'B']; // Miércoles
-      default: return null; // No hay toma otros días
+      default: return ['A', 'B', 'C'];  // No hay toma otros díastoma otros días
     }
   }
   
