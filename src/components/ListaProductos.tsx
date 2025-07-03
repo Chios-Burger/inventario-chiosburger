@@ -53,7 +53,7 @@ const getTiposPermitidos = (bodegaId: number, dia: number, userEmail?: string): 
     switch (dia) {
       case 1: return ['A', 'B']; // Lunes
       case 5: return ['A', 'B', 'C']; // Viernes
-      default: return null; // No hay toma otros días
+      default: return ['A', 'B', 'C'];  // No hay toma otros días
     }
   }
   
