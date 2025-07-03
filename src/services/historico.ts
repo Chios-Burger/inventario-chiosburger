@@ -554,7 +554,7 @@ export const historicoService = {
       4: 'Chios Real Audiencia',
       5: 'Chios Floreana',
       6: 'Chios Portugal',
-      7: 'Simón Bolívar',
+      7: 'Simón Bolón',
       8: 'Santo Cachón',
       9: 'Bodega Pulmon'
     };
