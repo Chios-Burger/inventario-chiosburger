@@ -83,8 +83,7 @@ export interface ProductoHistorico {
 
 export interface RegistroHistorico {
   id: string;
-  fecha: string;
-  fechaDisplay?: string; // Para mostrar en formato local
+  fecha: string; // SIEMPRE formato YYYY-MM-DD
   hora: string;
   bodega: string;
   bodegaId: number;

@@ -15,51 +15,7 @@ interface ListaProductosProps {
   bodegaNombre: string;
 }
 
-// Función helper para obtener el día actual
-const getDiaActual = (): number => {
-  return new Date().getDay(); // 0 = Domingo, 1 = Lunes, etc.
-};
-
-// Función helper para obtener los tipos permitidos según bodega y día
-const getTiposPermitidos = (bodegaId: number, dia: number, userEmail?: string): string[] | null => {
-  // Super admin ve todo
-  if (userEmail === 'analisis@chiosburger.com') {
-    return ['A', 'B', 'C']; // Todos los tipos
-  }
-
-  // Chios (IDs: 4, 5, 6)
-  if ([4, 5, 6].includes(bodegaId)) {
-    switch (dia) {
-      case 1: return ['A', 'C']; // Lunes
-      case 2: return ['B', 'A']; // Martes (igual que miércoles)
-      case 3: return ['B', 'A']; // Miércoles
-      case 5: return ['B', 'A']; // Viernes
-      default: return ['A', 'B', 'C'];  // No hay toma otros días
-    }
-  }
-  
-  // Simón Bolívar (ID: 7)
-  if (bodegaId === 7) {
-    switch (dia) {
-      case 0: return ['A', 'B', 'C']; // Domingo
-      case 2: return ['A', 'B']; // Martes (igual que miércoles)
-      case 3: return ['A', 'B']; // Miércoles
-      default: return ['A', 'B', 'C'];  // No hay toma otros díastoma otros días
-    }
-  }
-  
-  // Santo Cachón (ID: 8)
-  if (bodegaId === 8) {
-    switch (dia) {
-      case 1: return ['A', 'B']; // Lunes
-      case 5: return ['A', 'B', 'C']; // Viernes
-      default: return ['A', 'B', 'C'];  // No hay toma otros días
-    }
-  }
-  
-  // Otras bodegas: mostrar todos
-  return ['A', 'B', 'C'];
-};
+// ELIMINADAS las restricciones por día - Todas las bodegas pueden ver todos los productos todos los días
 
 export const ListaProductos = ({ 
   bodegaId, 
@@ -174,34 +130,11 @@ export const ListaProductos = ({
   };
 
 
-  // Obtener tipos permitidos para hoy (memoizado para evitar recálculos)
+  // Todas las bodegas pueden hacer inventario todos los días
   const usuario = useMemo(() => authService.getUsuarioActual(), []);
-  const diaActual = useMemo(() => getDiaActual(), []);
-  const tiposPermitidosHoy = useMemo(() => getTiposPermitidos(bodegaId, diaActual, usuario?.email), [bodegaId, diaActual, usuario?.email]);
-  const hayTomaHoy = tiposPermitidosHoy !== null;
 
   const productosFiltrados = useMemo(() => {
-    // Si no hay toma hoy, retornar array vacío
-    if (!hayTomaHoy) {
-      return [];
-    }
-
-    // Primero filtrar por tipo permitido
-    // COMENTADO TEMPORALMENTE: Mostrar todos los productos sin filtrar por tipo A,B,C
-    // let productosFiltrados = productos.filter(producto => {
-    //   const tipoProducto = producto.fields['Tipo A,B o C'] as string;
-    //   
-    //   
-    //   // Si no tiene tipo o es un valor no válido, no mostrar
-    //   if (!tipoProducto || !['A', 'B', 'C'].includes(tipoProducto)) {
-    //     return false;
-    //   }
-    //   
-    //   // Verificar si el tipo está permitido hoy
-    //   return tiposPermitidosHoy?.includes(tipoProducto) || false;
-    // });
-    
-    // Mostrar todos los productos sin filtro de tipo
+    // Mostrar TODOS los productos TODOS los días para TODAS las bodegas
     let productosFiltrados = productos;
     
     // Luego filtrar por búsqueda
@@ -262,7 +195,7 @@ export const ListaProductos = ({
     });
     
     return productosOrdenados;
-  }, [productos, debouncedBusqueda, ordenCategoria, ordenCodigo, mostrarSinContarPrimero, ordenSnapshot, hayTomaHoy, tiposPermitidosHoy]);
+  }, [productos, debouncedBusqueda, ordenCategoria, ordenCodigo, mostrarSinContarPrimero, ordenSnapshot]);
 
   const handleConteoChange = useCallback((productoId: string, nuevoConteo: any) => {
     setConteos(prev => {
@@ -304,108 +237,71 @@ export const ListaProductos = ({
       return;
     }
     
-    // Verificar que el producto tenga un conteo válido
-    const conteo = conteos[productoId];
-    if (!conteo) return;
+    // Simplemente marcar como guardado
+    setProductosGuardados(prev => {
+      const newSet = new Set(prev).add(productoId);
+      localStorage.setItem(`productosGuardados_${bodegaId}`, JSON.stringify([...newSet]));
+      return newSet;
+    });
     
-    setGuardandoProductos(prev => new Set(prev).add(productoId));
-    
-    try {
-      if (isOnline) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setProductosGuardados(prev => {
-          const newSet = new Set(prev).add(productoId);
-          // Persistir en localStorage
-          localStorage.setItem(`productosGuardados_${bodegaId}`, JSON.stringify([...newSet]));
-          return newSet;
-        });
-        setToast({ message: '✨ Producto guardado exitosamente', type: 'success' });
-      } else {
-        setProductosGuardados(prev => {
-          const newSet = new Set(prev).add(productoId);
-          // Persistir en localStorage
-          localStorage.setItem(`productosGuardados_${bodegaId}`, JSON.stringify([...newSet]));
-          return newSet;
-        });
-        setToast({ message: '📱 Guardado localmente', type: 'offline' });
-      }
-    } catch (error) {
-      setToast({ message: 'Error al guardar producto', type: 'error' });
-    } finally {
-      setGuardandoProductos(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(productoId);
-        return newSet;
-      });
-    }
-  }, [conteos, handleAccionRapida]);
+    setToast({ message: '✅ Producto guardado', type: 'success' });
+  }, [handleAccionRapida, bodegaId]);
 
   const handleGuardar = async () => {
-    // CAMBIO TEMPORAL: Permitir guardar sin completar todos los productos
-    // Comentado para pruebas
-    /*
-    const productosSinContarActual = productos.filter(producto => {
-      // Un producto está contado SOLO si ha sido guardado explícitamente
-      return !productosGuardados.has(producto.id);
-    });
-
-    if (productosSinContarActual.length > 0) {
-      setToast({ message: `Aún hay ${productosSinContarActual.length} productos sin guardar`, type: 'error' });
-      return;
-    }
-    */
-
-    // Mostrar mensaje de guardado
     setGuardandoInventario(true);
     
     try {
       if (isOnline) {
-        // Guardar en histórico y base de datos
         const duracion = formatTime(elapsedTime);
+        
+        // Obtener todos los productos con conteo
+        const productosConConteo = new Set(
+          Object.keys(conteos).filter(productoId => {
+            const conteo = conteos[productoId];
+            return conteo && conteo.touched;
+          })
+        );
+        
+        if (productosConConteo.size === 0) {
+          setToast({ message: '⚠️ No hay productos con conteo para guardar', type: 'error' });
+          setGuardandoInventario(false);
+          return;
+        }
         
         await historicoService.guardarInventario(
           bodegaId,
           bodegaNombre,
           productos,
           conteos,
-          productosGuardados, // Enviar solo los productos guardados explícitamente
+          productosConConteo,
           duracion
         );
         
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-        setShowMetrics(true);
-        
-        setToast({ message: '🎉 Inventario guardado exitosamente', type: 'success' });
+        // Limpiar datos locales
         localStorage.removeItem(`conteos_${bodegaId}`);
         localStorage.removeItem(`productosGuardados_${bodegaId}`);
+        
+        setToast({ message: '✅ Inventario guardado exitosamente', type: 'success' });
+        
+        // Mostrar métricas después de un momento
+        setTimeout(() => setShowMetrics(true), 500);
       } else {
-        setToast({ message: '📱 Guardado offline - Se sincronizará cuando haya conexión', type: 'offline' });
+        setToast({ message: '📱 Guardado offline', type: 'offline' });
       }
     } catch (error) {
-      console.error('Error al guardar inventario:', error);
-      setToast({ message: 'Error al guardar el inventario', type: 'error' });
+      setToast({ message: 'Error al guardar', type: 'error' });
     } finally {
-      // Ocultar mensaje de guardado
       setGuardandoInventario(false);
     }
   };
 
-  // Calcular productos sin contar - SOLO se consideran contados si están guardados
+  // Calcular productos sin contar
   const productosSinContar = productos.filter(producto => {
-    // Un producto está contado SOLO si ha sido guardado explícitamente
-    const estaGuardado = productosGuardados.has(producto.id);
-    
-    // Si está guardado, NO cuenta como "sin contar"
-    return !estaGuardado;
+    const conteo = conteos[producto.id];
+    return !conteo || !conteo.touched;
   }).length;
   
-  // CAMBIO TEMPORAL: Permitir guardar inventario siempre
-  // const sePuedeGuardar = productosSinContar === 0 && productos.length > 0;
-  const sePuedeGuardar = productos.length > 0; // Solo verificar que haya productos
+  const sePuedeGuardar = productos.length > 0;
   
   // Desactivar el reordenamiento cuando todos los productos estén contados
   useEffect(() => {
@@ -416,7 +312,13 @@ export const ListaProductos = ({
   }, [sePuedeGuardar, mostrarSinContarPrimero]);
 
   const obtenerUnidad = (producto: Producto): string => {
-    return producto.fields['Unidad Conteo Bodega Principal'] as string || 'unidades';
+    // Para Chios, Simón Bolón y Santo Cachón, usar la unidad de bodega principal para cantidad a pedir
+    if ([4, 5, 6, 7, 8].includes(bodegaId)) {
+      return producto.fields['Unidad Conteo Bodega Principal'] as string || 'unidades';
+    }
+    // Para las demás bodegas, usar la unidad específica de la bodega
+    const campoUnidad = airtableService.obtenerCampoUnidad(bodegaId);
+    return producto.fields[campoUnidad as keyof typeof producto.fields] as string || 'unidades';
   };
 
   const obtenerUnidadBodega = (producto: Producto): string => {
@@ -554,20 +456,6 @@ export const ListaProductos = ({
             </button>
           )}
         </div>
-        
-        
-        {/* Información de tipos permitidos hoy - COMENTADO */}
-        {/* hayTomaHoy && tiposPermitidosHoy && (
-          <div className="mb-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-blue-600" />
-              <p className="text-sm text-blue-800">
-                <span className="font-semibold">Productos del día:</span> 
-                {' Tipo ' + tiposPermitidosHoy.join(', ')}
-              </p>
-            </div>
-          </div>
-        ) */}
         
         {/* Filtros de ordenamiento */}
         <div className="mt-4">
@@ -738,22 +626,7 @@ export const ListaProductos = ({
 
       {/* Lista de productos */}
       <div className="space-y-4">
-        {!hayTomaHoy ? (
-          <div className="text-center py-20">
-            <div className="w-24 h-24 bg-orange-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <AlertCircle className="w-12 h-12 text-orange-500" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">
-              No hay toma física programada para hoy
-            </h3>
-            <p className="text-gray-600">
-              {bodegaId === 7 ? 'Las tomas físicas son: Domingo (todos), Martes y Miércoles (A y B)' :
-               bodegaId === 8 ? 'Las tomas físicas son: Lunes (A y B) y Viernes (todos)' :
-               [4, 5, 6].includes(bodegaId) ? 'Las tomas físicas son: Lunes (A y C), Martes/Miércoles/Viernes (B y A)' :
-               'Esta bodega no tiene restricciones por día'}
-            </p>
-          </div>
-        ) : productosFiltrados.length === 0 ? (
+        {productosFiltrados.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-24 h-24 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
               <Package2 className="w-12 h-12 text-gray-400" />
@@ -788,7 +661,6 @@ export const ListaProductos = ({
 
 
       {/* Floating Action Buttons - Responsivo para móviles */}
-      {hayTomaHoy && (
       <div className="fixed bottom-4 sm:bottom-8 right-4 sm:right-8 z-50 flex flex-col items-end gap-3 sm:gap-4">
         {/* Botón principal */}
         <div className="relative">
@@ -826,7 +698,6 @@ export const ListaProductos = ({
           </button>
         </div>
       </div>
-      )}
 
       {/* Botón scroll to top - Solo visible en desktop */}
       <button

@@ -50,28 +50,15 @@ export const Historico = () => {
 
   // Verificar si un registro es del día actual
   const esRegistroDeHoy = (fechaRegistro: string): boolean => {
-    // Normalizar ambas fechas a formato ISO (YYYY-MM-DD)
-    const normalizarFecha = (fecha: string): string => {
-      try {
-        // Si ya está en formato ISO (YYYY-MM-DD)
-        if (fecha.includes('-') && fecha.split('-')[0].length === 4) {
-          return fecha;
-        }
-        // Si está en formato DD/MM/YYYY, convertir a ISO
-        if (fecha.includes('/')) {
-          const [d, m, y] = fecha.split('/');
-          return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-        }
-        return fecha;
-      } catch {
-        return fecha;
-      }
-    };
-    
-    const fechaRegistroNorm = normalizarFecha(fechaRegistro);
-    const fechaHoyNorm = normalizarFecha(fechaHoy);
-    
-    return fechaRegistroNorm === fechaHoyNorm;
+    // Como SIEMPRE usamos formato YYYY-MM-DD, solo comparar directamente
+    return fechaRegistro === fechaHoy;
+  };
+
+  // Formatear fecha YYYY-MM-DD a DD/MM/YYYY para visualización
+  const formatearFechaParaMostrar = (fecha: string): string => {
+    if (!fecha || !fecha.includes('-')) return fecha;
+    const [año, mes, dia] = fecha.split('-');
+    return `${dia}/${mes}/${año}`;
   };
 
   // Verificar si el usuario puede eliminar un registro
@@ -229,9 +216,7 @@ export const Historico = () => {
 
   // Filtrar y ordenar registros
   const registrosFiltrados = (() => {
-    let todosRegistros = registrosPorDia.flatMap(dia => 
-      dia.inventarios.map(inv => ({ ...inv, fechaDisplay: dia.fecha }))
-    );
+    let todosRegistros = registrosPorDia.flatMap(dia => dia.inventarios);
 
     // Aplicar filtros
     todosRegistros = todosRegistros.filter(inv => {
@@ -245,27 +230,9 @@ export const Historico = () => {
         return false;
       }
 
-      // Filtro por fecha
-      if (filtroFecha) {
-        // Normalizar la fecha del registro a formato ISO para comparación
-        const normalizarAISO = (fecha: string): string => {
-          // Si ya está en formato ISO
-          if (fecha.includes('-') && fecha.split('-')[0].length === 4) {
-            return fecha;
-          }
-          // Si está en formato DD/MM/YYYY
-          if (fecha.includes('/')) {
-            const [d, m, y] = fecha.split('/');
-            return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-          }
-          return fecha;
-        };
-        
-        const fechaRegistroISO = normalizarAISO(inv.fecha);
-        
-        if (fechaRegistroISO !== filtroFecha) {
-          return false;
-        }
+      // Filtro por fecha (ahora siempre en formato YYYY-MM-DD)
+      if (filtroFecha && inv.fecha !== filtroFecha) {
+        return false;
       }
 
 

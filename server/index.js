@@ -108,7 +108,12 @@ function formatearFecha(fecha) {
   if (partes.length === 3) {
     return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
   }
-  return new Date().toISOString().split('T')[0];
+  // Usar fecha local, no UTC
+  const ahora = new Date();
+  const año = ahora.getFullYear();
+  const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
+  const dia = ahora.getDate().toString().padStart(2, '0');
+  return `${año}-${mes}-${dia}`;
 }
 
 // Crear tabla de auditoría si no existe
@@ -139,9 +144,8 @@ async function crearTablaAuditoria() {
     await client.query('CREATE INDEX IF NOT EXISTS idx_auditoria_ediciones_registro_id ON auditoria_ediciones(registro_id)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_auditoria_ediciones_usuario_email ON auditoria_ediciones(usuario_email)');
     
-    console.log('✅ Tabla auditoria_ediciones verificada/creada');
   } catch (error) {
-    console.error('❌ Error al crear tabla de auditoría:', error);
+    console.error('Error al crear tabla de auditoría:', error);
   } finally {
     client.release();
   }
@@ -170,13 +174,6 @@ app.get('/api/health', async (req, res) => {
 // Endpoint para guardar inventario
 app.post('/api/inventario', async (req, res) => {
   const registro = req.body;
-  console.log('📥 Datos recibidos:', {
-    bodegaId: registro.bodegaId,
-    bodegaIdType: typeof registro.bodegaId,
-    bodega: registro.bodega,
-    tieneProductos: !!registro.productos,
-    cantidadProductos: registro.productos?.length || 0
-  });
   
   const client = await pool.connect();
   
@@ -186,41 +183,17 @@ app.post('/api/inventario', async (req, res) => {
     // Convertir bodegaId a string para buscar en el objeto
     const bodegaIdStr = String(registro.bodegaId);
     
-    console.log('🔍 Conversión bodegaId:', {
-      original: registro.bodegaId,
-      originalType: typeof registro.bodegaId,
-      convertido: bodegaIdStr,
-      convertidoType: typeof bodegaIdStr
-    });
-    
     const tabla = TABLA_POR_BODEGA[bodegaIdStr];
+    
     if (!tabla) {
-      console.error('❌ Bodega no encontrada:', bodegaIdStr, 'Tipo:', typeof bodegaIdStr);
-      console.error('📋 Bodegas disponibles:', Object.keys(TABLA_POR_BODEGA));
-      console.error('🔎 Buscando en objeto:', TABLA_POR_BODEGA);
       throw new Error(`No se encontró tabla para la bodega ${registro.bodegaId} (convertido a string: ${bodegaIdStr})`);
     }
+    
 
     // Procesar cada producto
     for (const producto of registro.productos) {
-      console.log('📦 Procesando producto:', {
-        id: producto.id,
-        idLength: producto.id?.length,
-        nombre: producto.nombre?.substring(0, 30) + '...',
-        codigo: producto.codigo,
-        tieneEquivalencia: !!producto.equivalencia
-      });
-      
       let query;
       let values;
-
-      // Log de valores para depuración
-      console.log('📊 Valores a insertar:', {
-        tabla: tabla,
-        idLength: generarId(producto.id).length,
-        productoNombreLength: producto.nombre?.length,
-        usuarioLength: registro.usuario?.length
-      });
       
       switch (tabla) {
         case 'tomasFisicas':
@@ -239,7 +212,7 @@ app.post('/api/inventario', async (req, res) => {
             formatearCantidades(producto.c1, producto.c2, producto.c3),
             NOMBRE_LOCAL_CHIOS[registro.bodegaId] || '',
             producto.cantidadPedir > 0 ? producto.cantidadPedir.toString() : '',
-            ''
+            producto.unidad || 'unidades' // Guardar la unidad de bodega principal en uni_bod
           ];
           break;
 
@@ -270,13 +243,6 @@ app.post('/api/inventario', async (req, res) => {
           const idGenerado = generarId(producto.id);
           const usuarioFormateado = `${registro.usuario} - materia@chiosburger.com`;
           
-          console.log('🔍 Valores toma_materiaprima:', {
-            id: idGenerado,
-            idLength: idGenerado.length,
-            codigo: producto.id,
-            codigoLength: producto.id.length,
-            usuarioLength: usuarioFormateado.length
-          });
           
           values = [
             idGenerado,
@@ -291,6 +257,7 @@ app.post('/api/inventario', async (req, res) => {
           break;
 
         case 'toma_planta':
+          
           query = `
             INSERT INTO public.toma_planta 
             (id, codigo, producto, fecha, usuario, cantidades, total, unidad)
@@ -570,14 +537,6 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
       fechaRegistro
     } = req.body;
 
-    console.log('=== EDICIÓN DE PRODUCTO ===');
-    console.log('Registro ID:', registroId);
-    console.log('Producto:', productoNombre);
-    console.log('Total anterior:', valorAnteriorTotal, '→ nuevo:', valorNuevoTotal);
-    console.log('Cantidad anterior:', valorAnteriorCantidad, '→ nueva:', valorNuevoCantidad);
-    console.log('Usuario:', usuarioEmail);
-    console.log('BodegaId:', bodegaId);
-    console.log('Todos los datos recibidos:', JSON.stringify(req.body, null, 2));
     
     // Validar y convertir valores
     const totalAnterior = parseFloat(valorAnteriorTotal) || 0;
@@ -587,14 +546,6 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
     const diferenciaTotalCalc = totalNuevo - totalAnterior;
     const diferenciaCantidadCalc = cantidadNueva - cantidadAnterior;
     
-    console.log('📊 Valores procesados:', {
-      totalAnterior,
-      totalNuevo,
-      cantidadAnterior,
-      cantidadNueva,
-      diferenciaTotalCalc,
-      diferenciaCantidadCalc
-    });
 
     // Verificar que la tabla existe para la bodega
     const tablaInventario = TABLA_POR_BODEGA[bodegaId];
@@ -614,7 +565,6 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
     // Verificar si el ID es un timestamp (registros locales)
     if (registroId && registroId.match(/^\d{13}-/)) {
       // Es un timestamp, extraer la fecha de fechaRegistro
-      console.log('📅 ID es un timestamp, usando fechaRegistro');
       if (fechaRegistro) {
         fechaExtraida = fechaRegistro.split('T')[0]; // Obtener solo la fecha
       }
@@ -629,14 +579,11 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
       const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
       
       fechaExtraida = `${fullYear}-${month}-${day}`;
-      console.log('📅 Fecha extraída del ID (DDMMYY):', fechaExtraida);
-      console.log('   Día:', day, 'Mes:', month, 'Año:', fullYear);
     }
     
     // Si no se pudo extraer fecha, usar fechaRegistro
     if (!fechaExtraida && fechaRegistro) {
       fechaExtraida = fechaRegistro.split('T')[0];
-      console.log('📅 Usando fechaRegistro:', fechaExtraida);
     }
 
     // Construir UPDATE query según la estructura de cada tabla
@@ -707,22 +654,15 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
         throw new Error(`Tabla no reconocida para actualización: ${tablaInventario}`);
     }
 
-    console.log('📝 Query de actualización:', updateQuery);
-    console.log('📊 Parámetros:', updateParams);
     
     try {
       const updateResult = await client.query(updateQuery, updateParams);
       
       if (updateResult.rows.length > 0) {
-        console.log('✅ Registro actualizado en tabla:', tablaInventario);
-        console.log('   Filas afectadas:', updateResult.rows.length);
       } else {
-        console.log('⚠️ No se encontró registro para actualizar en tabla:', tablaInventario);
-        console.log('   Continuando con auditoría de todos modos...');
       }
     } catch (updateError) {
-      console.error('❌ Error al actualizar tabla:', updateError.message);
-      console.log('   Continuando con auditoría de todos modos...');
+      console.error('Error al actualizar tabla:', updateError.message);
     }
 
     // 2. Insertar registros de auditoría (uno por cada campo modificado)
@@ -751,7 +691,6 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
     
     // Si no hay cambios, registrar de todos modos
     if (auditorias.length === 0) {
-      console.log('⚠️ No se detectaron cambios en los valores');
       auditorias.push({
         campo: 'sin_cambios',
         valorAnterior: totalAnterior,
@@ -797,7 +736,6 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
       ]);
     }
 
-    console.log('✅ Auditoría registrada');
 
     await client.query('COMMIT');
 
@@ -808,8 +746,7 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('❌ Error al editar producto:', error);
-    console.error('❌ Stack trace:', error.stack);
+    console.error('Error al editar producto:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Error al editar el producto: ' + error.message,
@@ -848,5 +785,5 @@ app.get('/api/auditoria/ediciones', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

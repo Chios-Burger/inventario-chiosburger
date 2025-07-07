@@ -79,30 +79,12 @@ const ProductoConteoComponent = ({
     savedValues.cantidadPedir !== cantidadPedir
   );
 
-  // Usar un ref para el timeout de debounce
-  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
-
   useEffect(() => {
-    // Solo enviar el cambio si el usuario ha tocado el producto
-    if (touched || isGuardado) {
-      // Cancelar el timeout anterior si existe
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-      
-      // Establecer un nuevo timeout para enviar los cambios después de 300ms
-      debounceTimer.current = setTimeout(() => {
-        onConteoChange(producto.id, { c1, c2, c3, cantidadPedir, touched: true });
-      }, 300);
+    // Solo enviar cambios si el usuario tocó el producto
+    if (touched) {
+      onConteoChange(producto.id, { c1, c2, c3, cantidadPedir, touched: true });
     }
-    
-    // Limpiar el timeout cuando el componente se desmonte
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
-  }, [c1, c2, c3, cantidadPedir, producto.id, touched, isGuardado, onConteoChange]);
+  }, [c1, c2, c3, cantidadPedir, touched]);
 
   // Cuando se guarda, almacenar los valores actuales
   useEffect(() => {
@@ -141,14 +123,14 @@ const ProductoConteoComponent = ({
   const handleProductoEnCero = () => {
     if (!onGuardarProducto) return;
     
-    // Valores para producto en 0
-    const nuevosValores = { c1: 0, c2: 0, c3: 0, cantidadPedir: 0, touched: true };
+    // Valores para producto en 0 - mantener la cantidad a pedir actual
+    const nuevosValores = { c1: 0, c2: 0, c3: 0, cantidadPedir: cantidadPedir, touched: true };
     
     // Actualizar estado local inmediatamente
     setC1(0);
     setC2(0);
     setC3(0);
-    setCantidadPedir(0);
+    // NO cambiar cantidadPedir - mantener el valor que ingresó el usuario
     setTouched(true);
     setSavedValues(nuevosValores);
     setIsEditing(false);
