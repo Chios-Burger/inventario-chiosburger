@@ -100,3 +100,90 @@ Si los scripts automáticos no funcionan:
 ## 📞 Soporte
 
 Para soporte adicional, contacta al equipo de desarrollo.
+
+---
+
+## 🔧 RUTAS Y COMANDOS DE DESARROLLO
+
+### **Acceso desde Windows (WSL)**
+
+#### **Opción A - PowerShell/CMD:**
+```powershell
+# Entrar a WSL
+wsl
+
+# Navegar al proyecto
+cd /home/tiago/inventario-chiosburger
+
+# Ejecutar
+bash start.sh
+```
+
+#### **Opción B - Comando directo:**
+```powershell
+wsl -d Ubuntu -e bash -c "cd /home/tiago/inventario-chiosburger && bash start.sh"
+```
+
+#### **Opción C - Windows Terminal:**
+1. Abrir Windows Terminal
+2. Seleccionar perfil Ubuntu
+3. Ejecutar:
+```bash
+cd /home/tiago/inventario-chiosburger
+bash start.sh
+```
+
+### **Ruta en Explorador de Windows**
+```
+\\wsl.localhost\Ubuntu\home\tiago\inventario-chiosburger
+```
+
+### **Comandos para Desarrollo**
+
+#### **Iniciar proyecto (desarrollo):**
+```bash
+# Terminal 1 - Backend
+cd /home/tiago/inventario-chiosburger/server
+npm start
+
+# Terminal 2 - Frontend
+cd /home/tiago/inventario-chiosburger
+npm run dev
+```
+
+#### **URLs de acceso:**
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:3001/api`
+
+### **Comandos para Producción**
+
+#### **Generar build:**
+```bash
+cd /home/tiago/inventario-chiosburger
+npm run build
+```
+
+#### **Archivos generados:**
+- Frontend compilado: `/home/tiago/inventario-chiosburger/dist/`
+- Backend: `/home/tiago/inventario-chiosburger/server/`
+
+### **Estructura de Archivos Clave**
+```
+inventario-chiosburger/
+├── src/                    # Código fuente frontend
+│   ├── components/         # Componentes React
+│   ├── services/          # Servicios (API, BD)
+│   └── types/             # Tipos TypeScript
+├── server/                # Backend Node.js
+│   ├── index.js          # Servidor principal
+│   └── .env              # Variables de entorno
+├── dist/                  # Build de producción
+├── start.sh              # Script inicio Linux
+└── package.json          # Dependencias
+```
+
+### **Detener el Sistema**
+```bash
+# En cada terminal
+Ctrl + C
+```

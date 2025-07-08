@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo, useRef } from 'react';
 import type { Producto } from '../types/index';
 import { Package, Loader2, Check, Hash, Edit3, XCircle, Ban } from 'lucide-react';
 
@@ -115,8 +115,8 @@ const ProductoConteoComponent = ({
 
   // Enviar cambios inmediatamente cuando cambien los valores
   useEffect(() => {
-    // Solo enviar el cambio si el usuario ha tocado el producto
-    if (touched || isGuardado) {
+    // Solo enviar cambios si el usuario tocó el producto
+    if (touched) {
       onConteoChange(producto.id, { c1, c2, c3, cantidadPedir, touched: true });
     }
   }, [c1, c2, c3, cantidadPedir, producto.id, touched, isGuardado, onConteoChange]);

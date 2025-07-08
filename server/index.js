@@ -190,13 +190,6 @@ app.get('/api/health', async (req, res) => {
 // Endpoint para guardar inventario
 app.post('/api/inventario', async (req, res) => {
   const registro = req.body;
-  console.log('📥 Datos recibidos:', {
-    bodegaId: registro.bodegaId,
-    bodegaIdType: typeof registro.bodegaId,
-    bodega: registro.bodega,
-    tieneProductos: !!registro.productos,
-    cantidadProductos: registro.productos?.length || 0
-  });
   
   const client = await pool.connect();
   
@@ -206,41 +199,17 @@ app.post('/api/inventario', async (req, res) => {
     // Convertir bodegaId a string para buscar en el objeto
     const bodegaIdStr = String(registro.bodegaId);
     
-    console.log('🔍 Conversión bodegaId:', {
-      original: registro.bodegaId,
-      originalType: typeof registro.bodegaId,
-      convertido: bodegaIdStr,
-      convertidoType: typeof bodegaIdStr
-    });
-    
     const tabla = TABLA_POR_BODEGA[bodegaIdStr];
+    
     if (!tabla) {
-      console.error('❌ Bodega no encontrada:', bodegaIdStr, 'Tipo:', typeof bodegaIdStr);
-      console.error('📋 Bodegas disponibles:', Object.keys(TABLA_POR_BODEGA));
-      console.error('🔎 Buscando en objeto:', TABLA_POR_BODEGA);
       throw new Error(`No se encontró tabla para la bodega ${registro.bodegaId} (convertido a string: ${bodegaIdStr})`);
     }
+    
 
     // Procesar cada producto
     for (const producto of registro.productos) {
-      console.log('📦 Procesando producto:', {
-        id: producto.id,
-        idLength: producto.id?.length,
-        nombre: producto.nombre?.substring(0, 30) + '...',
-        codigo: producto.codigo,
-        tieneEquivalencia: !!producto.equivalencia
-      });
-      
       let query;
       let values;
-
-      // Log de valores para depuración
-      console.log('📊 Valores a insertar:', {
-        tabla: tabla,
-        idLength: generarId(producto.id).length,
-        productoNombreLength: producto.nombre?.length,
-        usuarioLength: registro.usuario?.length
-      });
       
       switch (tabla) {
         case 'tomasFisicas':
@@ -294,13 +263,6 @@ app.post('/api/inventario', async (req, res) => {
           const idGenerado = generarId(producto.id);
           const usuarioFormateado = `${registro.usuario} - materia@chiosburger.com`;
           
-          console.log('🔍 Valores toma_materiaprima:', {
-            id: idGenerado,
-            idLength: idGenerado.length,
-            codigo: producto.id,
-            codigoLength: producto.id.length,
-            usuarioLength: usuarioFormateado.length
-          });
           
           values = [
             idGenerado,
@@ -317,6 +279,7 @@ app.post('/api/inventario', async (req, res) => {
           break;
 
         case 'toma_planta':
+          
           query = `
             INSERT INTO public.toma_planta 
             (id, codigo, producto, fecha, usuario, cantidades, total, unidad, categoria, "Tipo A,B o C")
@@ -882,5 +845,5 @@ app.get('/api/auditoria/ediciones', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

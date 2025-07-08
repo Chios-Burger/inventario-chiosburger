@@ -1,5 +1,7 @@
 import type { RegistroHistorico } from '../types/index';
+<<<<<<< HEAD
 import { normalizarFechaAISO, obtenerTimestampUTC } from '../utils/dateUtils';
+=======
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -43,6 +45,9 @@ class SyncService {
       // En lugar de marcar como sincronizado, eliminar el registro pendiente
       historicos.splice(index, 1);
       localStorage.setItem('historicos', JSON.stringify(historicos));
+<<<<<<< HEAD
+=======
+      console.log(`🗑️ Registro pendiente ${registroId} eliminado después de sincronizar`);
     }
   }
 
@@ -52,8 +57,11 @@ class SyncService {
       // Convertir fecha display a formato ISO si es necesario
       const registroParaBD = {
         ...registro,
+<<<<<<< HEAD
         fecha: this.convertirFechaAISO(registro.fecha),
         fechaSincronizacion: obtenerTimestampUTC()
+=======
+        fecha: this.convertirFechaAISO(registro.fecha)
       };
 
       const response = await fetch(`${API_URL}/inventario`, {

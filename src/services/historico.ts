@@ -146,6 +146,22 @@ export const historicoService = {
     
     return { success: sincronizados > 0, count: sincronizados };
   },
+  
+  // Método auxiliar para obtener el campo de unidad según la bodega
+  obtenerCampoUnidad(bodegaId: number): string {
+    const campos: { [key: number]: string } = {
+      1: 'Unidad Conteo Bodega Principal',
+      2: 'Unidad Conteo Bodega Materia Prima',
+      3: 'Unidad Conteo Planta Producción',
+      4: 'Unidad Conteo Chios',
+      5: 'Unidad Conteo Chios',
+      6: 'Unidad Conteo Chios',
+      7: 'Unidad Conteo Simón Bolón',
+      8: 'Unidad Conteo Santo Cachón',
+      9: 'Unidad Conteo Bodega Pulmon'
+    };
+    return campos[bodegaId] || '';
+  },
   async guardarInventario(
     bodegaId: number,
     bodegaNombre: string,
@@ -154,6 +170,7 @@ export const historicoService = {
     productosGuardados: Set<string>,
     duracion: string
   ): Promise<void> {
+<<<<<<< HEAD
     const usuario = authService.getUsuarioActual();
     if (!usuario) {
       throw new Error('No hay usuario autenticado');
@@ -168,12 +185,30 @@ export const historicoService = {
 
     // Convertir productos guardados a formato histórico
     const productosHistorico: ProductoHistorico[] = Array.from(productosGuardados).map((productoId) => {
+=======
+    
+    const usuario = authService.getUsuarioActual();
+    if (!usuario) {
+      return;
+    }
+
+    const ahora = new Date();
+    // SIEMPRE usar formato YYYY-MM-DD
+    const año = ahora.getFullYear();
+    const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
+    const dia = ahora.getDate().toString().padStart(2, '0');
+    const fecha = `${año}-${mes}-${dia}`; // SIEMPRE formato YYYY-MM-DD
+    const hora = ahora.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
+
+    // Convertir productos guardados a formato histórico
+    const productosHistorico: ProductoHistorico[] = Array.from(productosGuardados).map((productoId, index) => {
       const producto = productos.find(p => p.id === productoId);
       const conteo = conteos[productoId];
       
       if (!producto || !conteo) return null;
 
       const total = conteo.c1 + conteo.c2 + conteo.c3;
+      
       
       // Obtener el código del producto desde los campos de Airtable
       let codigoProducto = '';
@@ -189,7 +224,18 @@ export const historicoService = {
       }
       
       // Generar ID único con el nuevo formato
-      const idUnico = generarIdUnico(fechaISO, bodegaId, codigoProducto);
+      const idUnico = generarIdUnico(fecha, bodegaId, codigoProducto);
+      
+      
+      // Obtener la unidad correcta según la bodega
+      const campoUnidad = this.obtenerCampoUnidad(bodegaId);
+      const unidadBodega = producto.fields[campoUnidad] || 'unidades';
+      
+      // Para Chios, Simón Bolón y Santo Cachón, la unidad (uni_bod) es la de bodega principal
+      let unidad = unidadBodega;
+      if ([4, 5, 6, 7, 8].includes(bodegaId)) {
+        unidad = producto.fields['Unidad Conteo Bodega Principal'] || 'unidades';
+      }
       
       const campoUnidad = airtableService.obtenerCampoUnidad(bodegaId);
       
@@ -203,8 +249,12 @@ export const historicoService = {
         c3: conteo.c3,
         total,
         cantidadPedir: conteo.cantidadPedir,
+<<<<<<< HEAD
         unidad: producto.fields['Unidad Conteo Bodega Principal'] || 'unidades',
         unidadBodega: producto.fields[campoUnidad] || 'unidades',
+=======
+        unidad: unidad,
+        unidadBodega: unidadBodega,
         equivalencia: producto.fields['Equivalencias Inventarios'],
         tipo: obtenerTipoProducto(producto.fields)
       };
@@ -212,8 +262,11 @@ export const historicoService = {
 
     const registro: RegistroHistorico = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+<<<<<<< HEAD
       fecha: fechaISO, // SIEMPRE formato YYYY-MM-DD
       fechaDisplay: fechaISO, // SIEMPRE usar formato ISO
+=======
+      fecha: fecha, // SIEMPRE formato YYYY-MM-DD
       hora,
       usuario: usuario.nombre,
       bodega: bodegaNombre,
@@ -226,32 +279,24 @@ export const historicoService = {
       origen: 'local' // Marcar como origen local
     };
 
+<<<<<<< HEAD
     // Guardar en localStorage primero (con fechaDisplay para mostrar)
     const registroParaLocalStorage = {
       ...registro,
       fecha: fechaDisplay, // En localStorage guardamos la fecha en formato display
       origen: 'local' // Marcar como origen local
+=======
+    // Guardar en localStorage (SIEMPRE formato YYYY-MM-DD)
+    const registroParaLocalStorage = {
+      ...registro,
+      sincronizado: false // Marcar como no sincronizado inicialmente
     };
     const registrosExistentes = this.obtenerHistoricosLocales();
     registrosExistentes.push(registroParaLocalStorage);
     localStorage.setItem('historicos', JSON.stringify(registrosExistentes));
-    console.log('✅ Guardado en localStorage', { registroId: registro.id });
 
     // Intentar guardar en la base de datos
     try {
-      console.log('📡 Enviando a base de datos...', { 
-        url: `${API_URL}/inventario`,
-        bodegaId: registro.bodegaId,
-        bodegaIdType: typeof registro.bodegaId,
-        bodega: registro.bodega,
-        productos: registro.productos.length 
-      });
-      
-      console.log('📦 Registro completo a enviar:', {
-        bodegaId: registro.bodegaId,
-        bodegaIdType: typeof registro.bodegaId,
-        bodega: registro.bodega
-      });
       
       const response = await fetch(`${API_URL}/inventario`, {
         method: 'POST',
@@ -263,10 +308,10 @@ export const historicoService = {
 
       if (!response.ok) {
         const error = await response.json();
-        console.error('❌ Error al guardar en base de datos:', error.message);
         // No lanzamos error para que el guardado local funcione
       } else {
         const result = await response.json();
+<<<<<<< HEAD
         console.log('✅ Inventario guardado en base de datos exitosamente', result);
         
         // Eliminar de localStorage ya que se guardó en BD
@@ -275,7 +320,6 @@ export const historicoService = {
         localStorage.setItem('historicos', JSON.stringify(registrosFiltered));
       }
     } catch (error) {
-      console.error('❌ Error de conexión con el servidor:', error);
       // No lanzamos error, el inventario ya está guardado localmente
     }
   },
@@ -298,7 +342,6 @@ export const historicoService = {
             }
           }
         } catch (error) {
-          console.error(`Error al obtener históricos de bodega ${bodegaId}:`, error);
         }
       }
       
@@ -312,7 +355,6 @@ export const historicoService = {
       
       return [...todosLosHistoricos, ...datosLocales];
     } catch (error) {
-      console.error('Error al obtener históricos de la BD:', error);
       // Fallback a localStorage si falla la BD
       return this.obtenerHistoricosLocales();
     }
@@ -359,6 +401,7 @@ export const historicoService = {
   },
 
   async eliminarHistorico(id: string, usuario: any, eliminarDeBD: boolean = false): Promise<void> {
+<<<<<<< HEAD
     console.log('🔍 Eliminando registro con ID:', id);
     console.log('👤 Usuario:', usuario.email);
     console.log('🗄️ Eliminar de BD:', eliminarDeBD);
@@ -599,7 +642,7 @@ export const historicoService = {
       4: 'Chios Real Audiencia',
       5: 'Chios Floreana',
       6: 'Chios Portugal',
-      7: 'Simón Bolívar',
+      7: 'Simón Bolón',
       8: 'Santo Cachón',
       9: 'Bodega Pulmon'
     };
@@ -643,21 +686,24 @@ export const historicoService = {
         usuario = partes[0] || 'Usuario';
       }
 
-      // Formatear fecha
-      let fechaDisplay = primerProducto.fecha;
+      // SIEMPRE usar formato YYYY-MM-DD
+      let fecha = primerProducto.fecha;
       let horaInventario = '00:00';
-      try {
-        const fecha = new Date(primerProducto.fecha);
-        fechaDisplay = fecha.toLocaleDateString('es-EC');
-        
-        // Intentar extraer hora del ID o usar hora actual
-        if (primerProducto.id && primerProducto.id.includes('-')) {
-          // Si el ID tiene formato con timestamp, intentar extraer hora
-          const ahora = new Date();
-          horaInventario = ahora.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
-        }
-      } catch {
-        // Mantener fecha original si no se puede parsear
+      
+      // Si la fecha viene en otro formato, mantenerla como está (debería venir en YYYY-MM-DD de la BD)
+      if (!fecha || !fecha.includes('-')) {
+        // Si no tiene el formato correcto, usar fecha actual
+        const ahora = new Date();
+        const año = ahora.getFullYear();
+        const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
+        const dia = ahora.getDate().toString().padStart(2, '0');
+        fecha = `${año}-${mes}-${dia}`;
+      }
+      
+      // Intentar extraer hora del ID o usar hora actual
+      if (primerProducto.id && primerProducto.id.includes('-')) {
+        const ahora = new Date();
+        horaInventario = ahora.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
       }
 
       // Convertir cada fila en un ProductoHistorico
@@ -710,7 +756,7 @@ export const historicoService = {
 
       return {
         id: sessionId,
-        fecha: fechaDisplay,
+        fecha: fecha, // SIEMPRE formato YYYY-MM-DD
         hora: horaInventario,
         usuario: usuario,
         bodega: NOMBRES_BODEGAS[bodegaId] || `Bodega ${bodegaId}`,
