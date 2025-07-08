@@ -170,7 +170,6 @@ export const historicoService = {
     productosGuardados: Set<string>,
     duracion: string
   ): Promise<void> {
-<<<<<<< HEAD
     const usuario = authService.getUsuarioActual();
     if (!usuario) {
       throw new Error('No hay usuario autenticado');
@@ -185,23 +184,6 @@ export const historicoService = {
 
     // Convertir productos guardados a formato histórico
     const productosHistorico: ProductoHistorico[] = Array.from(productosGuardados).map((productoId) => {
-=======
-    
-    const usuario = authService.getUsuarioActual();
-    if (!usuario) {
-      return;
-    }
-
-    const ahora = new Date();
-    // SIEMPRE usar formato YYYY-MM-DD
-    const año = ahora.getFullYear();
-    const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
-    const dia = ahora.getDate().toString().padStart(2, '0');
-    const fecha = `${año}-${mes}-${dia}`; // SIEMPRE formato YYYY-MM-DD
-    const hora = ahora.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
-
-    // Convertir productos guardados a formato histórico
-    const productosHistorico: ProductoHistorico[] = Array.from(productosGuardados).map((productoId, index) => {
       const producto = productos.find(p => p.id === productoId);
       const conteo = conteos[productoId];
       
@@ -249,12 +231,8 @@ export const historicoService = {
         c3: conteo.c3,
         total,
         cantidadPedir: conteo.cantidadPedir,
-<<<<<<< HEAD
         unidad: producto.fields['Unidad Conteo Bodega Principal'] || 'unidades',
         unidadBodega: producto.fields[campoUnidad] || 'unidades',
-=======
-        unidad: unidad,
-        unidadBodega: unidadBodega,
         equivalencia: producto.fields['Equivalencias Inventarios'],
         tipo: obtenerTipoProducto(producto.fields)
       };
@@ -262,11 +240,8 @@ export const historicoService = {
 
     const registro: RegistroHistorico = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-<<<<<<< HEAD
       fecha: fechaISO, // SIEMPRE formato YYYY-MM-DD
       fechaDisplay: fechaISO, // SIEMPRE usar formato ISO
-=======
-      fecha: fecha, // SIEMPRE formato YYYY-MM-DD
       hora,
       usuario: usuario.nombre,
       bodega: bodegaNombre,
@@ -279,16 +254,11 @@ export const historicoService = {
       origen: 'local' // Marcar como origen local
     };
 
-<<<<<<< HEAD
     // Guardar en localStorage primero (con fechaDisplay para mostrar)
     const registroParaLocalStorage = {
       ...registro,
       fecha: fechaDisplay, // En localStorage guardamos la fecha en formato display
-      origen: 'local' // Marcar como origen local
-=======
-    // Guardar en localStorage (SIEMPRE formato YYYY-MM-DD)
-    const registroParaLocalStorage = {
-      ...registro,
+      origen: 'local', // Marcar como origen local
       sincronizado: false // Marcar como no sincronizado inicialmente
     };
     const registrosExistentes = this.obtenerHistoricosLocales();
@@ -311,7 +281,6 @@ export const historicoService = {
         // No lanzamos error para que el guardado local funcione
       } else {
         const result = await response.json();
-<<<<<<< HEAD
         console.log('✅ Inventario guardado en base de datos exitosamente', result);
         
         // Eliminar de localStorage ya que se guardó en BD
@@ -401,7 +370,6 @@ export const historicoService = {
   },
 
   async eliminarHistorico(id: string, usuario: any, eliminarDeBD: boolean = false): Promise<void> {
-<<<<<<< HEAD
     console.log('🔍 Eliminando registro con ID:', id);
     console.log('👤 Usuario:', usuario.email);
     console.log('🗄️ Eliminar de BD:', eliminarDeBD);

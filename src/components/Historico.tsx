@@ -55,27 +55,6 @@ export const Historico = () => {
     return fechaRegistroNorm === fechaHoyNorm;
   };
 
-  // Verificar si el usuario puede eliminar un registro según roles
-  const puedeEliminar = (registro: RegistroHistorico): boolean => {
-    if (!usuario) return false;
-    
-    const esAnalisis = usuario.email === 'analisis@chiosburger.com';
-    const esGerencia = usuario.email === 'gerencia@chiosburger.com';
-    const esHoy = esRegistroDeHoy(registro.fecha);
-    const esMiRegistro = registro.usuario === usuario.nombre;
-    
-    // Análisis puede eliminar solo del mismo día
-    if (esAnalisis && esHoy) return true;
-    
-    // Gerencia puede eliminar solo del mismo día
-    if (esGerencia && esHoy) return true;
-    
-    // Otros usuarios: solo sus propios registros del mismo día
-    if (esMiRegistro && esHoy) return true;
-    
-    return false;
-  };
-
   // Formatear fecha YYYY-MM-DD a DD/MM/YYYY para visualización
   const formatearFechaParaMostrar = (fecha: string): string => {
     if (!fecha || !fecha.includes('-')) return fecha;
@@ -210,54 +189,6 @@ export const Historico = () => {
     }
   };
 
-  // Verificar si se puede editar un registro
-  const puedeEditar = (registro: RegistroHistorico): boolean => {
-    if (!usuario) return false;
-    
-    // Super admin puede editar cualquier registro
-    if (usuario.email === 'analisis@chiosburger.com') return true;
-    
-    // Verificar que sea del día de hoy
-    if (!esRegistroDeHoy(registro.fecha)) return false;
-    
-    // Verificar que sea antes del mediodía (12:00 PM hora Ecuador)
-    // COMENTADO TEMPORALMENTE PARA PRUEBAS
-    /*
-    const ahora = new Date();
-    const horaActual = ahora.getHours();
-    
-    // Si son las 12 PM o después, no se puede editar
-    if (horaActual >= 12) return false;
-    */
-    
-    return true;
-  };
-
-  // Manejar la edición de un producto
-  const handleEditarProducto = async (productoId: string, nuevoTotal: number, nuevaCantidadPedir: number, motivo: string) => {
-    if (!productoEditando || !usuario) return;
-    
-    try {
-      await historicoService.editarProducto(
-        productoEditando.registro.id,
-        productoId,
-        nuevoTotal,
-        nuevaCantidadPedir,
-        motivo,
-        usuario,
-        productoEditando.registro
-      );
-      
-      // Recargar los históricos
-      await cargarHistoricos();
-      
-      // Mostrar mensaje de éxito
-      alert('Producto editado correctamente');
-    } catch (error) {
-      console.error('Error al editar producto:', error);
-      throw error;
-    }
-  };
 
 
   const handleExportarTodos = () => {
@@ -321,7 +252,6 @@ export const Historico = () => {
         return false;
       }
 
-<<<<<<< HEAD
       // Filtro por fecha
       if (filtroFecha) {
         // Normalizar la fecha del registro a formato ISO para comparación
@@ -343,10 +273,6 @@ export const Historico = () => {
         if (fechaRegistroISO !== filtroFecha) {
           return false;
         }
-=======
-      // Filtro por fecha (ahora siempre en formato YYYY-MM-DD)
-      if (filtroFecha && inv.fecha !== filtroFecha) {
-        return false;
       }
 
 
@@ -664,14 +590,9 @@ export const Historico = () => {
                           Base de datos
                         </span>
                       ) : (
-<<<<<<< HEAD
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full font-medium">
                           <CloudOff className="w-3 h-3" />
                           Local
-=======
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full font-medium">
-                          <CloudOff className="w-3 h-3" />
-                          Pendiente
                         </span>
                       )}
                     </div>
@@ -689,18 +610,6 @@ export const Historico = () => {
                     className="flex-1 px-3 py-2 bg-purple-50 text-purple-600 rounded-lg text-xs font-medium"
                   >
                     {expandedRegistros.has(registro.id) ? 'Ocultar' : 'Ver detalles'}
-                  </button>
-                  <button
-<<<<<<< HEAD
-                    onClick={() => handleExportarPDF(registro)}
-                    className="px-3 py-2 bg-red-50 text-red-600 rounded-lg"
-                    title="Descargar PDF"
-=======
-                    onClick={() => handleExportarCSV(registro)}
-                    className="px-3 py-2 bg-green-50 text-green-600 rounded-lg"
-                    title="Descargar CSV"
-                  >
-                    <FileText className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleExportarPDF(registro)}
@@ -806,14 +715,9 @@ export const Historico = () => {
                               BD
                             </span>
                           ) : (
-<<<<<<< HEAD
                             <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full font-medium flex items-center gap-1">
                               <CloudOff className="w-3 h-3" />
                               Local
-=======
-                            <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full font-medium flex items-center gap-1">
-                              <CloudOff className="w-3 h-3" />
-                              Pendiente
                             </span>
                           )}
                           <div>
@@ -866,7 +770,6 @@ export const Historico = () => {
                           >
                             <FileText className="w-4 h-4" />
                           </button>
-<<<<<<< HEAD
                           {esUsuarioAnalisis && (
                             <>
                               <button
@@ -885,7 +788,6 @@ export const Historico = () => {
                               </button>
                             </>
                           )}
-=======
                           {esRegistroDeHoy(registro.fecha) && (
                             <button
                               onClick={() => handleEliminar(registro)}

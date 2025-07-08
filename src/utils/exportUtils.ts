@@ -277,7 +277,6 @@ export const exportUtils = {
           </div>
         </div>
 
-<<<<<<< HEAD
         ${categoriasOrdenadas.map(categoria => {
           const productos = productosPorCategoria[categoria];
           return `
@@ -316,47 +315,6 @@ export const exportUtils = {
             </table>
           `;
         }).join('')}
-=======
-        <table>
-          <thead>
-            <tr>
-              <th>Código</th>
-              <th>Producto</th>
-              <th>Categoría</th>
-              <th>Tipo</th>
-              <th class="numeric">C1</th>
-              <th class="numeric">C2</th>
-              <th class="numeric">C3</th>
-              <th class="numeric">Total</th>
-              <th class="numeric">Pedir</th>
-              <th>Unidad</th>
-              <th>Equivalencias</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${registro.productos.map(p => `
-              <tr class="${p.total === 0 ? 'zero-row' : ''}">
-                <td>${p.codigo || '-'}</td>
-                <td>${p.nombre}</td>
-                <td>${p.categoria || 'Sin categoría'}</td>
-                <td>${p.tipo || 'Sin tipo'}</td>
-                <td class="numeric">${formatNum(p.c1)}</td>
-                <td class="numeric">${formatNum(p.c2)}</td>
-                <td class="numeric">${formatNum(p.c3)}</td>
-                <td class="numeric"><strong>${formatNum(p.total)}</strong></td>
-                <td class="numeric">${formatNum(p.cantidadPedir)}</td>
-                <td>${p.unidadBodega}</td>
-                <td>${p.equivalencia || '-'}</td>
-              </tr>
-            `).join('')}
-            <tr class="totals-row">
-              <td colspan="7" style="text-align: right;">TOTAL GENERAL:</td>
-              <td class="numeric">${formatNum(registro.productos.reduce((acc, p) => acc + p.total, 0))}</td>
-              <td class="numeric">${formatNum(registro.productos.reduce((acc, p) => acc + p.cantidadPedir, 0))}</td>
-              <td colspan="2"></td>
-            </tr>
-          </tbody>
-        </table>
 
         <div class="stats">
           <h3>Resumen Estadístico</h3>
