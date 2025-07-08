@@ -365,24 +365,6 @@ export const ListaProductos = ({
 
   const handleGuardar = async () => {
     // CAMBIO TEMPORAL: Permitir guardar sin completar todos los productos
-    // Comentado para pruebas
-    /*
-    const productosSinContarActual = productos.filter(producto => {
-      // Un producto está contado SOLO si ha sido guardado explícitamente
-      return !productosGuardados.has(producto.id);
-    });
-    
-    setToast({ message: '✨ Producto guardado exitosamente', type: 'success' });
-  }, [bodegaId]);
-
-  const handleGuardarProducto = useCallback(async (productoId: string, esAccionRapida?: boolean, valoresRapidos?: any) => {
-    // Si es acción rápida, usar la nueva función
-    if (esAccionRapida && valoresRapidos) {
-      handleAccionRapida(productoId, valoresRapidos);
-      return;
-    }
-    */
-
     // Mostrar mensaje de guardado
     setGuardandoInventario(true);
     
@@ -410,7 +392,6 @@ export const ListaProductos = ({
           productos,
           conteos,
           productosGuardados, // Enviar solo los productos guardados explícitamente
-          productosConConteo,
           duracion
         );
         
@@ -418,11 +399,8 @@ export const ListaProductos = ({
         localStorage.removeItem(`conteos_${bodegaId}`);
         localStorage.removeItem(`productosGuardados_${bodegaId}`);
         
-        setToast({ message: '✅ Inventario guardado exitosamente', type: 'success' });
-        
         setToast({ message: '🎉 Inventario guardado exitosamente', type: 'success' });
-        localStorage.removeItem(`conteos_${bodegaId}`);
-        localStorage.removeItem(`productosGuardados_${bodegaId}`);
+        
         // Mostrar métricas después de un momento
         setTimeout(() => setShowMetrics(true), 500);
       } else {
@@ -433,8 +411,6 @@ export const ListaProductos = ({
       setToast({ message: 'Error al guardar el inventario', type: 'error' });
     } finally {
       // Ocultar mensaje de guardado
-      setToast({ message: 'Error al guardar', type: 'error' });
-    } finally {
       setGuardandoInventario(false);
     }
   };
@@ -448,7 +424,6 @@ export const ListaProductos = ({
   // CAMBIO TEMPORAL: Permitir guardar inventario siempre
   // const sePuedeGuardar = productosSinContar === 0 && productos.length > 0;
   const sePuedeGuardar = productos.length > 0; // Solo verificar que haya productos
-  const sePuedeGuardar = productos.length > 0;
   
   // Desactivar el reordenamiento cuando todos los productos estén contados
   useEffect(() => {
@@ -633,8 +608,7 @@ export const ListaProductos = ({
             {isOnline ? 'En línea' : 'Offline'}
           </span>
         </div>
-      )}
-
+      </div>
 
       {/* Header con título */}
       <div className="mb-4 sm:mb-8">
@@ -904,7 +878,6 @@ export const ListaProductos = ({
             </p>
           </div>
         ) : productosFiltrados.length === 0 ? (
-        {productosFiltrados.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-24 h-24 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
               <Package2 className="w-12 h-12 text-gray-400" />
@@ -936,7 +909,6 @@ export const ListaProductos = ({
           })
         )}
       </div>
-
 
       {/* Floating Action Buttons - Responsivo para móviles */}
       {hayTomaHoy && (
