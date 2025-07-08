@@ -55,12 +55,6 @@ export const Historico = () => {
     return fechaRegistroNorm === fechaHoyNorm;
   };
 
-  // Formatear fecha YYYY-MM-DD a DD/MM/YYYY para visualización
-  const formatearFechaParaMostrar = (fecha: string): string => {
-    if (!fecha || !fecha.includes('-')) return fecha;
-    const [año, mes, dia] = fecha.split('-');
-    return `${dia}/${mes}/${año}`;
-  };
 
   // Verificar si el usuario puede eliminar un registro
   const puedeEliminar = (registro: RegistroHistorico): boolean => {

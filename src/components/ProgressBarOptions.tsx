@@ -1,4 +1,3 @@
-import React from 'react';
 
 // Opción 1: Versión actual pero más compacta
 export const ProgressBarOption1 = ({ productosGuardadosCount, productos, isOnline, startTime, Timer, productosPorTipo, porcentajeCompletado }: any) => (

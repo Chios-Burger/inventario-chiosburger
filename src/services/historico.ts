@@ -131,7 +131,7 @@ export const historicoService = {
           const registrosFiltrados = registrosActualizados.filter(r => r.id !== registro.id);
           localStorage.setItem('historicos', JSON.stringify(registrosFiltrados));
         }
-      } catch (error) {
+      } catch (error: any) {
         // Solo mostrar error si no es de conexión
         if (!error.message?.includes('Failed to fetch')) {
           console.error('Error sincronizando registro:', registro.id, error);
@@ -206,19 +206,10 @@ export const historicoService = {
       }
       
       // Generar ID único con el nuevo formato
-      const idUnico = generarIdUnico(fecha, bodegaId, codigoProducto);
+      const idUnico = generarIdUnico(fechaISO, bodegaId, codigoProducto);
       
       
       // Obtener la unidad correcta según la bodega
-      const campoUnidad = this.obtenerCampoUnidad(bodegaId);
-      const unidadBodega = producto.fields[campoUnidad] || 'unidades';
-      
-      // Para Chios, Simón Bolón y Santo Cachón, la unidad (uni_bod) es la de bodega principal
-      let unidad = unidadBodega;
-      if ([4, 5, 6, 7, 8].includes(bodegaId)) {
-        unidad = producto.fields['Unidad Conteo Bodega Principal'] || 'unidades';
-      }
-      
       const campoUnidad = airtableService.obtenerCampoUnidad(bodegaId);
       
       return {
@@ -258,7 +249,7 @@ export const historicoService = {
     const registroParaLocalStorage = {
       ...registro,
       fecha: fechaDisplay, // En localStorage guardamos la fecha en formato display
-      origen: 'local', // Marcar como origen local
+      origen: 'local' as 'local', // Marcar como origen local con tipo correcto
       sincronizado: false // Marcar como no sincronizado inicialmente
     };
     const registrosExistentes = this.obtenerHistoricosLocales();
@@ -288,7 +279,7 @@ export const historicoService = {
         const registrosFiltered = registrosActualizados.filter(r => r.id !== registro.id);
         localStorage.setItem('historicos', JSON.stringify(registrosFiltered));
       }
-    } catch (error) {
+    } catch {
       // No lanzamos error, el inventario ya está guardado localmente
     }
   },

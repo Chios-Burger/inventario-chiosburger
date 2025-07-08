@@ -21,7 +21,7 @@ const getDiaActual = (): number => {
 };
 
 // Función helper para obtener los tipos permitidos según bodega y día
-const getTiposPermitidos = (bodegaId: number, dia: number, userEmail?: string): string[] | null => {
+const getTiposPermitidos = (): string[] | null => {
   // SIEMPRE permitir contar todos los tipos cualquier día
   return ['A', 'B', 'C'];
   
@@ -183,7 +183,7 @@ export const ListaProductos = ({
   // Obtener tipos permitidos para hoy (memoizado para evitar recálculos)
   const usuario = useMemo(() => authService.getUsuarioActual(), []);
   const diaActual = useMemo(() => getDiaActual(), []);
-  const tiposPermitidosHoy = useMemo(() => getTiposPermitidos(bodegaId, diaActual, usuario?.email), [bodegaId, diaActual, usuario?.email]);
+  const tiposPermitidosHoy = useMemo(() => getTiposPermitidos(), []);
   const hayTomaHoy = tiposPermitidosHoy !== null;
 
   const productosFiltrados = useMemo(() => {
