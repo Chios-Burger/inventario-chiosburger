@@ -590,18 +590,6 @@ export const ListaProductos = ({
         </div>
       )}
 
-      {/* Status Cards flotantes - móvil y desktop */}
-      <div className="fixed top-16 sm:top-24 right-2 sm:right-4 z-40 flex sm:flex-col gap-2 sm:gap-3">
-        {/* Conexión */}
-        <div className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl backdrop-blur-lg flex items-center gap-2 shadow-lg ${
-          isOnline ? 'bg-green-400/20 border border-green-400/30' : 'bg-orange-400/20 border border-orange-400/30'
-        }`}>
-          <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-orange-500'} animate-pulse`}></div>
-          <span className={`text-xs font-medium ${isOnline ? 'text-green-700' : 'text-orange-700'}`}>
-            {isOnline ? 'En línea' : 'Offline'}
-          </span>
-        </div>
-      </div>
 
       {/* Header con título */}
       <div className="mb-4 sm:mb-8">
