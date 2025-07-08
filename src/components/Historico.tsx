@@ -355,6 +355,28 @@ export const Historico = () => {
     return num.toString();
   };
 
+  // Formatear fecha para mostrar solo YYYY-MM-DD
+  const formatearFechaSimple = (fecha: string): string => {
+    // Si la fecha incluye 'T', es formato ISO, tomar solo la parte de fecha
+    if (fecha && fecha.includes('T')) {
+      return fecha.split('T')[0];
+    }
+    // Si ya está en formato YYYY-MM-DD, devolverla tal cual
+    if (fecha && fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return fecha;
+    }
+    // Para otros formatos, intentar parsear y formatear
+    try {
+      const date = new Date(fecha);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0];
+      }
+    } catch {
+      // Si falla, devolver la fecha original
+    }
+    return fecha;
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
@@ -575,7 +597,7 @@ export const Historico = () => {
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <p className="text-sm font-bold text-gray-800">{registro.bodega}</p>
-                    <p className="text-xs text-gray-500">{registro.fecha} - {registro.hora}</p>
+                    <p className="text-xs text-gray-500">{formatearFechaSimple(registro.fecha)} - {registro.hora}</p>
                     <p className="text-xs text-gray-600 mt-1">Por: {registro.usuario}</p>
                     <div className="mt-2">
                       {(registro.origen === 'database' || registro.sincronizado) ? (
@@ -715,7 +737,7 @@ export const Historico = () => {
                             </span>
                           )}
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{registro.fecha}</p>
+                            <p className="text-sm font-medium text-gray-900">{formatearFechaSimple(registro.fecha)}</p>
                             <p className="text-xs text-gray-500">{registro.hora}</p>
                           </div>
                         </div>
