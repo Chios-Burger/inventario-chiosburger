@@ -268,7 +268,7 @@ export const historicoService = {
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        await response.json();
         // No lanzamos error para que el guardado local funcione
       } else {
         const result = await response.json();
@@ -314,7 +314,7 @@ export const historicoService = {
       });
       
       return [...todosLosHistoricos, ...datosLocales];
-    } catch (error) {
+    } catch {
       // Fallback a localStorage si falla la BD
       return this.obtenerHistoricosLocales();
     }

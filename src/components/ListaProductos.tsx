@@ -6,7 +6,6 @@ import { Toast } from './Toast';
 import { Timer } from './Timer';
 import { airtableService } from '../services/airtable';
 import { historicoService } from '../services/historico';
-import { authService } from '../services/auth';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useDebounce } from '../hooks/useDebounce';
 
@@ -15,10 +14,6 @@ interface ListaProductosProps {
   bodegaNombre: string;
 }
 
-// Función helper para obtener el día actual
-const getDiaActual = (): number => {
-  return new Date().getDay(); // 0 = Domingo, 1 = Lunes, etc.
-};
 
 // Función helper para obtener los tipos permitidos según bodega y día
 const getTiposPermitidos = (): string[] | null => {
@@ -181,8 +176,6 @@ export const ListaProductos = ({
 
 
   // Obtener tipos permitidos para hoy (memoizado para evitar recálculos)
-  const usuario = useMemo(() => authService.getUsuarioActual(), []);
-  const diaActual = useMemo(() => getDiaActual(), []);
   const tiposPermitidosHoy = useMemo(() => getTiposPermitidos(), []);
   const hayTomaHoy = tiposPermitidosHoy !== null;
 
