@@ -1,4 +1,5 @@
 import type { RegistroHistorico } from '../types/index';
+import { normalizarFechaAISO, obtenerTimestampUTC } from '../utils/dateUtils';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -42,7 +43,6 @@ class SyncService {
       // En lugar de marcar como sincronizado, eliminar el registro pendiente
       historicos.splice(index, 1);
       localStorage.setItem('historicos', JSON.stringify(historicos));
-      console.log(`🗑️ Registro pendiente ${registroId} eliminado después de sincronizar`);
     }
   }
 
@@ -52,7 +52,8 @@ class SyncService {
       // Convertir fecha display a formato ISO si es necesario
       const registroParaBD = {
         ...registro,
-        fecha: this.convertirFechaAISO(registro.fecha)
+        fecha: this.convertirFechaAISO(registro.fecha),
+        fechaSincronizacion: obtenerTimestampUTC()
       };
 
       const response = await fetch(`${API_URL}/inventario`, {
@@ -76,25 +77,12 @@ class SyncService {
 
   // Convertir fecha de formato display (DD/MM/YYYY) a ISO (YYYY-MM-DD)
   private convertirFechaAISO(fecha: string): string {
-    // Si ya está en formato ISO, devolverla tal cual
-    if (fecha.includes('-') && fecha.split('-')[0].length === 4) {
-      return fecha;
-    }
-    
-    // Convertir de DD/MM/YYYY a YYYY-MM-DD
-    const partes = fecha.split('/');
-    if (partes.length === 3) {
-      return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
-    }
-    
-    // Si no se puede convertir, usar fecha actual
-    return new Date().toISOString().split('T')[0];
+    return normalizarFechaAISO(fecha);
   }
 
   // Sincronizar todos los registros pendientes
   async syncPendingRecords(): Promise<SyncStatus> {
     if (this.syncInProgress) {
-      console.log('⏳ Sincronización ya en progreso...');
       return this.getStatus();
     }
 
@@ -102,8 +90,6 @@ class SyncService {
     const pendientes = this.getPendingRecords();
     let sincronizados = 0;
     let errores = 0;
-
-    console.log(`🔄 Iniciando sincronización de ${pendientes.length} registros...`);
 
     for (const registro of pendientes) {
       const success = await this.syncRecord(registro);
@@ -119,8 +105,6 @@ class SyncService {
     // Actualizar última sincronización
     const status = this.getStatus();
     localStorage.setItem('ultimaSincronizacion', new Date().toISOString());
-    
-    console.log(`✅ Sincronización completada: ${sincronizados} exitosos, ${errores} errores`);
     
     return {
       ...status,
@@ -163,7 +147,6 @@ class SyncService {
 
     // Sincronizar cuando se recupere la conexión
     window.addEventListener('online', () => {
-      console.log('📡 Conexión recuperada, iniciando sincronización...');
       setTimeout(() => this.syncPendingRecords(), 2000);
     });
   }

@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useRef } from 'react';
+import { useState, useEffect, memo } from 'react';
 import type { Producto } from '../types/index';
 import { Package, Loader2, Check, Hash, Edit3, XCircle, Ban } from 'lucide-react';
 
@@ -13,7 +13,7 @@ interface ProductoConteoProps {
     cantidadPedir: number;
     touched?: boolean;
   }) => void;
-  onGuardarProducto?: (productoId: string, esAccionRapida?: boolean, valoresRapidos?: any) => void;
+  onGuardarProducto?: (productoId: string, esAccionRapida?: boolean, valoresRapidos?: any, esEdicion?: boolean) => void;
   guardando?: boolean;
   isGuardado?: boolean;
   conteoInicial?: {
@@ -78,30 +78,47 @@ const ProductoConteoComponent = ({
     savedValues.c3 !== c3 || 
     savedValues.cantidadPedir !== cantidadPedir
   );
+  
+  // Helper function para obtener el tipo del producto
+  const obtenerTipoProducto = (fields: any): string => {
+    const posiblesNombres = [
+      'Tipo A,B o C',
+      'Tipo A, B o C',
+      'Tipo A,B,C',
+      'Tipo A, B, C',
+      'Tipo ABC',
+      'TipoABC',
+      'Tipo',
+      'tipo'
+    ];
+    
+    for (const nombre of posiblesNombres) {
+      if (fields[nombre]) {
+        return fields[nombre];
+      }
+    }
+    
+    return '';
+  };
+  
+  const tipoProducto = obtenerTipoProducto(producto.fields);
 
-  // Usar un ref para el timeout de debounce
-  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  // Guardar cambios inmediatamente cuando se desmonte el componente
+  useEffect(() => {
+    return () => {
+      // Al desmontar, guardar el estado actual si hay datos
+      if (touched) {
+        onConteoChange(producto.id, { c1, c2, c3, cantidadPedir, touched: true });
+      }
+    };
+  }, [c1, c2, c3, cantidadPedir, producto.id, touched]);
 
+  // Enviar cambios inmediatamente cuando cambien los valores
   useEffect(() => {
     // Solo enviar el cambio si el usuario ha tocado el producto
     if (touched || isGuardado) {
-      // Cancelar el timeout anterior si existe
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-      
-      // Establecer un nuevo timeout para enviar los cambios después de 300ms
-      debounceTimer.current = setTimeout(() => {
-        onConteoChange(producto.id, { c1, c2, c3, cantidadPedir, touched: true });
-      }, 300);
+      onConteoChange(producto.id, { c1, c2, c3, cantidadPedir, touched: true });
     }
-    
-    // Limpiar el timeout cuando el componente se desmonte
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
   }, [c1, c2, c3, cantidadPedir, producto.id, touched, isGuardado, onConteoChange]);
 
   // Cuando se guarda, almacenar los valores actuales
@@ -127,6 +144,8 @@ const ProductoConteoComponent = ({
       // Si estamos en modo edición y no hay cambios, solo activar la edición
       if (showEditButton) {
         setIsEditing(true);
+        // Llamar con flag de edición para remover de guardados
+        onGuardarProducto(producto.id, false, null, true);
         return;
       }
       
@@ -141,19 +160,19 @@ const ProductoConteoComponent = ({
   const handleProductoEnCero = () => {
     if (!onGuardarProducto) return;
     
-    // Valores para producto en 0
-    const nuevosValores = { c1: 0, c2: 0, c3: 0, cantidadPedir: 0, touched: true };
+    // Valores para producto en 0 - Mantener cantidad a pedir actual
+    const nuevosValores = { c1: 0, c2: 0, c3: 0, cantidadPedir: cantidadPedir || 0, touched: true };
     
     // Actualizar estado local inmediatamente
     setC1(0);
     setC2(0);
     setC3(0);
-    setCantidadPedir(0);
+    // Mantener cantidadPedir con su valor actual
     setTouched(true);
     setSavedValues(nuevosValores);
     setIsEditing(false);
     
-    // Llamar a guardar con flag de acción rápida
+    // Guardar automáticamente con flag de acción rápida
     onGuardarProducto(producto.id, true, nuevosValores);
   };
 
@@ -224,78 +243,20 @@ const ProductoConteoComponent = ({
                   </p>
                 </>
               )}
+              {tipoProducto && (
+                <>
+                  {(producto.fields['Categoría'] || producto.fields['Código'] || producto.fields['Codigo']) && <span className="text-gray-400">•</span>}
+                  <p className="text-xs sm:text-sm text-purple-600 font-medium">
+                    Tipo: {tipoProducto}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Botones de acción */}
-        {onGuardarProducto && (
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            {/* Botones de acción rápida - Solo visibles si no está guardado o si está en modo edición */}
-            {(!isGuardado || isEditing) && (
-              <>
-                {/* Botón Producto Inactivo */}
-                <button
-                  onClick={handleProductoInactivo}
-                  disabled={guardando}
-                  className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl sm:rounded-2xl font-medium text-sm hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 justify-center"
-                  title="Marcar como producto que ya no existe"
-                >
-                  <Ban className="w-4 h-4" />
-                  Producto inactivo
-                </button>
-                
-                {/* Botón Producto en 0 */}
-                <button
-                  onClick={handleProductoEnCero}
-                  disabled={guardando}
-                  className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl sm:rounded-2xl font-medium text-sm hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 justify-center"
-                  title="Marcar producto sin stock (cantidad 0)"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Producto en 0
-                </button>
-              </>
-            )}
-            
-            {/* Botón Guardar/Editar */}
-            <button
-              onClick={handleGuardar}
-              disabled={guardando || (!showEditButton && !hasChangedSinceSave && !isEditing && (!hasData || isGuardado))}
-              className={`flex-1 sm:flex-initial px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-medium text-sm transition-all duration-300 ${
-                showEditButton
-                  ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:shadow-lg transform hover:scale-105'
-                  : isGuardado && !hasChangedSinceSave && !isEditing
-                  ? 'bg-green-500 text-white cursor-default'
-                  : guardando
-                  ? 'bg-gray-200 text-gray-400'
-                  : (hasData || hasChangedSinceSave || isEditing)
-                  ? 'bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-lg transform hover:scale-105'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              {showEditButton ? (
-                <span className="flex items-center gap-2 justify-center">
-                  <Edit3 className="w-4 h-4" />
-                  Editar
-                </span>
-              ) : isGuardado && !hasChangedSinceSave && !isEditing ? (
-                <span className="flex items-center gap-2 justify-center">
-                  <Check className="w-4 h-4" />
-                  Guardado
-                </span>
-              ) : guardando ? (
-                <span className="flex items-center gap-2 justify-center">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Guardando
-                </span>
-              ) : (
-                'Guardar'
-              )}
-            </button>
-          </div>
-        )}
       </div>
+      
 
       {/* Grid de conteos */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
@@ -376,30 +337,28 @@ const ProductoConteoComponent = ({
       </div>
 
       {/* Sección inferior */}
-      <div className="bg-gray-50 -mx-4 sm:-mx-6 -mb-4 sm:-mb-6 px-4 sm:px-6 py-4 sm:py-5 rounded-b-2xl sm:rounded-b-3xl border-t border-gray-100">
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-600 mb-1 sm:mb-2">
-              Cantidad a pedir
-            </label>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <input
-                type="number"
-                step="0.01"
-                value={cantidadPedir || ''}
-                onChange={(e) => handleInputChange(setCantidadPedir, e.target.value)}
-                disabled={isGuardado && !isEditing}
-                className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg sm:rounded-xl transition-all font-medium text-sm sm:text-base ${
-                  isGuardado && !isEditing 
-                    ? 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed' 
-                    : 'bg-white border-gray-200 focus:ring-2 focus:ring-purple-400 focus:border-purple-400'
-                }`}
-                placeholder="0"
-              />
-              <span className="text-xs sm:text-sm font-semibold text-gray-700 bg-purple-100 px-3 sm:px-4 py-2 sm:py-2 rounded-lg sm:rounded-xl whitespace-nowrap">
-                {unidad}
-              </span>
-            </div>
+      <div className="bg-gray-50 -mx-4 sm:-mx-6 -mb-4 sm:-mb-6 px-4 sm:px-6 py-3 sm:py-4 rounded-b-2xl sm:rounded-b-3xl border-t border-gray-100">
+        <div className="w-full">
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            Cantidad a pedir
+          </label>
+          <div className="flex items-center gap-2 max-w-full">
+            <input
+              type="number"
+              step="0.01"
+              value={cantidadPedir || ''}
+              onChange={(e) => handleInputChange(setCantidadPedir, e.target.value)}
+              disabled={isGuardado && !isEditing}
+              className={`w-2/3 px-2 sm:px-3 py-2 sm:py-2.5 border rounded-lg transition-all font-medium text-sm ${
+                isGuardado && !isEditing 
+                  ? 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed' 
+                  : 'bg-white border-gray-200 focus:ring-2 focus:ring-purple-400 focus:border-purple-400'
+              }`}
+              placeholder="0"
+            />
+            <span className="w-1/3 text-xs font-semibold text-gray-700 bg-purple-100 px-2 sm:px-3 py-2 rounded-lg whitespace-nowrap flex-shrink-0 text-center">
+              {unidad}
+            </span>
           </div>
         </div>
 
@@ -410,6 +369,75 @@ const ProductoConteoComponent = ({
               <span className="font-bold">Equivalencia:</span>{' '}
               {producto.fields['Equivalencias Inventarios']}
             </p>
+          </div>
+        )}
+        
+        {/* Botones en fila - Producto Inactivo, Producto en 0, Guardar */}
+        {onGuardarProducto && (
+          <div className="mt-3 sm:mt-4 w-full flex gap-2">
+            {/* Botón Producto inactivo */}
+            {(!isGuardado || isEditing) && (
+              <button
+                onClick={handleProductoInactivo}
+                disabled={guardando}
+                className="flex-1 px-2 sm:px-3 py-2 sm:py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl sm:rounded-2xl font-medium text-xs sm:text-sm hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-1 justify-center"
+                title="Marcar como producto que ya no existe"
+              >
+                <Ban className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Producto inactivo</span>
+                <span className="sm:hidden">Inactivo</span>
+              </button>
+            )}
+            
+            {/* Botón Producto en 0 */}
+            {(!isGuardado || isEditing) && (
+              <button
+                onClick={handleProductoEnCero}
+                disabled={guardando}
+                className="flex-1 px-2 sm:px-3 py-2 sm:py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl sm:rounded-2xl font-medium text-xs sm:text-sm hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-1 justify-center"
+                title="Marcar producto sin stock (cantidad 0)"
+              >
+                <XCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Producto en 0</span>
+                <span className="sm:hidden">En 0</span>
+              </button>
+            )}
+            
+            {/* Botón Guardar/Editar */}
+            <button
+              onClick={handleGuardar}
+              disabled={guardando || (!showEditButton && !hasChangedSinceSave && !isEditing && (!hasData || isGuardado))}
+              className={`flex-1 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-medium text-xs sm:text-sm transition-all duration-300 ${
+                showEditButton
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:shadow-lg transform hover:scale-105'
+                  : isGuardado && !hasChangedSinceSave && !isEditing
+                  ? 'bg-green-500 text-white cursor-default'
+                  : guardando
+                  ? 'bg-gray-200 text-gray-400'
+                  : (hasData || hasChangedSinceSave || isEditing)
+                  ? 'bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-lg transform hover:scale-105'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {showEditButton ? (
+                <span className="flex items-center gap-1 justify-center">
+                  <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                  Editar
+                </span>
+              ) : isGuardado && !hasChangedSinceSave && !isEditing ? (
+                <span className="flex items-center gap-1 justify-center">
+                  <Check className="w-3 h-3 sm:w-4 sm:h-4" />
+                  Guardado
+                </span>
+              ) : guardando ? (
+                <span className="flex items-center gap-1 justify-center">
+                  <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+                  Guardando
+                </span>
+              ) : (
+                'Guardar'
+              )}
+            </button>
           </div>
         )}
       </div>

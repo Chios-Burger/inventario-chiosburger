@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, User, Package, Download, FileText, Trash2, Search, ChevronDown, ChevronUp, BarChart, AlertTriangle, FileSpreadsheet, Database, CloudOff, AlertCircle, Edit, Tag } from 'lucide-react';
+import { Calendar, User, Package, FileText, Trash2, Search, ChevronDown, ChevronUp, BarChart, AlertTriangle, FileSpreadsheet, Database, CloudOff, AlertCircle, Edit, Tag } from 'lucide-react';
 import React from 'react';
 import { historicoService } from '../services/historico';
 import { exportUtils } from '../utils/exportUtils';
@@ -7,6 +7,7 @@ import { authService } from '../services/auth';
 import { BODEGAS } from '../config';
 import type { RegistroHistorico, RegistroDiario, ProductoHistorico } from '../types/index';
 import { EditarProductoModal } from './EditarProductoModal';
+import { fechaAISO, obtenerFechaActual, normalizarFechaAISO } from '../utils/dateUtils';
 
 export const Historico = () => {
   const [registrosPorDia, setRegistrosPorDia] = useState<RegistroDiario[]>([]);
@@ -23,13 +24,11 @@ export const Historico = () => {
   
   const usuario = authService.getUsuarioActual();
   const esAdmin = authService.esAdmin();
+  const esUsuarioAnalisis = usuario?.email === 'analisis@chiosburger.com';
 
   // Obtener fecha de hoy en formato ISO (YYYY-MM-DD)
-  const hoy = new Date();
-  const año = hoy.getFullYear();
-  const mes = (hoy.getMonth() + 1).toString().padStart(2, '0');
-  const dia = hoy.getDate().toString().padStart(2, '0');
-  const fechaHoy = `${año}-${mes}-${dia}`;
+  const hoy = obtenerFechaActual();
+  const fechaHoy = fechaAISO(hoy);
 
   useEffect(() => {
     cargarHistoricos();
@@ -50,61 +49,29 @@ export const Historico = () => {
 
   // Verificar si un registro es del día actual
   const esRegistroDeHoy = (fechaRegistro: string): boolean => {
-    // Normalizar ambas fechas a formato ISO (YYYY-MM-DD)
-    const normalizarFecha = (fecha: string): string => {
-      try {
-        // Si ya está en formato ISO (YYYY-MM-DD)
-        if (fecha.includes('-') && fecha.split('-')[0].length === 4) {
-          return fecha;
-        }
-        // Si está en formato DD/MM/YYYY, convertir a ISO
-        if (fecha.includes('/')) {
-          const [d, m, y] = fecha.split('/');
-          return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-        }
-        return fecha;
-      } catch {
-        return fecha;
-      }
-    };
-    
-    const fechaRegistroNorm = normalizarFecha(fechaRegistro);
-    const fechaHoyNorm = normalizarFecha(fechaHoy);
+    const fechaRegistroNorm = normalizarFechaAISO(fechaRegistro);
+    const fechaHoyNorm = normalizarFechaAISO(fechaHoy);
     
     return fechaRegistroNorm === fechaHoyNorm;
   };
 
-  // Verificar si el usuario puede eliminar un registro
+  // Verificar si el usuario puede eliminar un registro según roles
   const puedeEliminar = (registro: RegistroHistorico): boolean => {
     if (!usuario) return false;
     
-    const esSuperAdmin = usuario.email === 'analisis@chiosburger.com';
-    const esAdminSupervisor = usuario.email === 'supervisor@chiosburger.com';
+    const esAnalisis = usuario.email === 'analisis@chiosburger.com';
+    const esGerencia = usuario.email === 'gerencia@chiosburger.com';
     const esHoy = esRegistroDeHoy(registro.fecha);
-    // Un registro es local si no es de database o si no tiene origen definido
-    const esLocal = !registro.origen || registro.origen === 'local' || registro.origen !== 'database';
+    const esMiRegistro = registro.usuario === usuario.nombre;
     
-    console.log('🔐 Verificando permisos de eliminación:', {
-      usuario: usuario.email,
-      esAdmin,
-      esSuperAdmin,
-      esAdminSupervisor,
-      esHoy,
-      esLocal,
-      origen: registro.origen,
-      fecha: registro.fecha,
-      fechaHoy,
-      resultado: (esLocal && esHoy) ? 'DEBERÍA PERMITIR' : 'NO PERMITE'
-    });
+    // Análisis puede eliminar solo del mismo día
+    if (esAnalisis && esHoy) return true;
     
-    // Super admin puede eliminar cualquier registro
-    if (esSuperAdmin) return true;
+    // Gerencia puede eliminar solo del mismo día
+    if (esGerencia && esHoy) return true;
     
-    // Admin supervisor puede eliminar solo registros locales
-    if (esAdminSupervisor && esLocal) return true;
-    
-    // CUALQUIER usuario puede eliminar registros del día actual (sin importar origen)
-    if (esHoy) return true;
+    // Otros usuarios: solo sus propios registros del mismo día
+    if (esMiRegistro && esHoy) return true;
     
     return false;
   };
@@ -137,35 +104,42 @@ export const Historico = () => {
     }
   };
 
-  const handleExportarCSV = (registro: RegistroHistorico) => {
-    exportUtils.exportarCSV(registro);
-  };
-
   const handleExportarPDF = (registro: RegistroHistorico) => {
     exportUtils.exportarPDF(registro);
   };
 
-  // Verificar si se puede editar un registro
+  const handleExportarCSV = (registro: RegistroHistorico) => {
+    exportUtils.exportarCSV(registro);
+  };
+
+  const handleExportarExcel = (registro: RegistroHistorico) => {
+    exportUtils.exportarExcel(registro);
+  };
+
+  const handleExportarTodosCSV = () => {
+    const todosLosRegistros = registrosPorDia.flatMap(dia => dia.inventarios);
+    exportUtils.exportarTodosCSV(todosLosRegistros);
+  };
+
+  // Verificar si se puede editar un registro según roles
   const puedeEditar = (registro: RegistroHistorico): boolean => {
     if (!usuario) return false;
     
-    // Super admin puede editar cualquier registro
-    if (usuario.email === 'analisis@chiosburger.com') return true;
+    const esAnalisis = usuario.email === 'analisis@chiosburger.com';
+    const esGerencia = usuario.email === 'gerencia@chiosburger.com';
+    const esHoy = esRegistroDeHoy(registro.fecha);
+    const esMiRegistro = registro.usuario === usuario.nombre;
     
-    // Verificar que sea del día de hoy
-    if (!esRegistroDeHoy(registro.fecha)) return false;
+    // Análisis puede editar solo registros del mismo día
+    if (esAnalisis && esHoy) return true;
     
-    // Verificar que sea antes del mediodía (12:00 PM hora Ecuador)
-    // COMENTADO TEMPORALMENTE PARA PRUEBAS
-    /*
-    const ahora = new Date();
-    const horaActual = ahora.getHours();
+    // Gerencia puede editar solo registros del mismo día
+    if (esGerencia && esHoy) return true;
     
-    // Si son las 12 PM o después, no se puede editar
-    if (horaActual >= 12) return false;
-    */
+    // Otros usuarios: solo sus propios registros del mismo día
+    if (esMiRegistro && esHoy) return true;
     
-    return true;
+    return false;
   };
 
   // Manejar la edición de un producto
@@ -197,7 +171,7 @@ export const Historico = () => {
 
   const handleExportarTodos = () => {
     const todosLosRegistros = registrosPorDia.flatMap(dia => dia.inventarios);
-    exportUtils.exportarTodosCSV(todosLosRegistros);
+    exportUtils.exportarTodosPDF(todosLosRegistros);
   };
 
   const toggleExpandRegistro = (id: string) => {
@@ -235,6 +209,19 @@ export const Historico = () => {
 
     // Aplicar filtros
     todosRegistros = todosRegistros.filter(inv => {
+      // Filtro por permisos de usuario
+      if (!esAdmin && usuario) {
+        // Usuarios normales solo ven sus propios registros
+        if (usuario.email !== 'gerencia@chiosburger.com' && inv.usuario !== usuario.nombre) {
+          return false;
+        }
+        // Verificar que la bodega esté en las permitidas
+        const bodegasPermitidas = usuario.bodegasPermitidas || [];
+        if (!bodegasPermitidas.includes(inv.bodegaId)) {
+          return false;
+        }
+      }
+      
       // Filtro por bodega
       if (filtroBodega !== 'todos' && inv.bodegaId.toString() !== filtroBodega) {
         return false;
@@ -531,9 +518,20 @@ export const Historico = () => {
                 onClick={handleExportarTodos}
                 className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-300 flex items-center gap-2"
               >
-                <FileSpreadsheet className="w-4 h-4" />
-                Exportar Todo
+                <FileText className="w-4 h-4" />
+                Exportar Todo PDF
               </button>
+              {esUsuarioAnalisis && (
+                <>
+                  <button
+                    onClick={handleExportarTodosCSV}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-300 flex items-center gap-2"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    Exportar Todo CSV
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -566,15 +564,15 @@ export const Historico = () => {
                     <p className="text-xs text-gray-500">{registro.fecha} - {registro.hora}</p>
                     <p className="text-xs text-gray-600 mt-1">Por: {registro.usuario}</p>
                     <div className="mt-2">
-                      {(registro.origen === 'database' || registro.sincronizado) ? (
+                      {registro.origen === 'database' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full font-medium">
                           <Database className="w-3 h-3" />
                           Base de datos
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full font-medium">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full font-medium">
                           <CloudOff className="w-3 h-3" />
-                          Pendiente
+                          Local
                         </span>
                       )}
                     </div>
@@ -592,13 +590,6 @@ export const Historico = () => {
                     className="flex-1 px-3 py-2 bg-purple-50 text-purple-600 rounded-lg text-xs font-medium"
                   >
                     {expandedRegistros.has(registro.id) ? 'Ocultar' : 'Ver detalles'}
-                  </button>
-                  <button
-                    onClick={() => handleExportarCSV(registro)}
-                    className="px-3 py-2 bg-green-50 text-green-600 rounded-lg"
-                    title="Descargar CSV"
-                  >
-                    <Download className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleExportarPDF(registro)}
@@ -698,15 +689,15 @@ export const Historico = () => {
                               HOY
                             </span>
                           )}
-                          {(registro.origen === 'database' || registro.sincronizado) ? (
+                          {registro.origen === 'database' ? (
                             <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full font-medium flex items-center gap-1">
                               <Database className="w-3 h-3" />
                               BD
                             </span>
                           ) : (
-                            <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full font-medium flex items-center gap-1">
+                            <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full font-medium flex items-center gap-1">
                               <CloudOff className="w-3 h-3" />
-                              Pendiente
+                              Local
                             </span>
                           )}
                           <div>
@@ -753,19 +744,30 @@ export const Historico = () => {
                             )}
                           </button>
                           <button
-                            onClick={() => handleExportarCSV(registro)}
-                            className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
-                            title="Exportar CSV"
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
-                          <button
                             onClick={() => handleExportarPDF(registro)}
                             className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
                             title="Exportar PDF"
                           >
                             <FileText className="w-4 h-4" />
                           </button>
+                          {esUsuarioAnalisis && (
+                            <>
+                              <button
+                                onClick={() => handleExportarCSV(registro)}
+                                className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
+                                title="Exportar CSV"
+                              >
+                                <FileSpreadsheet className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleExportarExcel(registro)}
+                                className="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors"
+                                title="Exportar Excel"
+                              >
+                                <FileSpreadsheet className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                           {esRegistroDeHoy(registro.fecha) && (
                             <button
                               onClick={() => handleEliminar(registro)}

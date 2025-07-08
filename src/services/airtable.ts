@@ -14,7 +14,6 @@ export const airtableService = {
     
     // Verificar si hay datos en cache
     if (productosCache.has(cacheKey)) {
-      console.log(`🎯 Usando productos del cache para bodega ${bodegaId}`);
       return productosCache.get(cacheKey)!;
     }
     
@@ -39,13 +38,8 @@ export const airtableService = {
           params.offset = offset;
         }
 
-        // Filtrar solo productos donde el campo de control = "Sí"
-        params.filterByFormula = `{${campoControl}} = "Sí"`;
-        
-        // Comentar los campos específicos para que Airtable devuelva todos
-        // params.fields = ['Nombre Producto', 'Categoría', 'Código', 'Codigo', 
-        //                 'Unidad Conteo Bodega Principal', 'Equivalencias Inventarios',
-        //                 campoControl, this.obtenerCampoUnidad(bodegaId)];
+        // Filtrar solo productos donde Estado = "Activo" Y el campo de control = "Sí"
+        params.filterByFormula = `AND({Estado} = "Activo", {${campoControl}} = "Sí")`;
 
         const response = await axios.get<AirtableResponse>(url, {
           headers: {
@@ -60,7 +54,7 @@ export const airtableService = {
 
       } catch (error) {
         if (!useProxy && axios.isAxiosError(error) && error.response?.status === 0) {
-          console.log('Error de CORS detectado, intentando con proxy...');
+          // Error de CORS detectado, intentando con proxy
           useProxy = true;
           offset = undefined;
           allRecords = [];
@@ -73,15 +67,12 @@ export const airtableService = {
 
     // Guardar en cache
     productosCache.set(cacheKey, allRecords);
-    console.log(`💾 Productos guardados en cache para bodega ${bodegaId}`);
-    
     return allRecords;
   },
   
   // Método para limpiar el cache si es necesario
   limpiarCache() {
     productosCache.clear();
-    console.log('🧹 Cache de productos limpiado');
   },
 
   obtenerCampoControl(bodegaId: number): string | null {

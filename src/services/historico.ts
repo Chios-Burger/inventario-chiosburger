@@ -1,5 +1,13 @@
 import type { RegistroHistorico, RegistroDiario, ProductoHistorico, Producto, Conteo } from '../types/index';
 import { authService } from './auth';
+import { airtableService } from './airtable';
+import { 
+  obtenerFechaActual, 
+  fechaAISO, 
+  fechaADisplay, 
+  horaADisplay, 
+  generarIdUnico as generarIdUnicoUtil
+} from '../utils/dateUtils';
 
 // URL del API backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -43,12 +51,8 @@ function generarIdUnico(fecha: string, bodegaId: number, codigoProducto: string)
   // Convertir fecha a formato YYMMDD
   const fechaParts = fecha.split('-');
   if (fechaParts.length !== 3) {
-    // Si la fecha no tiene el formato esperado, usar fecha actual
-    const ahora = new Date();
-    const año = ahora.getFullYear().toString().slice(-2);
-    const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
-    const dia = ahora.getDate().toString().padStart(2, '0');
-    return `${año}${mes}${dia}-${bodegaId}${codigoProducto}+${Date.now().toString().slice(-6)}`;
+    // Si la fecha no tiene el formato esperado, usar utilidad
+    return generarIdUnicoUtil();
   }
   
   const fechaFormateada = fechaParts[0].substring(2) + fechaParts[1] + fechaParts[2];
@@ -60,7 +64,88 @@ function generarIdUnico(fecha: string, bodegaId: number, codigoProducto: string)
   return `${fechaFormateada}-${bodegaId}${codigoProducto}+${timestamp}`;
 }
 
+// Intervalo para sincronización automática
+let syncInterval: NodeJS.Timeout | null = null;
+
 export const historicoService = {
+  // Iniciar sincronización automática
+  iniciarSincronizacionAutomatica(onSyncComplete?: (success: boolean, count?: number) => void) {
+    // Limpiar intervalo anterior si existe
+    if (syncInterval) {
+      clearInterval(syncInterval);
+    }
+    
+    // Sincronizar cada 10 minutos
+    syncInterval = setInterval(async () => {
+      const result = await this.sincronizarRegistrosLocales();
+      if (onSyncComplete) {
+        onSyncComplete(result.success, result.count);
+      }
+    }, 10 * 60 * 1000); // 10 minutos
+    
+    // Sincronizar inmediatamente al iniciar
+    this.sincronizarRegistrosLocales().then(result => {
+      if (onSyncComplete) {
+        onSyncComplete(result.success, result.count);
+      }
+    });
+  },
+  
+  // Detener sincronización automática
+  detenerSincronizacionAutomatica() {
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      syncInterval = null;
+    }
+  },
+  
+  // Sincronizar todos los registros locales
+  async sincronizarRegistrosLocales(): Promise<{success: boolean, count: number}> {
+    const registrosLocales = this.obtenerHistoricosLocales();
+    let sincronizados = 0;
+    
+    // Filtrar registros con fechas válidas antes de intentar sincronizar
+    const registrosValidos = registrosLocales.filter(registro => {
+      if (!registro.fecha) return false;
+      const fechaValida = fechaAISO(registro.fecha);
+      return fechaValida && fechaValida !== '';
+    });
+    
+    for (const registro of registrosValidos) {
+      try {
+        const response = await fetch(`${API_URL}/inventario`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...registro,
+            fecha: fechaAISO(registro.fecha) // Asegurar formato ISO
+          })
+        });
+        
+        if (response.ok) {
+          sincronizados++;
+          // Eliminar el registro local ya que se sincronizó
+          const registrosActualizados = this.obtenerHistoricosLocales();
+          const registrosFiltrados = registrosActualizados.filter(r => r.id !== registro.id);
+          localStorage.setItem('historicos', JSON.stringify(registrosFiltrados));
+        }
+      } catch (error) {
+        // Solo mostrar error si no es de conexión
+        if (!error.message?.includes('Failed to fetch')) {
+          console.error('Error sincronizando registro:', registro.id, error);
+        }
+      }
+    }
+    
+    // Limpiar registros con fechas inválidas del localStorage
+    if (registrosValidos.length < registrosLocales.length) {
+      localStorage.setItem('historicos', JSON.stringify(registrosValidos));
+    }
+    
+    return { success: sincronizados > 0, count: sincronizados };
+  },
   async guardarInventario(
     bodegaId: number,
     bodegaNombre: string,
@@ -69,55 +154,26 @@ export const historicoService = {
     productosGuardados: Set<string>,
     duracion: string
   ): Promise<void> {
-    console.log('🔄 Iniciando guardado de inventario...', { bodegaId, bodegaNombre, productosGuardados: productosGuardados.size });
-    
     const usuario = authService.getUsuarioActual();
     if (!usuario) {
-      console.error('❌ No hay usuario autenticado');
-      return;
+      throw new Error('No hay usuario autenticado');
     }
 
-    const ahora = new Date();
+    const ahora = obtenerFechaActual();
     // Formato para mostrar
-    const fechaDisplay = ahora.toLocaleDateString('es-EC');
+    const fechaDisplay = fechaADisplay(ahora);
     // Formato para el ID y la base de datos (YYYY-MM-DD)
-    const fechaISO = ahora.toISOString().split('T')[0];
-    const hora = ahora.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
+    const fechaISO = fechaAISO(ahora);
+    const hora = horaADisplay(ahora);
 
     // Convertir productos guardados a formato histórico
-    const productosHistorico: ProductoHistorico[] = Array.from(productosGuardados).map((productoId, index) => {
+    const productosHistorico: ProductoHistorico[] = Array.from(productosGuardados).map((productoId) => {
       const producto = productos.find(p => p.id === productoId);
       const conteo = conteos[productoId];
       
       if (!producto || !conteo) return null;
 
       const total = conteo.c1 + conteo.c2 + conteo.c3;
-      
-      // Debug: Ver campos del producto (solo el primero)
-      if (index === 0) {
-        console.log('🔍 Campos disponibles del producto:', Object.keys(producto.fields));
-        console.log('🔍 Producto completo:', producto.fields);
-        
-        // Buscar cualquier campo que contenga "tipo" (case insensitive)
-        const camposTipo = Object.keys(producto.fields).filter(key => 
-          key.toLowerCase().includes('tipo')
-        );
-        console.log('🔍 Campos que contienen "tipo":', camposTipo);
-        
-        // Mostrar valores de posibles campos tipo
-        console.log('🔍 Valores de campos tipo:', {
-          'Tipo A,B o C': producto.fields['Tipo A,B o C'],
-          'Tipo A, B o C': producto.fields['Tipo A, B o C'],
-          'Tipo': producto.fields['Tipo'],
-          ...camposTipo.reduce((acc, campo) => {
-            acc[campo] = producto.fields[campo];
-            return acc;
-          }, {} as any)
-        });
-        
-        // Debug: Mostrar categoría
-        console.log('🔍 Categoría del producto:', producto.fields['Categoría']);
-      }
       
       // Obtener el código del producto desde los campos de Airtable
       let codigoProducto = '';
@@ -135,14 +191,7 @@ export const historicoService = {
       // Generar ID único con el nuevo formato
       const idUnico = generarIdUnico(fechaISO, bodegaId, codigoProducto);
       
-      // Log para depuración de categoría y tipo
-      if (index === 0) {
-        console.log('🎯 Datos finales del producto:', {
-          nombre: producto.fields['Nombre Producto'],
-          categoria: producto.fields['Categoría'],
-          tipo: obtenerTipoProducto(producto.fields)
-        });
-      }
+      const campoUnidad = airtableService.obtenerCampoUnidad(bodegaId);
       
       return {
         id: idUnico,
@@ -155,7 +204,7 @@ export const historicoService = {
         total,
         cantidadPedir: conteo.cantidadPedir,
         unidad: producto.fields['Unidad Conteo Bodega Principal'] || 'unidades',
-        unidadBodega: producto.fields[`Unidad Conteo ${bodegaNombre}`] || 'unidades',
+        unidadBodega: producto.fields[campoUnidad] || 'unidades',
         equivalencia: producto.fields['Equivalencias Inventarios'],
         tipo: obtenerTipoProducto(producto.fields)
       };
@@ -163,8 +212,8 @@ export const historicoService = {
 
     const registro: RegistroHistorico = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      fecha: fechaISO, // Usar formato ISO para la base de datos
-      fechaDisplay, // Mantener fecha en formato display para localStorage
+      fecha: fechaISO, // SIEMPRE formato YYYY-MM-DD
+      fechaDisplay: fechaISO, // SIEMPRE usar formato ISO
       hora,
       usuario: usuario.nombre,
       bodega: bodegaNombre,
@@ -181,7 +230,7 @@ export const historicoService = {
     const registroParaLocalStorage = {
       ...registro,
       fecha: fechaDisplay, // En localStorage guardamos la fecha en formato display
-      sincronizado: false // Marcar como no sincronizado inicialmente
+      origen: 'local' // Marcar como origen local
     };
     const registrosExistentes = this.obtenerHistoricosLocales();
     registrosExistentes.push(registroParaLocalStorage);
@@ -220,14 +269,10 @@ export const historicoService = {
         const result = await response.json();
         console.log('✅ Inventario guardado en base de datos exitosamente', result);
         
-        // Marcar como sincronizado en localStorage
+        // Eliminar de localStorage ya que se guardó en BD
         const registrosActualizados = this.obtenerHistoricosLocales();
-        const indice = registrosActualizados.findIndex(r => r.id === registro.id);
-        if (indice !== -1) {
-          registrosActualizados[indice].sincronizado = true;
-          registrosActualizados[indice].fechaSincronizacion = new Date().toISOString();
-          localStorage.setItem('historicos', JSON.stringify(registrosActualizados));
-        }
+        const registrosFiltered = registrosActualizados.filter(r => r.id !== registro.id);
+        localStorage.setItem('historicos', JSON.stringify(registrosFiltered));
       }
     } catch (error) {
       console.error('❌ Error de conexión con el servidor:', error);

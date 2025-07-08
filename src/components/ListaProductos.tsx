@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Loader2, AlertCircle, Package2, X, Save, Clock, TrendingUp, BarChart3, Award, ArrowUp, Sparkles, Activity, ArrowUpDown, ArrowUp01, ArrowDown01, Hash, Tag } from 'lucide-react';
+import { Search, Loader2, AlertCircle, Package2, X, Save, Clock, TrendingUp, BarChart3, Award, ArrowUp, Sparkles, ArrowUpDown, ArrowUp01, ArrowDown01, Hash, Tag } from 'lucide-react';
 import type { Producto } from '../types/index';
 import { ProductoConteo } from './ProductoConteo';
 import { Toast } from './Toast';
@@ -22,6 +22,11 @@ const getDiaActual = (): number => {
 
 // Función helper para obtener los tipos permitidos según bodega y día
 const getTiposPermitidos = (bodegaId: number, dia: number, userEmail?: string): string[] | null => {
+  // SIEMPRE permitir contar todos los tipos cualquier día
+  return ['A', 'B', 'C'];
+  
+  // Código anterior comentado - por instrucción del usuario, siempre está habilitado para contar
+  /*
   // Super admin ve todo
   if (userEmail === 'analisis@chiosburger.com') {
     return ['A', 'B', 'C']; // Todos los tipos
@@ -59,6 +64,7 @@ const getTiposPermitidos = (bodegaId: number, dia: number, userEmail?: string): 
   
   // Otras bodegas: mostrar todos
   return ['A', 'B', 'C'];
+  */
 };
 
 export const ListaProductos = ({ 
@@ -147,7 +153,7 @@ export const ListaProductos = ({
     const datosGuardados = localStorage.getItem(`conteos_${bodegaId}`);
     if (datosGuardados) {
       setConteos(JSON.parse(datosGuardados));
-      setToast({ message: 'Datos locales cargados', type: 'info' });
+      // Mensaje eliminado
     }
     
     // Cargar productos guardados del localStorage
@@ -294,10 +300,28 @@ export const ListaProductos = ({
       return newSet;
     });
     
-    setToast({ message: '✨ Producto guardado exitosamente', type: 'success' });
+    // Mensaje de confirmación eliminado
   }, [bodegaId]);
 
-  const handleGuardarProducto = useCallback(async (productoId: string, esAccionRapida?: boolean, valoresRapidos?: any) => {
+  // Nueva función para manejar cuando se edita un producto guardado
+  const handleEditarProducto = useCallback((productoId: string) => {
+    // Remover el producto de la lista de guardados
+    setProductosGuardados(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(productoId);
+      // Actualizar localStorage
+      localStorage.setItem(`productosGuardados_${bodegaId}`, JSON.stringify([...newSet]));
+      return newSet;
+    });
+  }, [bodegaId]);
+
+  const handleGuardarProducto = useCallback(async (productoId: string, esAccionRapida?: boolean, valoresRapidos?: any, esEdicion?: boolean) => {
+    // Si es edición, primero remover de guardados
+    if (esEdicion) {
+      handleEditarProducto(productoId);
+      return;
+    }
+    
     // Si es acción rápida, usar la nueva función
     if (esAccionRapida && valoresRapidos) {
       handleAccionRapida(productoId, valoresRapidos);
@@ -312,14 +336,13 @@ export const ListaProductos = ({
     
     try {
       if (isOnline) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
         setProductosGuardados(prev => {
           const newSet = new Set(prev).add(productoId);
           // Persistir en localStorage
           localStorage.setItem(`productosGuardados_${bodegaId}`, JSON.stringify([...newSet]));
           return newSet;
         });
-        setToast({ message: '✨ Producto guardado exitosamente', type: 'success' });
+        // Mensaje de confirmación eliminado
       } else {
         setProductosGuardados(prev => {
           const newSet = new Set(prev).add(productoId);
@@ -327,7 +350,7 @@ export const ListaProductos = ({
           localStorage.setItem(`productosGuardados_${bodegaId}`, JSON.stringify([...newSet]));
           return newSet;
         });
-        setToast({ message: '📱 Guardado localmente', type: 'offline' });
+        // Mensaje de guardado offline eliminado
       }
     } catch (error) {
       setToast({ message: 'Error al guardar producto', type: 'error' });
@@ -338,7 +361,7 @@ export const ListaProductos = ({
         return newSet;
       });
     }
-  }, [conteos, handleAccionRapida]);
+  }, [conteos, handleAccionRapida, handleEditarProducto]);
 
   const handleGuardar = async () => {
     // CAMBIO TEMPORAL: Permitir guardar sin completar todos los productos
@@ -428,6 +451,84 @@ export const ListaProductos = ({
   // Usar el total de productos en lugar de productos filtrados para el porcentaje
   const porcentajeCompletado = productos.length > 0 ? Math.min(Math.round((productosGuardadosCount / productos.length) * 100), 100) : 0;
   const metrics = showMetrics ? calculateMetrics(productos.length) : null;
+  
+  // Calcular totales por tipo (solo una vez cuando se cargan los productos)
+  const totalesPorTipo = useMemo(() => {
+    const totales = { A: 0, B: 0, C: 0 };
+    
+    productos.forEach(producto => {
+      // Buscar el tipo del producto
+      const posiblesNombres = [
+        'Tipo A,B o C',
+        'Tipo A, B o C',
+        'Tipo A,B,C',
+        'Tipo A, B, C',
+        'Tipo ABC',
+        'TipoABC',
+        'Tipo',
+        'tipo'
+      ];
+      
+      let tipo = '';
+      for (const nombre of posiblesNombres) {
+        if (producto.fields[nombre]) {
+          tipo = producto.fields[nombre];
+          break;
+        }
+      }
+      
+      // Normalizar el tipo a A, B o C
+      const tipoNormalizado = tipo.toUpperCase().trim();
+      if (tipoNormalizado === 'A' || tipoNormalizado === 'B' || tipoNormalizado === 'C') {
+        totales[tipoNormalizado as 'A' | 'B' | 'C']++;
+      }
+    });
+    
+    return totales;
+  }, [productos]);
+  
+  // Calcular productos guardados por tipo (más eficiente)
+  const productosPorTipo = useMemo(() => {
+    const guardados = { A: 0, B: 0, C: 0 };
+    
+    productos.forEach(producto => {
+      if (productosGuardados.has(producto.id)) {
+        // Buscar el tipo del producto
+        const posiblesNombres = [
+          'Tipo A,B o C',
+          'Tipo A, B o C',
+          'Tipo A,B,C',
+          'Tipo A, B, C',
+          'Tipo ABC',
+          'TipoABC',
+          'Tipo',
+          'tipo'
+        ];
+        
+        let tipo = '';
+        for (const nombre of posiblesNombres) {
+          if (producto.fields[nombre]) {
+            tipo = producto.fields[nombre];
+            break;
+          }
+        }
+        
+        const tipoNormalizado = tipo.toUpperCase().trim();
+        if (tipoNormalizado === 'A' || tipoNormalizado === 'B' || tipoNormalizado === 'C') {
+          guardados[tipoNormalizado as 'A' | 'B' | 'C']++;
+        }
+      }
+    });
+    
+    // Calcular pendientes (más eficiente que recalcular todo)
+    const pendientes = {
+      A: totalesPorTipo.A - guardados.A,
+      B: totalesPorTipo.B - guardados.B,
+      C: totalesPorTipo.C - guardados.C
+    };
+    
+    return { guardados, pendientes, totales: totalesPorTipo };
+  }, [productos, productosGuardados, totalesPorTipo]);
 
   if (loading) {
     return (
@@ -495,21 +596,6 @@ export const ListaProductos = ({
         </div>
       )}
 
-      {/* Status Cards flotantes - móvil y desktop */}
-      <div className="fixed top-16 sm:top-24 right-2 sm:right-4 z-40 flex sm:flex-col gap-2 sm:gap-3">
-        {/* Conexión */}
-        <div className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl backdrop-blur-lg flex items-center gap-2 shadow-lg ${
-          isOnline ? 'bg-green-400/20 border border-green-400/30' : 'bg-orange-400/20 border border-orange-400/30'
-        }`}>
-          <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-orange-500'} animate-pulse`}></div>
-          <span className={`text-xs font-medium ${isOnline ? 'text-green-700' : 'text-orange-700'}`}>
-            {isOnline ? 'En línea' : 'Offline'}
-          </span>
-        </div>
-        
-        {/* Timer */}
-        {startTime && <Timer startTime={startTime} />}
-      </div>
 
       {/* Header con título */}
       <div className="mb-4 sm:mb-8">
@@ -647,34 +733,58 @@ export const ListaProductos = ({
         </div>
       </div>
 
-      {/* Progress Card - Sticky */}
-      <div className="sticky top-16 z-30 mb-4 sm:mb-8">
-        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl border border-gray-100">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="p-2 sm:p-3 bg-purple-100 rounded-xl sm:rounded-2xl">
-                <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+      {/* Progress Bar - Opción 2 con porcentajes */}
+      <div className="sticky top-16 z-30 mb-3 sm:mb-4">
+        <div className="bg-white rounded-lg px-2 py-1 shadow-md border border-gray-100 flex items-center gap-2">
+          <span className="text-[10px] font-medium text-gray-700">{productosGuardadosCount}/{productos.length}</span>
+          
+          <div className="flex-1 flex items-center gap-1">
+            <div className="flex-1 flex items-center gap-1">
+              <span className="text-[9px] font-bold text-blue-600">A</span>
+              <div className="flex-1 h-2 bg-blue-100 rounded overflow-hidden">
+                <div className="h-full bg-blue-500"
+                  style={{ width: productosPorTipo.totales.A > 0 ? `${(productosPorTipo.guardados.A / productosPorTipo.totales.A) * 100}%` : '0%' }}
+                />
               </div>
-              <div>
-                <p className="text-xs sm:text-sm text-gray-600 font-medium">Progreso actual</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-800">
-                  {productosGuardadosCount} <span className="text-sm sm:text-base font-normal text-gray-500">de {productos.length}</span>
-                </p>
-              </div>
+              <span className="text-[8px] text-gray-500">
+                {productosPorTipo.totales.A > 0 
+                  ? `${Math.round((productosPorTipo.guardados.A / productosPorTipo.totales.A) * 100)}%`
+                  : '0%'}
+              </span>
             </div>
-            <div className="text-right">
-              <p className="text-2xl sm:text-3xl font-bold text-purple-600">{porcentajeCompletado}%</p>
-              <p className="text-xs text-gray-500 mt-0.5 sm:mt-1">completado</p>
+            
+            <div className="flex-1 flex items-center gap-1">
+              <span className="text-[9px] font-bold text-green-600">B</span>
+              <div className="flex-1 h-2 bg-green-100 rounded overflow-hidden">
+                <div className="h-full bg-green-500"
+                  style={{ width: productosPorTipo.totales.B > 0 ? `${(productosPorTipo.guardados.B / productosPorTipo.totales.B) * 100}%` : '0%' }}
+                />
+              </div>
+              <span className="text-[8px] text-gray-500">
+                {productosPorTipo.totales.B > 0 
+                  ? `${Math.round((productosPorTipo.guardados.B / productosPorTipo.totales.B) * 100)}%`
+                  : '0%'}
+              </span>
+            </div>
+            
+            <div className="flex-1 flex items-center gap-1">
+              <span className="text-[9px] font-bold text-yellow-600">C</span>
+              <div className="flex-1 h-2 bg-yellow-100 rounded overflow-hidden">
+                <div className="h-full bg-yellow-500"
+                  style={{ width: productosPorTipo.totales.C > 0 ? `${(productosPorTipo.guardados.C / productosPorTipo.totales.C) * 100}%` : '0%' }}
+                />
+              </div>
+              <span className="text-[8px] text-gray-500">
+                {productosPorTipo.totales.C > 0 
+                  ? `${Math.round((productosPorTipo.guardados.C / productosPorTipo.totales.C) * 100)}%`
+                  : '0%'}
+              </span>
             </div>
           </div>
           
-          {/* Barra de progreso estática */}
-          <div className="relative h-2.5 sm:h-3 bg-gray-100 rounded-full overflow-hidden">
-            <div 
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-500 to-blue-600 rounded-full"
-              style={{ width: `${porcentajeCompletado}%` }}
-            />
-          </div>
+          <span className="text-[9px] font-bold text-purple-600">{porcentajeCompletado}%</span>
+          <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+          {startTime && <Timer startTime={startTime} className="!p-0 !px-1 !py-0 !text-[9px]" />}
         </div>
       </div>
 
@@ -735,6 +845,7 @@ export const ListaProductos = ({
           </div>
         </div>
       )}
+
 
       {/* Lista de productos */}
       <div className="space-y-4">

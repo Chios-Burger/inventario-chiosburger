@@ -59,6 +59,12 @@ function generarId(productoId) {
   
   // Si no, generar uno nuevo con formato corto
   const fecha = new Date();
+  // Ajustar a zona horaria de Ecuador (UTC-5)
+  const offsetEcuador = -5 * 60; // UTC-5 en minutos
+  const offsetLocal = fecha.getTimezoneOffset(); // Offset local en minutos
+  const diferencia = offsetEcuador - offsetLocal;
+  fecha.setMinutes(fecha.getMinutes() + diferencia);
+  
   const dia = fecha.getDate().toString().padStart(2, '0');
   const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
   const año = fecha.getFullYear().toString().slice(-2);
@@ -102,13 +108,27 @@ function formatearCantidades(c1, c2, c3) {
   return partes.join('+');
 }
 
-// Función para formatear fecha
+// Función para formatear fecha - acepta ambos formatos DD/MM/YYYY y YYYY-MM-DD
 function formatearFecha(fecha) {
+  // Si ya está en formato ISO (YYYY-MM-DD), devolverla
+  if (fecha.includes('-') && fecha.split('-')[0].length === 4) {
+    return fecha;
+  }
+  
+  // Si está en formato DD/MM/YYYY, convertir
   const partes = fecha.split('/');
   if (partes.length === 3) {
     return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
   }
-  return new Date().toISOString().split('T')[0];
+  
+  // Si no es ninguno de los formatos esperados, usar fecha actual en UTC-5 (Ecuador)
+  const ahora = new Date();
+  const offsetEcuador = -5 * 60; // UTC-5 en minutos
+  const offsetLocal = ahora.getTimezoneOffset(); // Offset local en minutos
+  const diferencia = offsetEcuador - offsetLocal;
+  ahora.setMinutes(ahora.getMinutes() + diferencia);
+  
+  return ahora.toISOString().split('T')[0];
 }
 
 // Crear tabla de auditoría si no existe
@@ -226,8 +246,8 @@ app.post('/api/inventario', async (req, res) => {
         case 'tomasFisicas':
           query = `
             INSERT INTO public."tomasFisicas" 
-            (fecha, codtomas, cod_prod, productos, unidad, cantidad, anotaciones, local, "cantidadSolicitada", uni_bod)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            (fecha, codtomas, cod_prod, productos, unidad, cantidad, anotaciones, local, "cantidadSolicitada", uni_bod, categoria, "Tipo A,B o C")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           `;
           values = [
             registro.fecha,
@@ -239,15 +259,17 @@ app.post('/api/inventario', async (req, res) => {
             formatearCantidades(producto.c1, producto.c2, producto.c3),
             NOMBRE_LOCAL_CHIOS[registro.bodegaId] || '',
             producto.cantidadPedir > 0 ? producto.cantidadPedir.toString() : '',
-            ''
+            producto.unidad || '', // Ahora guarda la unidad de bodega principal
+            producto.categoria || '',
+            producto.tipo || ''
           ];
           break;
 
         case 'toma_bodega':
           query = `
             INSERT INTO public.toma_bodega 
-            (id, codigo, producto, fecha, usuario, cantidades, total, unidad)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (id, codigo, producto, fecha, usuario, cantidades, total, unidad, categoria, "Tipo A,B o C")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           `;
           values = [
             generarId(producto.id),
@@ -257,15 +279,17 @@ app.post('/api/inventario', async (req, res) => {
             `${registro.usuario} - ${registro.usuario} - principal@chiosburger.com`,
             formatearCantidades(producto.c1, producto.c2, producto.c3) + '+',
             producto.c1 === -1 && producto.c2 === -1 && producto.c3 === -1 ? null : producto.total.toString(),
-            producto.unidadBodega
+            producto.unidadBodega,
+            producto.categoria || '',
+            producto.tipo || ''
           ];
           break;
 
         case 'toma_materiaprima':
           query = `
             INSERT INTO public.toma_materiaprima 
-            (id, codigo, producto, fecha, usuario, cantidades, total, unidad)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (id, codigo, producto, fecha, usuario, cantidades, total, unidad, categoria, "Tipo A,B o C")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           `;
           const idGenerado = generarId(producto.id);
           const usuarioFormateado = `${registro.usuario} - materia@chiosburger.com`;
@@ -286,15 +310,17 @@ app.post('/api/inventario', async (req, res) => {
             usuarioFormateado,
             formatearCantidades(producto.c1, producto.c2, producto.c3) + '+0',
             producto.c1 === -1 && producto.c2 === -1 && producto.c3 === -1 ? null : producto.total,
-            producto.unidadBodega
+            producto.unidadBodega,
+            producto.categoria || '',
+            producto.tipo || ''
           ];
           break;
 
         case 'toma_planta':
           query = `
             INSERT INTO public.toma_planta 
-            (id, codigo, producto, fecha, usuario, cantidades, total, unidad)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (id, codigo, producto, fecha, usuario, cantidades, total, unidad, categoria, "Tipo A,B o C")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           `;
           values = [
             generarId(producto.id),
@@ -304,15 +330,17 @@ app.post('/api/inventario', async (req, res) => {
             `${registro.usuario} - produccion@chiosburger.com`,
             formatearCantidades(producto.c1, producto.c2, producto.c3),
             producto.c1 === -1 && producto.c2 === -1 && producto.c3 === -1 ? null : producto.total,
-            producto.unidadBodega
+            producto.unidadBodega,
+            producto.categoria || '',
+            producto.tipo || ''
           ];
           break;
 
         case 'toma_simon_bolon':
           query = `
             INSERT INTO public.toma_simon_bolon 
-            (id, fecha, usuario, codigo, producto, cantidad, total, uni_local, cant_pedir, uni_bod)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            (id, fecha, usuario, codigo, producto, cantidad, total, uni_local, cant_pedir, uni_bod, categoria, "Tipo A,B o C")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           `;
           values = [
             generarId(producto.id),
@@ -324,15 +352,17 @@ app.post('/api/inventario', async (req, res) => {
             producto.c1 === -1 && producto.c2 === -1 && producto.c3 === -1 ? null : producto.total,
             producto.unidadBodega,
             producto.cantidadPedir > 0 ? producto.cantidadPedir : null,
-            producto.unidad
+            producto.unidad,
+            producto.categoria || '',
+            producto.tipo || ''
           ];
           break;
 
         case 'toma_santo_cachon':
           query = `
             INSERT INTO public.toma_santo_cachon 
-            (id, fecha, usuario, codigo, producto, cantidad, total, uni_local, cant_pedir, uni_bod)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            (id, fecha, usuario, codigo, producto, cantidad, total, uni_local, cant_pedir, uni_bod, categoria, "Tipo A,B o C")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           `;
           values = [
             generarId(producto.id),
@@ -344,15 +374,17 @@ app.post('/api/inventario', async (req, res) => {
             producto.c1 === -1 && producto.c2 === -1 && producto.c3 === -1 ? null : producto.total,
             producto.unidadBodega,
             producto.cantidadPedir > 0 ? producto.cantidadPedir : null,
-            producto.unidad
+            producto.unidad,
+            producto.categoria || '',
+            producto.tipo || ''
           ];
           break;
 
         case 'toma_bodegapulmon':
           query = `
             INSERT INTO public.toma_bodegapulmon 
-            (id, codigo, producto, fecha, usuario, cantidades, total, unidad)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (id, codigo, producto, fecha, usuario, cantidades, total, unidad, categoria, "Tipo A,B o C")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           `;
           values = [
             generarId(producto.id),
@@ -362,7 +394,9 @@ app.post('/api/inventario', async (req, res) => {
             `${registro.usuario} - pulmon@chiosburger.com`,
             formatearCantidades(producto.c1, producto.c2, producto.c3),
             producto.c1 === -1 && producto.c2 === -1 && producto.c3 === -1 ? null : producto.total,
-            producto.unidadBodega
+            producto.unidadBodega,
+            producto.categoria || '',
+            producto.tipo || ''
           ];
           break;
 

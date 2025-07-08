@@ -6,6 +6,7 @@ export interface Producto {
     'Código'?: string;
     'Codigo'?: string;
     'Equivalencias Inventarios'?: string;
+    'Estado'?: string;
     // Campos de tipo de producto (diferentes variaciones posibles)
     'Tipo A,B o C'?: string;
     'Tipo A, B o C'?: string;

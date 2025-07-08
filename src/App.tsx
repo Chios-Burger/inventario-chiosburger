@@ -4,8 +4,10 @@ import { Login } from './components/Login';
 import { SelectorBodega } from './components/SelectorBodega';
 import { ListaProductos } from './components/ListaProductos';
 import { Historico } from './components/Historico';
+import { Toast } from './components/Toast';
 import { authService } from './services/auth';
 import { syncService } from './services/syncService';
+import { historicoService } from './services/historico';
 import type { Usuario } from './types/index';
 import './App.css';
 
@@ -16,6 +18,7 @@ function App() {
   const [vista, setVista] = useState<'inventario' | 'historico'>('inventario');
   const [error, setError] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [toast, setToast] = useState<{message: string; type: 'success' | 'error' | 'info' | 'offline'} | null>(null);
 
   useEffect(() => {
     // Verificar si hay un usuario logueado
@@ -24,11 +27,22 @@ function App() {
       setUsuario(usuarioGuardado);
     }
     
-    // Iniciar sincronización automática
+    // Iniciar sincronización automática con callback para mostrar notificaciones
+    historicoService.iniciarSincronizacionAutomatica((success, count) => {
+      if (success && count && count > 0) {
+        setToast({ 
+          message: `✅ ${count} registro${count > 1 ? 's' : ''} sincronizado${count > 1 ? 's' : ''} con la base de datos`, 
+          type: 'success' 
+        });
+      }
+    });
+    
+    // Mantener compatibilidad con syncService si es necesario
     syncService.startAutoSync();
     
     return () => {
       // Detener sincronización al desmontar
+      historicoService.detenerSincronizacionAutomatica();
       syncService.stopAutoSync();
     };
   }, []);
@@ -242,6 +256,15 @@ function App() {
             <Historico />
           )}
       </main>
+      
+      {/* Toast notifications */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
