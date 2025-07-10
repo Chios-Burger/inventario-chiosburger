@@ -60,35 +60,44 @@ export const Historico = () => {
   const puedeEliminar = (registro: RegistroHistorico): boolean => {
     if (!usuario) return false;
     
-    const esSuperAdmin = usuario.email === 'analisis@chiosburger.com';
-    const esAdminSupervisor = usuario.email === 'supervisor@chiosburger.com';
+    const esAnalisis = usuario.email.toLowerCase() === 'analisis@chiosburger.com';
+    const esGerencia = usuario.email.toLowerCase() === 'gerencia@chiosburger.com';
     const esHoy = esRegistroDeHoy(registro.fecha);
-    // Un registro es local si no es de database o si no tiene origen definido
-    const esLocal = !registro.origen || registro.origen === 'local' || registro.origen !== 'database';
     
     console.log('🔐 Verificando permisos de eliminación:', {
       usuario: usuario.email,
-      esAdmin,
-      esSuperAdmin,
-      esAdminSupervisor,
+      esAnalisis,
+      esGerencia,
       esHoy,
-      esLocal,
-      origen: registro.origen,
       fecha: registro.fecha,
-      fechaHoy,
-      resultado: (esLocal && esHoy) ? 'DEBERÍA PERMITIR' : 'NO PERMITE'
+      fechaHoy
     });
     
-    // Super admin puede eliminar cualquier registro
-    if (esSuperAdmin) return true;
+    // Análisis puede eliminar cualquier registro
+    if (esAnalisis) return true;
     
-    // Admin supervisor puede eliminar solo registros locales
-    if (esAdminSupervisor && esLocal) return true;
+    // Gerencia NO puede eliminar nunca
+    if (esGerencia) return false;
     
-    // CUALQUIER usuario puede eliminar registros del día actual (sin importar origen)
-    if (esHoy) return true;
+    // Para otros usuarios, verificar restricciones
+    if (!esHoy) {
+      // No pueden eliminar registros de días anteriores
+      return false;
+    }
     
-    return false;
+    // Para registros del día actual, verificar hora límite (mediodía)
+    const ahora = new Date();
+    const horaActual = ahora.getHours();
+    
+    // Solo pueden eliminar hasta las 12:00 PM (mediodía)
+    if (horaActual >= 12) {
+      return false;
+    }
+    
+    // Verificar que el usuario tenga permiso para la bodega
+    const tienPermisoBodega = usuario.bodegasPermitidas.includes(registro.bodegaId);
+    
+    return tienPermisoBodega;
   };
 
   const handleEliminar = async (registro: RegistroHistorico) => {
@@ -140,21 +149,35 @@ export const Historico = () => {
   const puedeEditar = (registro: RegistroHistorico): boolean => {
     if (!usuario) return false;
     
-    const esAnalisis = usuario.email === 'analisis@chiosburger.com';
-    const esGerencia = usuario.email === 'gerencia@chiosburger.com';
+    const esAnalisis = usuario.email.toLowerCase() === 'analisis@chiosburger.com';
+    const esGerencia = usuario.email.toLowerCase() === 'gerencia@chiosburger.com';
     const esHoy = esRegistroDeHoy(registro.fecha);
-    const esMiRegistro = registro.usuario === usuario.nombre;
     
-    // Análisis puede editar solo registros del mismo día
-    if (esAnalisis && esHoy) return true;
+    // Análisis puede editar TODO sin restricciones
+    if (esAnalisis) return true;
     
-    // Gerencia puede editar solo registros del mismo día
-    if (esGerencia && esHoy) return true;
+    // Gerencia puede editar sin límite de horario (cualquier día)
+    if (esGerencia) return true;
     
-    // Otros usuarios: solo sus propios registros del mismo día
-    if (esMiRegistro && esHoy) return true;
+    // Para otros usuarios, verificar restricciones
+    if (!esHoy) {
+      // Solo pueden ver (lectura) registros de días anteriores
+      return false;
+    }
     
-    return false;
+    // Para registros del día actual, verificar hora límite (mediodía)
+    const ahora = new Date();
+    const horaActual = ahora.getHours();
+    
+    // Solo pueden editar hasta las 12:00 PM (mediodía)
+    if (horaActual >= 12) {
+      return false;
+    }
+    
+    // Verificar que el usuario tenga permiso para la bodega
+    const tienPermisoBodega = usuario.bodegasPermitidas.includes(registro.bodegaId);
+    
+    return tienPermisoBodega;
   };
 
   // Manejar la edición de un producto
@@ -225,10 +248,6 @@ export const Historico = () => {
     todosRegistros = todosRegistros.filter(inv => {
       // Filtro por permisos de usuario
       if (!esAdmin && usuario) {
-        // Usuarios normales solo ven sus propios registros
-        if (usuario.email !== 'gerencia@chiosburger.com' && inv.usuario !== usuario.nombre) {
-          return false;
-        }
         // Verificar que la bodega esté en las permitidas
         const bodegasPermitidas = usuario.bodegasPermitidas || [];
         if (!bodegasPermitidas.includes(inv.bodegaId)) {
@@ -305,13 +324,6 @@ export const Historico = () => {
         }
       }
 
-      // Si no es admin, solo ver registros de sus bodegas permitidas
-      if (!esAdmin && usuario) {
-        const bodegasPermitidas = usuario.bodegasPermitidas || [];
-        if (!bodegasPermitidas.includes(inv.bodegaId)) {
-          return false;
-        }
-      }
 
       return true;
     });

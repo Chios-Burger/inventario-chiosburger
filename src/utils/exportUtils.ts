@@ -128,12 +128,22 @@ export const exportUtils = {
       return;
     }
 
+    // Debug: ver qué datos llegan
+    console.log('📄 Exportando PDF para registro:', registro);
+    console.log('📦 Productos:', registro.productos);
+    if (registro.productos.length > 0) {
+      console.log('🏷️ Ejemplo de producto:', registro.productos[0]);
+      console.log('📂 Categorías encontradas:', [...new Set(registro.productos.map(p => p.categoria || 'Sin categoría'))]);
+      console.log('🏷️ Tipos encontrados:', [...new Set(registro.productos.map(p => p.tipo || 'Sin tipo'))]);
+    }
+
     // Función auxiliar para formatear números en HTML
     const formatNum = (num: number) => this.formatearNumeroParaExport(num);
     
     // Agrupar productos por categoría
     const productosPorCategoria = registro.productos.reduce((acc, producto) => {
       const categoria = producto.categoria || 'Sin categoría';
+      console.log(`📦 Producto: ${producto.nombre}, Categoría: ${categoria}, Tipo: ${producto.tipo || 'Sin tipo'}`);
       if (!acc[categoria]) {
         acc[categoria] = [];
       }
@@ -141,8 +151,26 @@ export const exportUtils = {
       return acc;
     }, {} as Record<string, typeof registro.productos>);
     
+    console.log('🗂️ Productos agrupados por categoría:', Object.keys(productosPorCategoria));
+    console.log('📊 Detalle de agrupación:', productosPorCategoria);
+    
     // Ordenar categorías alfabéticamente
     const categoriasOrdenadas = Object.keys(productosPorCategoria).sort();
+    
+    // Calcular subtotales por categoría
+    const subtotalesPorCategoria = categoriasOrdenadas.reduce((acc, categoria) => {
+      const productos = productosPorCategoria[categoria];
+      acc[categoria] = {
+        totalProductos: productos.length,
+        productosEnCero: productos.filter(p => p.total === 0).length,
+        productosPorTipo: productos.reduce((tipos, p) => {
+          const tipo = p.tipo || 'Sin tipo';
+          tipos[tipo] = (tipos[tipo] || 0) + 1;
+          return tipos;
+        }, {} as Record<string, number>)
+      };
+      return acc;
+    }, {} as Record<string, any>);
     
     const html = `
       <!DOCTYPE html>
@@ -251,6 +279,27 @@ export const exportUtils = {
             font-size: 11px;
             color: #666;
           }
+          .category-summary {
+            background-color: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 12px;
+          }
+          .category-summary span {
+            margin-right: 15px;
+          }
+          .tipo-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            margin: 0 2px;
+            background-color: #e0e0e0;
+            border-radius: 3px;
+            font-size: 11px;
+          }
+          .tipo-a { background-color: #e3f2fd; color: #1976d2; }
+          .tipo-b { background-color: #e8f5e9; color: #388e3c; }
+          .tipo-c { background-color: #fff3e0; color: #f57c00; }
           @media print {
             body {
               margin: 10px;
@@ -261,6 +310,7 @@ export const exportUtils = {
             table { page-break-inside: auto; }
             tr { page-break-inside: avoid; page-break-after: auto; }
             h2 { page-break-after: avoid; }
+            .category-summary { page-break-inside: avoid; }
           }
         </style>
       </head>
@@ -279,8 +329,33 @@ export const exportUtils = {
 
         ${categoriasOrdenadas.map(categoria => {
           const productos = productosPorCategoria[categoria];
+          const subtotal = subtotalesPorCategoria[categoria];
+          
+          // Ordenar productos dentro de cada categoría por tipo (A, B, C) y luego por nombre
+          const productosOrdenados = [...productos].sort((a, b) => {
+            // Primero ordenar por tipo
+            const tipoA = a.tipo || 'Z'; // Los sin tipo van al final
+            const tipoB = b.tipo || 'Z';
+            if (tipoA !== tipoB) {
+              return tipoA.localeCompare(tipoB);
+            }
+            // Luego por nombre
+            return a.nombre.localeCompare(b.nombre);
+          });
+          
           return `
             <h2>${categoria}</h2>
+            <div class="category-summary">
+              <span><strong>Total productos:</strong> ${subtotal.totalProductos}</span>
+              <span><strong>En cero:</strong> ${subtotal.productosEnCero}</span>
+              <span><strong>Por tipo:</strong> 
+                ${Object.entries(subtotal.productosPorTipo)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([tipo, cantidad]) => 
+                    `<span class="tipo-badge tipo-${tipo.toLowerCase()}">${tipo}: ${cantidad}</span>`
+                  ).join(' ')}
+              </span>
+            </div>
             <table>
               <thead>
                 <tr>
@@ -297,11 +372,11 @@ export const exportUtils = {
                 </tr>
               </thead>
               <tbody>
-                ${productos.map(p => `
+                ${productosOrdenados.map(p => `
                   <tr class="${p.total === 0 ? 'zero-row' : ''}">
                     <td>${p.codigo || '-'}</td>
                     <td>${p.nombre}</td>
-                    <td>${p.tipo || '-'}</td>
+                    <td><span class="tipo-badge tipo-${(p.tipo || 'sin-tipo').toLowerCase()}">${p.tipo || '-'}</span></td>
                     <td class="numeric">${formatNum(p.c1)}</td>
                     <td class="numeric">${formatNum(p.c2)}</td>
                     <td class="numeric">${formatNum(p.c3)}</td>
@@ -349,11 +424,17 @@ export const exportUtils = {
       </html>
     `;
 
+    // Debug: ver el HTML generado (primeros 1000 caracteres)
+    console.log('📄 HTML generado (preview):', html.substring(0, 1000));
+    console.log('📄 Categorías en el HTML:', categoriasOrdenadas);
+    
     // Abrir en nueva ventana
     const ventana = window.open('', '_blank');
     if (ventana) {
       ventana.document.write(html);
       ventana.document.close();
+    } else {
+      console.error('❌ No se pudo abrir la ventana del PDF');
     }
   },
 

@@ -286,11 +286,29 @@ export const historicoService = {
 
   async obtenerHistoricos(): Promise<RegistroHistorico[]> {
     try {
-      // Obtener todos los históricos de todas las bodegas desde la base de datos
-      const bodegas = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+      // Importar authService para verificar permisos
+      const { authService } = await import('./auth');
+      const usuario = authService.getUsuarioActual();
+      
+      if (!usuario) {
+        return [];
+      }
+      
+      // Determinar qué bodegas puede ver el usuario
+      let bodegasAConsultar: number[] = [];
+      
+      if (usuario.esAdmin) {
+        // Los administradores ven todas las bodegas
+        bodegasAConsultar = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+      } else {
+        // Los usuarios normales solo ven sus bodegas permitidas
+        bodegasAConsultar = usuario.bodegasPermitidas;
+      }
+      
       const todosLosHistoricos: RegistroHistorico[] = [];
       
-      for (const bodegaId of bodegas) {
+      // Solo consultar las bodegas permitidas
+      for (const bodegaId of bodegasAConsultar) {
         try {
           const response = await fetch(`${API_URL}/inventarios/${bodegaId}`);
           if (response.ok) {
@@ -302,18 +320,24 @@ export const historicoService = {
             }
           }
         } catch (error) {
+          // Error silencioso para cada bodega individual
         }
       }
       
       // Combinar con datos locales si existen
       const datosLocales = this.obtenerHistoricosLocales();
       
+      // Filtrar datos locales para mostrar solo los de las bodegas permitidas
+      const datosLocalesFiltrados = datosLocales.filter(local => 
+        bodegasAConsultar.includes(local.bodegaId)
+      );
+      
       // Agregar históricos locales que no estén en la BD
-      datosLocales.forEach(local => {
+      datosLocalesFiltrados.forEach(local => {
         local.origen = 'local';
       });
       
-      return [...todosLosHistoricos, ...datosLocales];
+      return [...todosLosHistoricos, ...datosLocalesFiltrados];
     } catch {
       // Fallback a localStorage si falla la BD
       return this.obtenerHistoricosLocales();
@@ -341,10 +365,9 @@ export const historicoService = {
         )
       }))
       .sort((a, b) => {
-        const [diaA, mesA, añoA] = a.fecha.split('/').map(Number);
-        const [diaB, mesB, añoB] = b.fecha.split('/').map(Number);
-        const fechaA = new Date(añoA, mesA - 1, diaA);
-        const fechaB = new Date(añoB, mesB - 1, diaB);
+        // Las fechas están en formato YYYY-MM-DD
+        const fechaA = new Date(a.fecha);
+        const fechaB = new Date(b.fecha);
         return fechaB.getTime() - fechaA.getTime();
       });
   },
@@ -383,7 +406,7 @@ export const historicoService = {
     const registroAEliminar = todosLosHistoricos.find(h => h.id === id);
     
     // Si no encontramos el registro y el usuario es super admin, intentar eliminarlo de todos modos
-    if (!registroAEliminar && usuario.email === 'analisis@chiosburger.com') {
+    if (!registroAEliminar && usuario.email.toLowerCase() === 'analisis@chiosburger.com') {
       console.warn('⚠️ Registro no encontrado localmente, pero intentando eliminar de BD para super admin');
       console.log('📋 IDs disponibles:', todosLosHistoricos.map(h => h.id));
       
@@ -518,8 +541,32 @@ export const historicoService = {
       }
       
       // Buscar el producto específico
-      const productoIndex = registroActual.productos.findIndex(p => p.id === productoId);
+      // Primero intentar por ID exacto, luego por código
+      let productoIndex = registroActual.productos.findIndex(p => p.id === productoId);
+      
+      // Si no se encuentra por ID, buscar por código (más flexible para productos de BD)
       if (productoIndex === -1) {
+        // Extraer el código del productoId si tiene el formato nuevo (YYMMDD-bodegaCODIGO+timestamp)
+        let codigoBusqueda = productoId;
+        if (productoId.includes('-') && productoId.includes('+')) {
+          // Formato nuevo: extraer código entre guión y +
+          const partes = productoId.split('-');
+          if (partes.length > 1) {
+            const parteCodigo = partes[1].split('+')[0];
+            // Quitar el primer dígito que es el bodegaId
+            codigoBusqueda = parteCodigo.substring(1);
+          }
+        }
+        
+        // Buscar por código
+        productoIndex = registroActual.productos.findIndex(p => 
+          p.codigo === codigoBusqueda || p.codigo === productoId
+        );
+      }
+      
+      if (productoIndex === -1) {
+        console.error('Producto no encontrado. ID buscado:', productoId);
+        console.error('Productos disponibles:', registroActual.productos.map(p => ({ id: p.id, codigo: p.codigo, nombre: p.nombre })));
         throw new Error('Producto no encontrado');
       }
       
@@ -674,6 +721,7 @@ export const historicoService = {
             categoria: row.categoria,
             categoría: row.categoría,
             tipo: row.tipo,
+            'Tipo A,B o C': row['Tipo A,B o C'],
             tipo_abc: row.tipo_abc,
             tipo_a_b_c: row.tipo_a_b_c
           });
@@ -690,8 +738,8 @@ export const historicoService = {
           id: row.id || row.codtomas || '',
           codigo: row.codigo || row.cod_prod || '',
           nombre: row.producto || row.productos || '',
-          categoria: row.categoria || row.categoría || '', // Try both 'categoria' and 'categoría'
-          tipo: row.tipo || row['tipo_abc'] || row['tipo_a_b_c'] || '', // Try different field names
+          categoria: row.categoria || row.categoría || row.Categoria || row.Categoría || row.CATEGORIA || '', // Try different variations
+          tipo: row.tipo || row['Tipo A,B o C'] || row['tipo a,b o c'] || row.Tipo || row.TIPO || row['tipo_abc'] || row['tipo_a_b_c'] || '', // Try different field names
           c1,
           c2,
           c3,
