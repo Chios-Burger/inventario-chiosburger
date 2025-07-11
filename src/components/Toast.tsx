@@ -3,7 +3,7 @@ import { CheckCircle, AlertCircle, X, WifiOff, Info } from 'lucide-react';
 
 interface ToastProps {
   message: string;
-  type: 'success' | 'error' | 'info' | 'offline';
+  type: 'success' | 'error' | 'info' | 'offline' | 'warning';
   onClose: () => void;
   duration?: number;
 }
@@ -20,14 +20,16 @@ const ToastComponent = ({ message, type, onClose, duration = 3000 }: ToastProps)
     success: <CheckCircle className="w-5 h-5" />,
     error: <AlertCircle className="w-5 h-5" />,
     info: <Info className="w-5 h-5" />,
-    offline: <WifiOff className="w-5 h-5" />
+    offline: <WifiOff className="w-5 h-5" />,
+    warning: <AlertCircle className="w-5 h-5" />
   };
 
   const styles = {
     success: 'bg-gradient-to-r from-green-50 to-green-100 text-green-800 border-green-200',
     error: 'bg-gradient-to-r from-red-50 to-red-100 text-red-800 border-red-200',
     info: 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800 border-blue-200',
-    offline: 'bg-gradient-to-r from-orange-50 to-orange-100 text-orange-800 border-orange-200'
+    offline: 'bg-gradient-to-r from-orange-50 to-orange-100 text-orange-800 border-orange-200',
+    warning: 'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-800 border-yellow-200'
   };
 
   return (

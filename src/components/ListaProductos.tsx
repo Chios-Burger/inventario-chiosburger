@@ -62,6 +62,57 @@ const getTiposPermitidos = (): string[] | null => {
   */
 };
 
+// Utilidades para localStorage
+const getLocalStorageSize = (): number => {
+  let total = 0;
+  for (const key in localStorage) {
+    if (localStorage.hasOwnProperty(key)) {
+      total += localStorage[key].length + key.length;
+    }
+  }
+  return total * 2; // UTF-16
+};
+
+const checkLocalStorageSpace = (dataToStore: string, usarPorcentajePrueba: number = 0): {
+  hasSpace: boolean;
+  currentSize: number;
+  estimatedSize: number;
+  percentageUsed: number;
+  message: string;
+} => {
+  const currentSize = getLocalStorageSize();
+  const newDataSize = dataToStore.length * 2;
+  const estimatedTotal = currentSize + newDataSize;
+  const STORAGE_LIMIT = 4 * 1024 * 1024; // 4MB
+  const percentageUsed = usarPorcentajePrueba > 0 ? usarPorcentajePrueba : (estimatedTotal / STORAGE_LIMIT) * 100;
+  
+  if (percentageUsed > 95) {
+    return {
+      hasSpace: false,
+      currentSize,
+      estimatedSize: estimatedTotal,
+      percentageUsed,
+      message: '❌ Almacenamiento lleno (' + Math.round(percentageUsed) + '%)'
+    };
+  } else if (percentageUsed > 90) {
+    return {
+      hasSpace: true,
+      currentSize,
+      estimatedSize: estimatedTotal,
+      percentageUsed,
+      message: '⚠️ Almacenamiento al ' + Math.round(percentageUsed) + '%'
+    };
+  }
+  
+  return {
+    hasSpace: true,
+    currentSize,
+    estimatedSize: estimatedTotal,
+    percentageUsed,
+    message: '✅ Espacio suficiente'
+  };
+};
+
 export const ListaProductos = ({ 
   bodegaId, 
   bodegaNombre 
@@ -72,7 +123,7 @@ export const ListaProductos = ({
   const [busqueda, setBusqueda] = useState('');
   const [conteos, setConteos] = useState<{[key: string]: any}>({});
   const [productosGuardados, setProductosGuardados] = useState<Set<string>>(new Set());
-  const [toast, setToast] = useState<{message: string; type: 'success' | 'error' | 'info' | 'offline'} | null>(null);
+  const [toast, setToast] = useState<{message: string; type: 'success' | 'error' | 'info' | 'offline' | 'warning'} | null>(null);
   const [guardandoProductos, setGuardandoProductos] = useState<Set<string>>(new Set());
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -80,6 +131,11 @@ export const ListaProductos = ({
   const [mostrarSinContarPrimero, setMostrarSinContarPrimero] = useState(false);
   const [ordenSnapshot, setOrdenSnapshot] = useState<string[]>([]); // Guardar el orden en el momento del clic
   const [guardandoInventario, setGuardandoInventario] = useState(false); // Estado para mostrar mensaje de guardado
+  const [procesandoTodoEnCero, setProcesandoTodoEnCero] = useState(false); // Estado para el botón "Todo en 0"
+  // Estados para el progreso visual del botón "Todo en 0"
+  const [progresoProcesamiento, setProgresoProcesamiento] = useState(0);
+  const [totalAProcesar, setTotalAProcesar] = useState(0);
+  const [productoActual, setProductoActual] = useState('');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isOnline = useOnlineStatus();
   const debouncedBusqueda = useDebounce(busqueda, 300);
@@ -356,9 +412,106 @@ export const ListaProductos = ({
     }
   }, [conteos, handleAccionRapida, handleEditarProducto]);
 
+  const handleTodoEnCero = async () => {
+    // Función solo para Planta Producción (bodega ID 3)
+    if (bodegaId !== 3) return;
+    
+    if (!window.confirm('¿Está seguro de poner todos los productos no guardados en 0?')) {
+      return;
+    }
+    
+    setProcesandoTodoEnCero(true);
+    
+    try {
+      // Filtrar productos que NO están guardados y NO son inactivos
+      const productosParaCero = productos.filter(producto => {
+        const yaGuardado = productosGuardados.has(producto.id);
+        const conteo = conteos[producto.id];
+        const esInactivo = conteo && conteo.c1 === -1 && conteo.c2 === -1 && conteo.c3 === -1;
+        
+        // Solo procesar si NO está guardado y NO es inactivo
+        return !yaGuardado && !esInactivo;
+      });
+      
+      if (productosParaCero.length === 0) {
+        setToast({ message: 'No hay productos pendientes para poner en 0', type: 'info' });
+        return;
+      }
+      
+      // Inicializar progreso
+      setTotalAProcesar(productosParaCero.length);
+      setProgresoProcesamiento(0);
+      setProductoActual('');
+      
+      // Preparar actualizaciones en batch
+      const nuevosConteos: {[key: string]: any} = {};
+      const nuevosGuardadosIds: string[] = [];
+      
+      // Procesar con animación
+      for (let i = 0; i < productosParaCero.length; i++) {
+        const producto = productosParaCero[i];
+        setProductoActual(producto.fields['Nombre Producto']);
+        setProgresoProcesamiento(i + 1);
+        
+        nuevosConteos[producto.id] = {
+          c1: 0,
+          c2: 0,
+          c3: 0,
+          diferencia: 0,
+          cantidadBodega: 0,
+          touched: true
+        };
+        nuevosGuardadosIds.push(producto.id);
+        
+        // Pequeño delay para que la animación sea visible
+        await new Promise(resolve => setTimeout(resolve, 30));
+      }
+      
+      // Validar espacio solo si supera el 90%
+      const datosAGuardar = JSON.stringify({ ...conteos, ...nuevosConteos });
+      const espacioCheck = checkLocalStorageSpace(datosAGuardar, 0);
+      
+      if (espacioCheck.percentageUsed > 90) {
+        setToast({ message: espacioCheck.message, type: espacioCheck.percentageUsed > 95 ? 'error' : 'warning' });
+      }
+      
+      // Actualizar conteos con localStorage
+      setConteos(prev => {
+        const actualizados = { ...prev, ...nuevosConteos };
+        try {
+          localStorage.setItem(`conteos_${bodegaId}`, JSON.stringify(actualizados));
+        } catch (e) {
+          if ((e as Error).name === 'QuotaExceededError') {
+            console.error('localStorage lleno:', e);
+            setToast({ message: '❌ Almacenamiento lleno. Cambios guardados solo en memoria.', type: 'error' });
+          }
+        }
+        return actualizados;
+      });
+      
+      // Actualizar productos guardados en una sola operación
+      setProductosGuardados(prev => {
+        const newSet = new Set(prev);
+        nuevosGuardadosIds.forEach(id => newSet.add(id));
+        localStorage.setItem(`productosGuardados_${bodegaId}`, JSON.stringify([...newSet]));
+        return newSet;
+      });
+      
+      setToast({ 
+        message: `✅ ${productosParaCero.length} productos puestos en 0 y guardados`, 
+        type: 'success' 
+      });
+      
+    } catch (error) {
+      console.error('Error al poner productos en 0:', error);
+      setToast({ message: 'Error al procesar los productos', type: 'error' });
+    } finally {
+      setProcesandoTodoEnCero(false);
+    }
+  };
+
   const handleGuardar = async () => {
     // CAMBIO TEMPORAL: Permitir guardar sin completar todos los productos
-    // Mostrar mensaje de guardado
     setGuardandoInventario(true);
     
     try {
@@ -557,6 +710,7 @@ export const ListaProductos = ({
     );
   }
 
+
   return (
     <div className="max-w-5xl mx-auto">
       {/* Toast Notification */}
@@ -568,10 +722,10 @@ export const ListaProductos = ({
         />
       )}
 
-      {/* Mensaje de guardado */}
+      {/* Modal de progreso de guardado */}
       {guardandoInventario && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full animate-in fade-in zoom-in duration-300">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-2xl max-w-md w-full animate-in fade-in zoom-in duration-300">
             <div className="flex flex-col items-center">
               <div className="w-20 h-20 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center mb-6">
                 <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
@@ -891,9 +1045,35 @@ export const ListaProductos = ({
         )}
       </div>
 
-      {/* Floating Action Buttons - Responsivo para móviles */}
+      {/* Floating Action Buttons - Optimizado para móviles */}
       {hayTomaHoy && (
-      <div className="fixed bottom-4 sm:bottom-8 right-4 sm:right-8 z-50 flex flex-col items-end gap-3 sm:gap-4">
+      <div className="fixed bottom-3 right-3 sm:bottom-8 sm:right-8 z-50 flex flex-col items-end gap-2 sm:gap-4">
+        {/* Botón "Todo en 0" - Solo para Planta Producción */}
+        {bodegaId === 3 && (
+          <button
+            onClick={handleTodoEnCero}
+            disabled={procesandoTodoEnCero}
+            className={`px-6 py-3 rounded-xl font-medium text-white transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl ${
+              procesandoTodoEnCero 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-orange-500 hover:bg-orange-600'
+            }`}
+            title="Poner todos los productos no guardados en 0"
+          >
+            {procesandoTodoEnCero ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Procesando...</span>
+              </>
+            ) : (
+              <>
+                <Package2 className="w-5 h-5" />
+                <span>Todo en 0</span>
+              </>
+            )}
+          </button>
+        )}
+        
         {/* Botón principal */}
         <div className="relative">
           {/* Tooltip cuando hay productos sin contar */}
@@ -918,19 +1098,57 @@ export const ListaProductos = ({
                 }
               }
             }}
-            className={`group relative px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-semibold text-white transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base ${
+            className={`group relative px-8 py-4 rounded-2xl font-medium text-white transition-all duration-300 flex items-center gap-3 ${
               sePuedeGuardar
                 ? 'bg-gradient-to-r from-purple-500 to-blue-600 hover:shadow-2xl hover:scale-105' 
                 : 'bg-gray-400 cursor-not-allowed'
             }`}
             title={!sePuedeGuardar ? `Productos sin contar: ${productosSinContar}` : ''}
           >
-          <Save className="w-4 h-4 sm:w-5 sm:h-5" />
+          <Save className="w-5 h-5" />
           <span>Guardar Inventario</span>
           </button>
         </div>
       </div>
       )}
+
+      {/* Modal de progreso visual para "Todo en 0" */}
+      {procesandoTodoEnCero && totalAProcesar > 0 && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800">Procesando productos...</h3>
+            
+            {/* Barra de progreso */}
+            <div className="w-full bg-gray-200 rounded-full h-4 mb-2 overflow-hidden">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${(progresoProcesamiento / totalAProcesar) * 100}%` }}
+              />
+            </div>
+            
+            {/* Contador */}
+            <p className="text-sm text-gray-600 text-center mb-2">
+              {progresoProcesamiento} de {totalAProcesar} productos
+            </p>
+            
+            {/* Producto actual */}
+            {productoActual && (
+              <p className="text-xs text-gray-500 text-center truncate">
+                Procesando: {productoActual}
+              </p>
+            )}
+            
+            {/* Porcentaje grande */}
+            <div className="mt-4 text-center">
+              <span className="text-3xl font-bold text-blue-600">
+                {Math.round((progresoProcesamiento / totalAProcesar) * 100)}%
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+
 
       {/* Botón scroll to top - Solo visible en desktop */}
       <button

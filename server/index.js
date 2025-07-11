@@ -413,7 +413,8 @@ app.get('/api/inventarios/:bodegaId', async (req, res) => {
       case 'tomasFisicas':
         query = `
           SELECT fecha, codtomas as id, cod_prod as codigo, productos as producto, cantidad as total, 
-                 anotaciones as cantidades, local, "cantidadSolicitada" as cant_pedir, unidad
+                 anotaciones as cantidades, local, "cantidadSolicitada" as cant_pedir, unidad,
+                 categoria, "Tipo A,B o C" as tipo
           FROM public."tomasFisicas"
           WHERE local = $1
           ORDER BY fecha DESC
@@ -426,7 +427,8 @@ app.get('/api/inventarios/:bodegaId', async (req, res) => {
       case 'toma_planta':
       case 'toma_bodegapulmon':
         query = `
-          SELECT id, codigo, producto, fecha, usuario, cantidades, total, unidad
+          SELECT id, codigo, producto, fecha, usuario, cantidades, total, unidad,
+                 categoria, "Tipo A,B o C" as tipo
           FROM public.${tabla}
           ORDER BY fecha DESC
           LIMIT 500
@@ -437,7 +439,8 @@ app.get('/api/inventarios/:bodegaId', async (req, res) => {
       case 'toma_santo_cachon':
         query = `
           SELECT id, fecha, usuario, codigo, producto, cantidad as cantidades, 
-                 total, uni_local as unidad, cant_pedir, uni_bod
+                 total, uni_local as unidad, cant_pedir, uni_bod,
+                 categoria, "Tipo A,B o C" as tipo
           FROM public.${tabla}
           ORDER BY fecha DESC
           LIMIT 500
