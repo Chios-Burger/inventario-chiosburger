@@ -12,16 +12,34 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: [
-    'https://inventario-chiosburger.netlify.app',
-    'http://localhost:5173',
-    'http://localhost:3000',
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
+  origin: function(origin, callback) {
+    const allowedOrigins = [
+      'https://inventario-chiosburger.netlify.app',
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:4173',
+      process.env.FRONTEND_URL
+    ].filter(Boolean);
+    
+    // Permitir requests sin origin (ej: Postman)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('Origen bloqueado por CORS:', origin);
+      callback(null, true); // Temporalmente permitir todos los orígenes
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200
 }));
+
+// Manejar preflight requests
+app.options('*', cors());
+
 app.use(express.json());
 
 // Configuración de PostgreSQL
@@ -177,6 +195,16 @@ async function crearTablaAuditoria() {
 // Llamar a la función al iniciar el servidor
 crearTablaAuditoria();
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'API de Inventario ChiosBurger',
+    status: 'running',
+    version: '1.0.0',
+    endpoints: ['/api/health', '/api/inventario', '/api/inventarios/:bodegaId']
+  });
+});
+
 // Endpoint para verificar conexión
 app.get('/api/health', async (req, res) => {
   try {
@@ -184,7 +212,12 @@ app.get('/api/health', async (req, res) => {
     res.json({ 
       status: 'ok', 
       database: 'connected',
-      timestamp: result.rows[0].now 
+      timestamp: result.rows[0].now,
+      environment: process.env.NODE_ENV || 'development',
+      cors: {
+        origin: req.headers.origin || 'no-origin',
+        allowed: true
+      }
     });
   } catch (error) {
     res.status(500).json({ 

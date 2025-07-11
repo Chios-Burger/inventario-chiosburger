@@ -5,7 +5,8 @@
   "description": "Backend para sistema de inventarios ChiosBurger",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node start.js",
+    "start:prod": "NODE_ENV=production node start.js",
     "dev": "nodemon index.js"
   },
   "engines": {
