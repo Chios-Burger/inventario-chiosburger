@@ -99,7 +99,9 @@ function generarId(productoId) {
   let codigo = productoId || 'PROD';
   if (productoId && productoId.includes('-')) {
     const partes = productoId.split('-');
-    codigo = partes[partes.length - 1].split('+')[0]; // Obtener el código sin timestamp
+    // Si hay timestamp después de +, extraer solo el código
+    const ultimaParte = partes[partes.length - 1];
+    codigo = ultimaParte.includes('+') ? ultimaParte.split('+')[0] : ultimaParte;
   }
   
   // Limitar código para asegurar que el ID final no exceda 50 caracteres
@@ -260,7 +262,7 @@ app.post('/api/inventario', async (req, res) => {
           `;
           values = [
             registro.fecha,
-            generarId(producto.id), // Usar el mismo formato que las demás bodegas: YYMMDD-[bodegaId][codigo]+[timestamp]
+            producto.id, // Preservar el ID original con timestamp
             producto.codigo || producto.id, // Usar código de Airtable si existe
             producto.nombre,
             producto.unidadBodega,
@@ -281,7 +283,7 @@ app.post('/api/inventario', async (req, res) => {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           `;
           values = [
-            generarId(producto.id),
+            producto.id, // Preservar el ID original con timestamp
             producto.codigo || producto.id, // Usar código de Airtable si existe
             producto.nombre,
             registro.fecha,
@@ -326,7 +328,7 @@ app.post('/api/inventario', async (req, res) => {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           `;
           values = [
-            generarId(producto.id),
+            producto.id, // Preservar el ID original con timestamp
             producto.codigo || producto.id, // Usar código de Airtable si existe
             producto.nombre,
             formatearFecha(registro.fecha),
@@ -346,7 +348,7 @@ app.post('/api/inventario', async (req, res) => {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           `;
           values = [
-            generarId(producto.id),
+            producto.id, // Preservar el ID original con timestamp
             formatearFecha(registro.fecha),
             `${registro.usuario} - simon@chiosburger.com`,
             producto.codigo || producto.id, // Usar código de Airtable si existe
@@ -368,7 +370,7 @@ app.post('/api/inventario', async (req, res) => {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           `;
           values = [
-            generarId(producto.id),
+            producto.id, // Preservar el ID original con timestamp
             formatearFecha(registro.fecha),
             `${registro.usuario} - santo@chiosburger.com`,
             producto.codigo || producto.id, // Usar código de Airtable si existe
@@ -390,7 +392,7 @@ app.post('/api/inventario', async (req, res) => {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           `;
           values = [
-            generarId(producto.id),
+            producto.id, // Preservar el ID original con timestamp
             producto.codigo || producto.id, // Usar código de Airtable si existe
             producto.nombre,
             formatearFecha(registro.fecha),

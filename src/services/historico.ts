@@ -695,19 +695,19 @@ export const historicoService = {
         }
       }
       
-      // Para IDs SIN + pero con formato nuevo (YYMMDD-bodegaCODIGO-numero), extraer numero como timestamp
+      // Para IDs SIN + pero con formato nuevo (YYMMDD-bodegaCODIGO-numero)
+      // ESTOS SON REGISTROS ANTIGUOS que se guardaron mal - agrupar por día+usuario
       if (!claveSesion && row.id && row.id.match(/^\d{6}-\d+[a-zA-Z0-9]+-\d+$/)) {
-        // Formato: YYMMDD-bodegaCODIGO-numero
-        const partes = row.id.split('-');
-        if (partes.length === 3) {
-          const numeroFinal = partes[2]; // Este número puede servir como timestamp
-          claveSesion = `${fechaNormalizada}_${usuario}_${numeroFinal}`;
-        }
+        // Formato: YYMMDD-bodegaCODIGO-numero (registros existentes)
+        // Agrupar todos del mismo día+usuario como UNA sesión
+        claveSesion = `${fechaNormalizada}_${usuario}`;
+        console.log('🆔 ID formato antiguo sin +:', row.id, '-> Agrupando por día+usuario:', claveSesion);
       }
       
       // Para todos los demás casos (registros antiguos), agrupar por fecha + usuario
       if (!claveSesion) {
         claveSesion = `${fechaNormalizada}_${usuario}`;
+        console.log('📅 Registro antiguo:', row.id, '-> Clave sesión:', claveSesion);
       }
       
       if (!sesiones[claveSesion]) {
@@ -798,22 +798,21 @@ export const historicoService = {
       // Extraer información de la clave de sesión para generar ID único
       const partesClave = claveSesion.split('_');
       if (partesClave.length >= 3) {
-        // Si tiene timestamp (registros nuevos)
+        // Si tiene timestamp (registros nuevos con +)
         const timestamp = partesClave[partesClave.length - 1];
-        if (timestamp && !timestamp.includes('-')) {
+        if (timestamp && !timestamp.includes('-') && !isNaN(Number(timestamp))) {
           // Es un timestamp válido
-          sessionId = `${bodegaId}-${usuario}-${timestamp}`;
+          sessionId = `${bodegaId}-${usuario.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10)}-${timestamp}`;
         }
       }
       
-      // Si no se generó ID (registros antiguos), usar fecha + hora + índice
+      // Si no se generó ID (registros antiguos o nuevos sin +), usar fecha + bodega + usuario + índice
       if (!sessionId) {
-        // Usar la fecha normalizada para el timestamp
-        const fechaParaTimestamp = fecha || primerProducto.fecha?.split('T')[0] || new Date().toISOString().split('T')[0];
-        const fechaTimestamp = new Date(fechaParaTimestamp).getTime() || Date.now();
-        const usuarioHash = usuario.replace(/[^a-zA-Z0-9]/g, '').substring(0, 5);
-        // Agregar índice para garantizar unicidad en registros del mismo día
-        sessionId = `${fechaTimestamp}-${bodegaId}-${usuarioHash}-${index}`;
+        const fechaParaTimestamp = fecha || new Date().toISOString().split('T')[0];
+        const fechaTimestamp = new Date(fechaParaTimestamp).getTime();
+        const usuarioLimpio = usuario.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10);
+        // Usar un ID único que combine todos los elementos
+        sessionId = `${fechaTimestamp}-${bodegaId}-${usuarioLimpio}-${index}`;
       }
 
       return {
