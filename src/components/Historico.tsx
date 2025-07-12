@@ -294,43 +294,64 @@ export const Historico = () => {
       }
 
 
-      // Filtro por búsqueda (producto)
+      // Primero, filtrar productos que coincidan con TODOS los criterios activos
+      let productosQueCumplenFiltros = inv.productos;
+      
+      // Aplicar filtro por tipo primero si está activo
+      if (filtroTipo !== 'todos') {
+        productosQueCumplenFiltros = productosQueCumplenFiltros.filter(p => {
+          // Manejar campo tipo faltante, vacío o undefined
+          if (!p.tipo || p.tipo === '' || p.tipo === undefined || p.tipo === null) {
+            return false;
+          }
+          
+          // Normalizar el tipo del producto (quitar espacios y convertir a mayúsculas)
+          const tipoProductoNormalizado = p.tipo.trim().toUpperCase();
+          const filtroTipoNormalizado = filtroTipo.trim().toUpperCase();
+          
+          // Comparar tipos normalizados
+          return tipoProductoNormalizado === filtroTipoNormalizado;
+        });
+        
+        // Si no hay productos del tipo seleccionado, excluir este registro
+        if (productosQueCumplenFiltros.length === 0) {
+          return false;
+        }
+      }
+      
+      // Aplicar filtro de búsqueda
       if (busqueda) {
         const busquedaLower = busqueda.toLowerCase().trim();
-        const coincideProducto = inv.productos.some(p => {
+        
+        // Buscar solo en los productos que ya pasaron el filtro de tipo
+        const tieneProductoCoincidente = productosQueCumplenFiltros.some(p => {
           // Buscar en nombre del producto
           if (p.nombre && p.nombre.toLowerCase().includes(busquedaLower)) return true;
           // Buscar en código del producto
           if (p.codigo && p.codigo.toLowerCase().includes(busquedaLower)) return true;
           // Buscar en categoría
           if (p.categoria && p.categoria.toLowerCase().includes(busquedaLower)) return true;
+          // Buscar en tipo (aunque ya está filtrado, puede ser útil para búsquedas)
+          if (p.tipo && p.tipo.toLowerCase().includes(busquedaLower)) return true;
           return false;
         });
-        const coincideBodega = inv.bodega.toLowerCase().includes(busquedaLower);
-        const coincideUsuario = inv.usuario.toLowerCase().includes(busquedaLower);
         
-        if (!coincideProducto && !coincideBodega && !coincideUsuario) {
-          return false;
+        // Si no encuentra coincidencia en productos, buscar en bodega o usuario
+        if (!tieneProductoCoincidente) {
+          const coincideBodega = inv.bodega.toLowerCase().includes(busquedaLower);
+          const coincideUsuario = inv.usuario.toLowerCase().includes(busquedaLower);
+          
+          if (!coincideBodega && !coincideUsuario) {
+            return false;
+          }
         }
       }
 
       // Filtro por productos con cero
       if (mostrarSoloConCero) {
-        const tieneProductosEnCero = inv.productos.some(p => p.total === 0);
+        // Verificar solo en los productos que pasaron los filtros anteriores
+        const tieneProductosEnCero = productosQueCumplenFiltros.some(p => p.total === 0);
         if (!tieneProductosEnCero) {
-          return false;
-        }
-      }
-
-      // Filtro por tipo de producto
-      if (filtroTipo !== 'todos') {
-        const tieneProductosTipo = inv.productos.some(p => {
-          // Manejar campo tipo faltante o vacío
-          if (!p.tipo || p.tipo === '') return false;
-          // Comparar tipo (normalizar a mayúsculas por si acaso)
-          return p.tipo.toUpperCase() === filtroTipo.toUpperCase();
-        });
-        if (!tieneProductosTipo) {
           return false;
         }
       }
@@ -376,6 +397,40 @@ export const Historico = () => {
       return num.toFixed(Math.min(decimales, 4));
     }
     return num.toString();
+  };
+
+  // Función para filtrar productos según los criterios activos
+  const filtrarProductosParaMostrar = (productos: ProductoHistorico[]): ProductoHistorico[] => {
+    let productosFiltrados = productos;
+    
+    // Aplicar filtro por tipo si está activo
+    if (filtroTipo !== 'todos') {
+      productosFiltrados = productosFiltrados.filter(p => {
+        if (!p.tipo || p.tipo === '') return false;
+        const tipoNormalizado = p.tipo.trim().toUpperCase();
+        return tipoNormalizado === filtroTipo.toUpperCase();
+      });
+    }
+    
+    // Aplicar búsqueda si está activa
+    if (busqueda) {
+      const busquedaLower = busqueda.toLowerCase().trim();
+      productosFiltrados = productosFiltrados.filter(p => {
+        return (
+          (p.nombre && p.nombre.toLowerCase().includes(busquedaLower)) ||
+          (p.codigo && p.codigo.toLowerCase().includes(busquedaLower)) ||
+          (p.categoria && p.categoria.toLowerCase().includes(busquedaLower)) ||
+          (p.tipo && p.tipo.toLowerCase().includes(busquedaLower))
+        );
+      });
+    }
+    
+    // Aplicar filtro de productos en cero si está activo
+    if (mostrarSoloConCero) {
+      productosFiltrados = productosFiltrados.filter(p => p.total === 0);
+    }
+    
+    return productosFiltrados;
   };
 
   // Formatear fecha para mostrar solo YYYY-MM-DD
@@ -637,7 +692,13 @@ export const Historico = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-purple-600">{registro.productos.length}</p>
+                    <p className="text-lg font-bold text-purple-600">
+                      {filtrarProductosParaMostrar(registro.productos).length}
+                      {(busqueda || filtroTipo !== 'todos' || mostrarSoloConCero) && 
+                        registro.productos.length !== filtrarProductosParaMostrar(registro.productos).length && 
+                        <span className="text-xs text-gray-500"> / {registro.productos.length}</span>
+                      }
+                    </p>
                     <p className="text-xs text-gray-500">productos</p>
                   </div>
                 </div>
@@ -672,7 +733,12 @@ export const Historico = () => {
                 {expandedRegistros.has(registro.id) && (
                   <div className="mt-4 pt-4 border-t border-gray-100">
                     <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {registro.productos.map((producto, idx) => (
+                      {filtrarProductosParaMostrar(registro.productos).length === 0 ? (
+                        <p className="text-center text-xs text-gray-500 py-4">
+                          No hay productos que coincidan con los filtros aplicados
+                        </p>
+                      ) : (
+                        filtrarProductosParaMostrar(registro.productos).map((producto, idx) => (
                         <div key={idx} className="flex justify-between items-center py-1">
                           <div className="flex-1">
                             <p className="text-xs font-medium text-gray-700">{producto.nombre}</p>
@@ -699,7 +765,8 @@ export const Historico = () => {
                             )}
                           </div>
                         </div>
-                      ))}
+                      ))
+                      )}
                     </div>
                   </div>
                 )}
@@ -843,7 +910,16 @@ export const Historico = () => {
                       <tr>
                         <td colSpan={6} className="px-3 sm:px-6 py-4 bg-gray-50">
                           <div className="space-y-3">
-                            <h4 className="text-sm font-semibold text-gray-900 mb-1">Detalle de Productos</h4>
+                            <div className="flex items-center justify-between mb-1">
+                              <h4 className="text-sm font-semibold text-gray-900">Detalle de Productos</h4>
+                              {(busqueda || filtroTipo !== 'todos' || mostrarSoloConCero) && 
+                                filtrarProductosParaMostrar(registro.productos).length !== registro.productos.length && (
+                                  <span className="text-xs text-gray-500">
+                                    Mostrando {filtrarProductosParaMostrar(registro.productos).length} de {registro.productos.length} productos
+                                  </span>
+                                )
+                              }
+                            </div>
                             <div className="overflow-x-auto -mx-3 sm:mx-0 rounded-lg border border-gray-200">
                               <table className="w-full text-xs sm:text-sm">
                                 <thead className="bg-gray-50">
@@ -863,7 +939,14 @@ export const Historico = () => {
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                  {registro.productos.map((producto, idx) => {
+                                  {filtrarProductosParaMostrar(registro.productos).length === 0 ? (
+                                    <tr>
+                                      <td colSpan={puedeEditar(registro) ? 10 : 9} className="py-8 text-center text-sm text-gray-500">
+                                        No hay productos que coincidan con los filtros aplicados
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    filtrarProductosParaMostrar(registro.productos).map((producto, idx) => {
                                     const esProductoEnCero = producto.total === 0;
                                     return (
                                       <tr key={idx} className={`${esProductoEnCero ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-blue-50/50 transition-colors`}>
@@ -939,7 +1022,8 @@ export const Historico = () => {
                                         )}
                                       </tr>
                                     );
-                                  })}
+                                  })
+                                  )}
                                 </tbody>
                               </table>
                             </div>
@@ -954,58 +1038,6 @@ export const Historico = () => {
             </table>
           </div>
 
-          {/* Detalles expandidos */}
-          {registrosFiltrados.map(registro => expandedRegistros.has(registro.id) && (
-            <div key={`detail-${registro.id}`} className="border-t border-gray-200 bg-gray-50 px-6 py-4">
-              <h4 className="text-sm font-medium text-gray-900 mb-3">Detalle de Productos</h4>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-gray-600 font-medium border-b border-gray-200">
-                      <th className="pb-2 pr-4">Producto</th>
-                      <th className="pb-2 pr-4">Categoría</th>
-                      <th className="pb-2 pr-4 text-right">Conteo 1</th>
-                      <th className="pb-2 pr-4 text-right">Conteo 2</th>
-                      <th className="pb-2 pr-4 text-right">Conteo 3</th>
-                      <th className="pb-2 pr-4 text-right">Total</th>
-                      <th className="pb-2 pr-4 text-right">Cantidad Pedir</th>
-                      <th className="pb-2 text-left">Unidad</th>
-                      {puedeEditar(registro) && (
-                        <th className="pb-2 text-center">Editar</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {registro.productos.map(producto => (
-                      <tr key={producto.id} className={producto.total === 0 ? 'bg-red-50' : ''}>
-                        <td className="py-2 pr-4">{producto.nombre}</td>
-                        <td className="py-2 pr-4 text-gray-600">{producto.categoria || <span className="text-gray-400 italic">Sin categoría</span>}</td>
-                        <td className="py-2 pr-4 text-right font-mono">{formatearNumero(producto.c1)}</td>
-                        <td className="py-2 pr-4 text-right font-mono">{formatearNumero(producto.c2)}</td>
-                        <td className="py-2 pr-4 text-right font-mono">{formatearNumero(producto.c3)}</td>
-                        <td className="py-2 pr-4 text-right font-mono font-bold">
-                          {formatearNumero(producto.total)}
-                        </td>
-                        <td className="py-2 pr-4 text-right font-mono">{formatearNumero(producto.cantidadPedir)}</td>
-                        <td className="py-2 text-gray-600">{producto.unidadBodega}</td>
-                        {puedeEditar(registro) && (
-                          <td className="py-2 text-center">
-                            <button
-                              onClick={() => setProductoEditando({ producto, registro })}
-                              className="p-1 hover:bg-blue-100 rounded transition-colors"
-                              title="Editar total"
-                            >
-                              <Edit className="w-4 h-4 text-blue-600" />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
         </div>
         </>
       )}
