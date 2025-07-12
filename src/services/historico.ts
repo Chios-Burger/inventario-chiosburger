@@ -57,8 +57,8 @@ function generarIdUnico(fecha: string, bodegaId: number, codigoProducto: string)
   
   const fechaFormateada = fechaParts[0].substring(2) + fechaParts[1] + fechaParts[2];
   
-  // Generar timestamp único (últimos 6 dígitos del timestamp actual)
-  const timestamp = Date.now().toString().slice(-6);
+  // Generar timestamp único
+  const timestamp = Date.now();
   
   // Formato simplificado: YYMMDD-[número]codigo+timestamp
   return `${fechaFormateada}-${bodegaId}${codigoProducto}+${timestamp}`;
@@ -337,7 +337,9 @@ export const historicoService = {
         local.origen = 'local';
       });
       
-      return [...todosLosHistoricos, ...datosLocalesFiltrados];
+      const resultadoFinal = [...todosLosHistoricos, ...datosLocalesFiltrados];
+      console.log('📊 Total históricos a mostrar:', resultadoFinal.length, '(BD:', todosLosHistoricos.length, ', Local:', datosLocalesFiltrados.length, ')');
+      return resultadoFinal;
     } catch {
       // Fallback a localStorage si falla la BD
       return this.obtenerHistoricosLocales();
@@ -653,10 +655,9 @@ export const historicoService = {
       9: 'Bodega Pulmon'
     };
     
-    // Log para verificar estructura de datos de BD
+    // Log para verificar estructura de datos de BD (solo si hay datos)
     if (datos.length > 0) {
-      console.log('📊 Datos de BD - Primer registro:', datos[0]);
-      console.log('📊 Campos disponibles:', Object.keys(datos[0]));
+      console.log('📊 Procesando', datos.length, 'registros de bodega', bodegaId);
     }
 
     // Agrupar productos por fecha y usuario (sesión de inventario)
@@ -670,9 +671,44 @@ export const historicoService = {
         usuario = partes[0] || 'Usuario';
       }
       
-      // Crear clave única para la sesión (fecha + usuario)
-      const fechaStr = row.fecha || '';
-      const claveSesion = `${fechaStr}_${usuario}`;
+      // Convertir fecha ISO a formato YYYY-MM-DD
+      let fechaNormalizada = '';
+      if (row.fecha) {
+        // Si viene en formato ISO (2025-07-11T05:00:00.000Z), extraer solo la fecha
+        if (row.fecha.includes('T')) {
+          fechaNormalizada = row.fecha.split('T')[0];
+        } else {
+          fechaNormalizada = row.fecha;
+        }
+      }
+      
+      // Crear clave única para la sesión
+      let claveSesion = '';
+      
+      // SOLO para IDs nuevos con formato que incluye + usar timestamp para separar sesiones
+      if (row.id && row.id.includes('+')) {
+        const partes = row.id.split('+');
+        if (partes.length > 1) {
+          // Usar fecha + usuario + timestamp para sesiones únicas
+          const timestamp = partes[1];
+          claveSesion = `${fechaNormalizada}_${usuario}_${timestamp}`;
+        }
+      }
+      
+      // Para IDs SIN + pero con formato nuevo (YYMMDD-bodegaCODIGO-numero), extraer numero como timestamp
+      if (!claveSesion && row.id && row.id.match(/^\d{6}-\d+[a-zA-Z0-9]+-\d+$/)) {
+        // Formato: YYMMDD-bodegaCODIGO-numero
+        const partes = row.id.split('-');
+        if (partes.length === 3) {
+          const numeroFinal = partes[2]; // Este número puede servir como timestamp
+          claveSesion = `${fechaNormalizada}_${usuario}_${numeroFinal}`;
+        }
+      }
+      
+      // Para todos los demás casos (registros antiguos), agrupar por fecha + usuario
+      if (!claveSesion) {
+        claveSesion = `${fechaNormalizada}_${usuario}`;
+      }
       
       if (!sesiones[claveSesion]) {
         sesiones[claveSesion] = [];
@@ -681,8 +717,10 @@ export const historicoService = {
       sesiones[claveSesion].push(row);
     });
 
+    console.log('📊 Sesiones agrupadas:', Object.keys(sesiones).length, 'sesiones de bodega', bodegaId);
+
     // Convertir cada sesión en un RegistroHistorico
-    return Object.entries(sesiones).map(([, productos]) => {
+    return Object.entries(sesiones).map(([claveSesion, productos], index) => {
       const primerProducto = productos[0];
       
       // Extraer usuario del formato almacenado
@@ -692,19 +730,22 @@ export const historicoService = {
         usuario = partes[0] || 'Usuario';
       }
 
-      // SIEMPRE usar formato YYYY-MM-DD
+      // Convertir fecha ISO a formato YYYY-MM-DD
       let fecha = primerProducto.fecha;
-      let horaInventario = '00:00';
+      if (fecha && fecha.includes('T')) {
+        fecha = fecha.split('T')[0];
+      }
       
-      // Si la fecha viene en otro formato, mantenerla como está (debería venir en YYYY-MM-DD de la BD)
-      if (!fecha || !fecha.includes('-')) {
-        // Si no tiene el formato correcto, usar fecha actual
+      // Si no tiene fecha válida, usar fecha actual
+      if (!fecha || !fecha.match(/\d{4}-\d{2}-\d{2}/)) {
         const ahora = new Date();
         const año = ahora.getFullYear();
         const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
         const dia = ahora.getDate().toString().padStart(2, '0');
         fecha = `${año}-${mes}-${dia}`;
       }
+      
+      let horaInventario = '00:00';
       
       // Intentar extraer hora del ID o usar hora actual
       if (primerProducto.id && primerProducto.id.includes('-')) {
@@ -751,14 +792,28 @@ export const historicoService = {
         };
       });
 
-      // Generar ID único y consistente para la sesión basado en los datos
-      // Usar el ID del primer producto si existe, o generar uno basado en fecha+usuario+bodega
-      let sessionId = primerProducto.id || '';
-      if (!sessionId || sessionId.length < 10) {
-        // Si no hay ID o es muy corto, generar uno consistente basado en los datos
-        const fechaTimestamp = new Date(primerProducto.fecha).getTime() || Date.now();
+      // Generar ID único para la sesión
+      let sessionId = '';
+      
+      // Extraer información de la clave de sesión para generar ID único
+      const partesClave = claveSesion.split('_');
+      if (partesClave.length >= 3) {
+        // Si tiene timestamp (registros nuevos)
+        const timestamp = partesClave[partesClave.length - 1];
+        if (timestamp && !timestamp.includes('-')) {
+          // Es un timestamp válido
+          sessionId = `${bodegaId}-${usuario}-${timestamp}`;
+        }
+      }
+      
+      // Si no se generó ID (registros antiguos), usar fecha + hora + índice
+      if (!sessionId) {
+        // Usar la fecha normalizada para el timestamp
+        const fechaParaTimestamp = fecha || primerProducto.fecha?.split('T')[0] || new Date().toISOString().split('T')[0];
+        const fechaTimestamp = new Date(fechaParaTimestamp).getTime() || Date.now();
         const usuarioHash = usuario.replace(/[^a-zA-Z0-9]/g, '').substring(0, 5);
-        sessionId = `${fechaTimestamp}-${bodegaId}-${usuarioHash}`;
+        // Agregar índice para garantizar unicidad en registros del mismo día
+        sessionId = `${fechaTimestamp}-${bodegaId}-${usuarioHash}-${index}`;
       }
 
       return {

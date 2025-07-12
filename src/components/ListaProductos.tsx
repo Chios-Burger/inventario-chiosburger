@@ -132,6 +132,8 @@ export const ListaProductos = ({
   const [ordenSnapshot, setOrdenSnapshot] = useState<string[]>([]); // Guardar el orden en el momento del clic
   const [guardandoInventario, setGuardandoInventario] = useState(false); // Estado para mostrar mensaje de guardado
   const [procesandoTodoEnCero, setProcesandoTodoEnCero] = useState(false); // Estado para el botón "Todo en 0"
+  const [botonGuardarDeshabilitado, setBotonGuardarDeshabilitado] = useState(false);
+  const [tiempoRestanteCooldown, setTiempoRestanteCooldown] = useState(0);
   // Estados para el progreso visual del botón "Todo en 0"
   const [progresoProcesamiento, setProgresoProcesamiento] = useState(0);
   const [totalAProcesar, setTotalAProcesar] = useState(0);
@@ -546,6 +548,22 @@ export const ListaProductos = ({
         localStorage.removeItem(`productosGuardados_${bodegaId}`);
         
         setToast({ message: '🎉 Inventario guardado exitosamente', type: 'success' });
+        
+        // Deshabilitar botón por 1 minuto
+        setBotonGuardarDeshabilitado(true);
+        setTiempoRestanteCooldown(60);
+        
+        // Contador regresivo
+        const interval = setInterval(() => {
+          setTiempoRestanteCooldown(prev => {
+            if (prev <= 1) {
+              clearInterval(interval);
+              setBotonGuardarDeshabilitado(false);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
         
         // Mostrar métricas después de un momento
         setTimeout(() => setShowMetrics(true), 500);
@@ -1090,7 +1108,6 @@ export const ListaProductos = ({
           )}
           
           <button
-            disabled={!sePuedeGuardar}
             onClick={() => {
               if (sePuedeGuardar) {
                 if (window.confirm('¿Estás seguro de que deseas guardar el inventario completo?')) {
@@ -1099,14 +1116,26 @@ export const ListaProductos = ({
               }
             }}
             className={`group relative px-8 py-4 rounded-2xl font-medium text-white transition-all duration-300 flex items-center gap-3 ${
-              sePuedeGuardar
+              sePuedeGuardar && !botonGuardarDeshabilitado
                 ? 'bg-gradient-to-r from-purple-500 to-blue-600 hover:shadow-2xl hover:scale-105' 
                 : 'bg-gray-400 cursor-not-allowed'
             }`}
-            title={!sePuedeGuardar ? `Productos sin contar: ${productosSinContar}` : ''}
+            title={
+              botonGuardarDeshabilitado 
+                ? `Espera ${tiempoRestanteCooldown} segundos para guardar nuevamente` 
+                : !sePuedeGuardar 
+                ? `Productos sin contar: ${productosSinContar}` 
+                : ''
+            }
+            disabled={!sePuedeGuardar || botonGuardarDeshabilitado}
           >
           <Save className="w-5 h-5" />
-          <span>Guardar Inventario</span>
+          <span>
+            {botonGuardarDeshabilitado 
+              ? `Espera ${tiempoRestanteCooldown}s` 
+              : 'Guardar Inventario'
+            }
+          </span>
           </button>
         </div>
       </div>
