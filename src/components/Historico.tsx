@@ -37,10 +37,12 @@ export const Historico = () => {
   const cargarHistoricos = async () => {
     try {
       setCargando(true);
+      console.log('🔄 Componente Historico: Cargando históricos...');
       const registros = await historicoService.obtenerHistoricosPorDia();
+      console.log('✅ Componente Historico: Registros obtenidos:', registros.length);
       setRegistrosPorDia(registros);
     } catch (error) {
-      console.error('Error al cargar históricos:', error);
+      console.error('❌ Error al cargar históricos:', error);
       setRegistrosPorDia([]);
     } finally {
       setCargando(false);

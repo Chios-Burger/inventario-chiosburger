@@ -47,7 +47,7 @@ function obtenerTipoProducto(fields: any): string {
 
 
 // Función para generar ID único con formato: YYMMDD-[número]codigo+timestamp
-function generarIdUnico(fecha: string, bodegaId: number, codigoProducto: string): string {
+function generarIdUnico(fecha: string, bodegaId: number, codigoProducto: string, timestampSesion: number): string {
   // Convertir fecha a formato YYMMDD
   const fechaParts = fecha.split('-');
   if (fechaParts.length !== 3) {
@@ -57,11 +57,8 @@ function generarIdUnico(fecha: string, bodegaId: number, codigoProducto: string)
   
   const fechaFormateada = fechaParts[0].substring(2) + fechaParts[1] + fechaParts[2];
   
-  // Generar timestamp único
-  const timestamp = Date.now();
-  
-  // Formato simplificado: YYMMDD-[número]codigo+timestamp
-  return `${fechaFormateada}-${bodegaId}${codigoProducto}+${timestamp}`;
+  // Usar el timestamp de sesión proporcionado
+  return `${fechaFormateada}-${bodegaId}${codigoProducto}+${timestampSesion}`;
 }
 
 // Intervalo para sincronización automática
@@ -182,6 +179,10 @@ export const historicoService = {
     const fechaISO = fechaAISO(ahora);
     const hora = horaADisplay(ahora);
 
+    // Generar UN SOLO timestamp para TODA la sesión
+    const timestampSesion = Date.now();
+    console.log('🕐 Timestamp único para toda la sesión:', timestampSesion);
+
     // Convertir productos guardados a formato histórico
     const productosHistorico: ProductoHistorico[] = Array.from(productosGuardados).map((productoId) => {
       const producto = productos.find(p => p.id === productoId);
@@ -205,8 +206,9 @@ export const historicoService = {
         codigoProducto = producto.id.substring(0, 8);
       }
       
-      // Generar ID único con el nuevo formato
-      const idUnico = generarIdUnico(fechaISO, bodegaId, codigoProducto);
+      // Generar ID único con el nuevo formato usando el timestamp de sesión
+      const idUnico = generarIdUnico(fechaISO, bodegaId, codigoProducto, timestampSesion);
+      // ID generado con timestamp de sesión
       
       
       // Obtener la unidad correcta según la bodega
@@ -258,6 +260,11 @@ export const historicoService = {
 
     // Intentar guardar en la base de datos
     try {
+      console.log('📤 Enviando al servidor:', {
+        bodegaId: registro.bodegaId,
+        totalProductos: registro.productos.length,
+        primerProducto: registro.productos[0]
+      });
       
       const response = await fetch(`${API_URL}/inventario`, {
         method: 'POST',
@@ -655,9 +662,11 @@ export const historicoService = {
       9: 'Bodega Pulmon'
     };
     
-    // Log para verificar estructura de datos de BD (solo si hay datos)
+    // Log para verificar estructura de datos de BD
+    console.log('🔍 convertirDatosBD - Bodega:', bodegaId, 'Total registros:', datos.length);
     if (datos.length > 0) {
-      console.log('📊 Procesando', datos.length, 'registros de bodega', bodegaId);
+      console.log('📊 Primer registro:', datos[0]);
+      console.log('📊 IDs (primeros 5):', datos.slice(0, 5).map(d => d.id));
     }
 
     // Agrupar productos por fecha y usuario (sesión de inventario)

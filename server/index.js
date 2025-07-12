@@ -233,6 +233,12 @@ app.get('/api/health', async (req, res) => {
 app.post('/api/inventario', async (req, res) => {
   const registro = req.body;
   
+  console.log('📥 Servidor recibió:', {
+    bodegaId: registro.bodegaId,
+    totalProductos: registro.productos?.length,
+    primerProductoId: registro.productos?.[0]?.id
+  });
+  
   const client = await pool.connect();
   
   try {
@@ -250,6 +256,7 @@ app.post('/api/inventario', async (req, res) => {
 
     // Procesar cada producto
     for (const producto of registro.productos) {
+      console.log('💾 Insertando producto con ID:', producto.id);
       let query;
       let values;
       
@@ -302,7 +309,7 @@ app.post('/api/inventario', async (req, res) => {
             (id, codigo, producto, fecha, usuario, cantidades, total, unidad, categoria, "Tipo A,B o C")
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           `;
-          const idGenerado = generarId(producto.id);
+          const idGenerado = producto.id; // Preservar el ID original con timestamp
           const usuarioFormateado = `${registro.usuario} - materia@chiosburger.com`;
           
           
