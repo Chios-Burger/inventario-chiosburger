@@ -37,12 +37,10 @@ export const Historico = () => {
   const cargarHistoricos = async () => {
     try {
       setCargando(true);
-      console.log('🔄 Componente Historico: Cargando históricos...');
       const registros = await historicoService.obtenerHistoricosPorDia();
-      console.log('✅ Componente Historico: Registros obtenidos:', registros.length);
       setRegistrosPorDia(registros);
     } catch (error) {
-      console.error('❌ Error al cargar históricos:', error);
+      console.error('Error al cargar históricos:', error);
       setRegistrosPorDia([]);
     } finally {
       setCargando(false);
@@ -269,10 +267,14 @@ export const Historico = () => {
 
       // Filtro por fecha
       if (filtroFecha) {
-        // Normalizar la fecha del registro a formato ISO para comparación
-        const normalizarAISO = (fecha: string): string => {
-          // Si ya está en formato ISO
-          if (fecha.includes('-') && fecha.split('-')[0].length === 4) {
+        // Normalizar ambas fechas a formato YYYY-MM-DD para comparación
+        const normalizarFecha = (fecha: string): string => {
+          // Si viene con hora o timezone, tomar solo la fecha
+          if (fecha.includes('T')) {
+            return fecha.split('T')[0];
+          }
+          // Si ya está en formato ISO YYYY-MM-DD
+          if (fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
             return fecha;
           }
           // Si está en formato DD/MM/YYYY
@@ -283,21 +285,27 @@ export const Historico = () => {
           return fecha;
         };
         
-        const fechaRegistroISO = normalizarAISO(inv.fecha);
+        const fechaRegistroNorm = normalizarFecha(inv.fecha);
+        const filtroFechaNorm = normalizarFecha(filtroFecha);
         
-        if (fechaRegistroISO !== filtroFecha) {
+        if (fechaRegistroNorm !== filtroFechaNorm) {
           return false;
         }
       }
 
 
-      // Filtro por búsqueda
+      // Filtro por búsqueda (producto)
       if (busqueda) {
-        const busquedaLower = busqueda.toLowerCase();
-        const coincideProducto = inv.productos.some(p => 
-          p.nombre.toLowerCase().includes(busquedaLower) ||
-          (p.categoria && p.categoria.toLowerCase().includes(busquedaLower))
-        );
+        const busquedaLower = busqueda.toLowerCase().trim();
+        const coincideProducto = inv.productos.some(p => {
+          // Buscar en nombre del producto
+          if (p.nombre && p.nombre.toLowerCase().includes(busquedaLower)) return true;
+          // Buscar en código del producto
+          if (p.codigo && p.codigo.toLowerCase().includes(busquedaLower)) return true;
+          // Buscar en categoría
+          if (p.categoria && p.categoria.toLowerCase().includes(busquedaLower)) return true;
+          return false;
+        });
         const coincideBodega = inv.bodega.toLowerCase().includes(busquedaLower);
         const coincideUsuario = inv.usuario.toLowerCase().includes(busquedaLower);
         
@@ -317,9 +325,10 @@ export const Historico = () => {
       // Filtro por tipo de producto
       if (filtroTipo !== 'todos') {
         const tieneProductosTipo = inv.productos.some(p => {
-          // Handle missing tipo field
+          // Manejar campo tipo faltante o vacío
           if (!p.tipo || p.tipo === '') return false;
-          return p.tipo === filtroTipo;
+          // Comparar tipo (normalizar a mayúsculas por si acaso)
+          return p.tipo.toUpperCase() === filtroTipo.toUpperCase();
         });
         if (!tieneProductosTipo) {
           return false;
@@ -452,7 +461,7 @@ export const Historico = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Buscar productos..."
+              placeholder="Buscar por nombre, código o categoría..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
