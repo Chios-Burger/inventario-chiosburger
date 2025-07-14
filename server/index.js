@@ -423,7 +423,12 @@ app.post('/api/inventario', async (req, res) => {
     res.json({ success: true, message: 'Inventario guardado exitosamente' });
     
   } catch (error) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Error durante ROLLBACK:', rollbackError);
+    }
+    
     console.error('Error al guardar inventario:', error);
     res.status(500).json({ 
       success: false, 
@@ -584,7 +589,12 @@ app.delete('/api/inventario/:registroId', async (req, res) => {
     });
     
   } catch (error) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Error durante ROLLBACK:', rollbackError);
+    }
+    
     console.error('Error al eliminar registro:', error);
     res.status(500).json({ 
       success: false, 
@@ -667,25 +677,34 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
       if (fechaRegistro) {
         fechaExtraida = fechaRegistro.split('T')[0]; // Obtener solo la fecha
       }
-    } else if (registroId && registroId.length >= 6) {
-      // Formato: DDMMYY-... (registros de base de datos)
+    } else if (registroId && registroId.match(/^\d{6}-/)) {
+      // Formato: YYMMDD-... (registros de base de datos)
       const fechaPart = registroId.substring(0, 6);
-      const day = fechaPart.substring(0, 2);    // DD
+      const year = fechaPart.substring(0, 2);   // YY
       const month = fechaPart.substring(2, 4);   // MM
-      const year = fechaPart.substring(4, 6);  // YY
+      const day = fechaPart.substring(4, 6);     // DD
       
-      // Corregir el año - si es 25, es 2025, no 2001
+      // Corregir el año - si es 25, es 2025
       const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
       
       fechaExtraida = `${fullYear}-${month}-${day}`;
-      console.log('📅 Fecha extraída del ID (DDMMYY):', fechaExtraida);
-      console.log('   Día:', day, 'Mes:', month, 'Año:', fullYear);
+      console.log('📅 Fecha extraída del ID (YYMMDD):', fechaExtraida);
+      console.log('   Año:', fullYear, 'Mes:', month, 'Día:', day);
     }
     
     // Si no se pudo extraer fecha, usar fechaRegistro
     if (!fechaExtraida && fechaRegistro) {
       fechaExtraida = fechaRegistro.split('T')[0];
       console.log('📅 Usando fechaRegistro:', fechaExtraida);
+    }
+    
+    // Asegurar que la fecha esté en formato YYYY-MM-DD
+    if (fechaExtraida) {
+      fechaExtraida = formatearFecha(fechaExtraida);
+      console.log('📅 Fecha final formateada:', fechaExtraida);
+    } else {
+      console.error('❌ No se pudo determinar la fecha para el registro');
+      throw new Error('No se pudo determinar la fecha del registro');
     }
 
     // Construir UPDATE query según la estructura de cada tabla
@@ -758,6 +777,11 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
 
     console.log('📝 Query de actualización:', updateQuery);
     console.log('📊 Parámetros:', updateParams);
+    console.log('🔍 Detalles de búsqueda:');
+    console.log('   - Tabla:', tablaInventario);
+    console.log('   - Fecha:', fechaExtraida);
+    console.log('   - Producto:', productoNombre);
+    console.log('   - Código:', productoCodigo || productoId);
     
     try {
       const updateResult = await client.query(updateQuery, updateParams);
@@ -856,7 +880,12 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
     });
 
   } catch (error) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('❌ Error durante ROLLBACK:', rollbackError);
+    }
+    
     console.error('❌ Error al editar producto:', error);
     console.error('❌ Stack trace:', error.stack);
     res.status(500).json({ 

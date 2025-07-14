@@ -1,13 +1,14 @@
-import { Package2, Lock } from 'lucide-react';
+import { Package2, Lock, Edit } from 'lucide-react';
 import { BODEGAS } from '../config';
 import type { Usuario } from '../types/index';
 
 interface SelectorBodegaProps {
   onSeleccionarBodega: (id: number, nombre: string) => void;
   usuario: Usuario;
+  onEditarBodega?: (bodega: typeof BODEGAS[0]) => void;
 }
 
-export const SelectorBodega = ({ onSeleccionarBodega, usuario }: SelectorBodegaProps) => {
+export const SelectorBodega = ({ onSeleccionarBodega, usuario, onEditarBodega }: SelectorBodegaProps) => {
   const tienePermiso = (bodegaId: number): boolean => {
     return usuario.bodegasPermitidas.includes(bodegaId);
   };
@@ -45,12 +46,27 @@ export const SelectorBodega = ({ onSeleccionarBodega, usuario }: SelectorBodegaP
                 }
               `}
             >
-              {/* Icono de bloqueado */}
-              {bloqueada && (
-                <div className="absolute top-4 right-4">
+              {/* Iconos superiores */}
+              <div className="absolute top-4 right-4 flex gap-2">
+                {/* Botón de editar para admins */}
+                {usuario.esAdmin && !bloqueada && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditarBodega?.(bodega);
+                    }}
+                    className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors"
+                    title="Editar bodega"
+                  >
+                    <Edit className="w-4 h-4 text-blue-600" />
+                  </button>
+                )}
+                
+                {/* Icono de bloqueado */}
+                {bloqueada && (
                   <Lock className="w-5 h-5 text-gray-400" />
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Contenido */}
               <div className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl mb-3 sm:mb-4 mx-auto w-fit ${

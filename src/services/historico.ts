@@ -317,17 +317,23 @@ export const historicoService = {
       // Solo consultar las bodegas permitidas
       for (const bodegaId of bodegasAConsultar) {
         try {
+          console.log(`🔍 Consultando históricos para bodega ${bodegaId}`);
           const response = await fetch(`${API_URL}/inventarios/${bodegaId}`);
           if (response.ok) {
             const data = await response.json();
+            console.log(`📊 Respuesta bodega ${bodegaId}:`, data.success ? `${data.data?.length || 0} registros` : 'Sin datos');
+            
             if (data.success && data.data) {
               // Convertir los datos de la BD al formato de RegistroHistorico
               const historicos = this.convertirDatosBD(data.data, bodegaId);
+              console.log(`✅ Bodega ${bodegaId}: ${historicos.length} sesiones agrupadas`);
               todosLosHistoricos.push(...historicos);
             }
+          } else {
+            console.error(`❌ Error al obtener datos de bodega ${bodegaId}: HTTP ${response.status}`);
           }
         } catch (error) {
-          // Error silencioso para cada bodega individual
+          console.error(`❌ Error al consultar bodega ${bodegaId}:`, error);
         }
       }
       
@@ -667,6 +673,13 @@ export const historicoService = {
     if (datos.length > 0) {
       console.log('📊 Primer registro:', datos[0]);
       console.log('📊 IDs (primeros 5):', datos.slice(0, 5).map(d => d.id));
+      
+      // Log específico para bodega 3 (Planta Producción)
+      if (bodegaId === 3) {
+        console.log('🏭 DEBUG PLANTA PRODUCCIÓN:');
+        console.log('- Primeros 3 registros completos:', datos.slice(0, 3));
+        console.log('- Campos disponibles:', Object.keys(datos[0]));
+      }
     }
 
     // Agrupar productos por fecha y usuario (sesión de inventario)
@@ -727,6 +740,17 @@ export const historicoService = {
     });
 
     console.log('📊 Sesiones agrupadas:', Object.keys(sesiones).length, 'sesiones de bodega', bodegaId);
+    
+    // Log específico para bodega 3
+    if (bodegaId === 3) {
+      console.log('🏭 SESIONES PLANTA PRODUCCIÓN:');
+      Object.entries(sesiones).forEach(([clave, prods]) => {
+        console.log(`  - Sesión "${clave}": ${prods.length} productos`);
+        if (prods.length > 0) {
+          console.log(`    Primer producto:`, prods[0]);
+        }
+      });
+    }
 
     // Convertir cada sesión en un RegistroHistorico
     return Object.entries(sesiones).map(([claveSesion, productos], index) => {
