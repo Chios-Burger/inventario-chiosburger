@@ -5,11 +5,10 @@ import type { Usuario } from '../types/index';
 interface SelectorBodegaProps {
   onSeleccionarBodega: (id: number, nombre: string) => void;
   usuario: Usuario;
-  onEditarBodega?: (bodega: typeof BODEGAS[0]) => void;
   onMostrarError?: (mensaje: string) => void;
 }
 
-export const SelectorBodega = ({ onSeleccionarBodega, usuario, onEditarBodega, onMostrarError }: SelectorBodegaProps) => {
+export const SelectorBodega = ({ onSeleccionarBodega, usuario, onMostrarError }: SelectorBodegaProps) => {
   const tienePermiso = (bodegaId: number): boolean => {
     return usuario.bodegasPermitidas.includes(bodegaId);
   };

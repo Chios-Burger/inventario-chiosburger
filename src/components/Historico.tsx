@@ -675,12 +675,12 @@ export const Historico = () => {
                   <button
                     onClick={() => {
                       const todosLosRegistros = registrosPorDia.flatMap(dia => dia.inventarios);
-                      exportUtils.exportarTodosExcel(todosLosRegistros);
+                      exportUtils.exportarTodosCSV(todosLosRegistros);
                     }}
                     className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-300 flex items-center gap-2"
                   >
                     <FileSpreadsheet className="w-4 h-4" />
-                    Exportar Todo Excel
+                    Exportar Todo CSV
                   </button>
                 </>
               )}

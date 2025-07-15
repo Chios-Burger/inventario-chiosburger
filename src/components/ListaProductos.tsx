@@ -696,11 +696,6 @@ export const ListaProductos = ({
     }
   };
 
-  // Calcular productos sin contar
-  const productosSinContar = productos.filter(producto => {
-    const conteo = conteos[producto.id];
-    return !conteo || !conteo.touched;
-  }).length;
   
   // Bloquear el botón hasta que el progreso sea 100%
   const sePuedeGuardar = porcentajeCompletado === 100 && productos.length > 0;
