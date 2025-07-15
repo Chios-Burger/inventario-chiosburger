@@ -87,5 +87,12 @@ export const USUARIOS = [
     nombre: 'Santo Cachón',
     bodegasPermitidas: [8],
     esAdmin: false
+  },
+  {
+    email: 'contabilidad@chiosburger.com',
+    pin: '1122',
+    nombre: 'Contabilidad',
+    bodegasPermitidas: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    esAdmin: true
   }
 ];

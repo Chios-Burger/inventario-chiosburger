@@ -18,7 +18,9 @@ export const Login = ({ onLogin }: LoginProps) => {
     setLoading(true);
 
     try {
+      console.log('🔍 Intentando login con:', email, pin);
       const usuario = authService.login(email, pin);
+      console.log('🔍 Resultado login:', usuario);
       
       if (usuario) {
         // Simular delay de autenticación

@@ -62,12 +62,19 @@ function App() {
   };
 
   const handleSeleccionarBodega = (id: number, nombre: string) => {
+    console.log('🏭 App - handleSeleccionarBodega llamado con:', id, nombre);
+    
     // Verificar permisos
-    if (!authService.tienPermisoBodega(id)) {
+    const tienePermiso = authService.tienPermisoBodega(id);
+    console.log('🔐 App - Tiene permiso:', tienePermiso);
+    
+    if (!tienePermiso) {
+      console.log('❌ App - Sin permisos para bodega:', id);
       setError('No tienes permisos para acceder a esta bodega');
       return;
     }
     
+    console.log('✅ App - Estableciendo bodega:', id, nombre);
     setBodegaId(id);
     setBodegaNombre(nombre);
     setError('');
@@ -229,6 +236,7 @@ function App() {
                 <SelectorBodega 
                   onSeleccionarBodega={handleSeleccionarBodega}
                   usuario={usuario}
+                  onMostrarError={(mensaje) => setToast({ message: mensaje, type: 'error' })}
                 />
               ) : (
                 <>

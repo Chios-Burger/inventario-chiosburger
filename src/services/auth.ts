@@ -3,9 +3,12 @@ import type { Usuario } from '../types/index';
 
 export const authService = {
   login(email: string, pin: string): Usuario | null {
+    console.log('🔐 Auth - Total usuarios:', USUARIOS.length);
+    console.log('🔐 Auth - Buscando:', email, pin);
     const usuario = USUARIOS.find(u => 
       u.email.toLowerCase() === email.toLowerCase() && u.pin === pin
     );
+    console.log('🔐 Auth - Usuario encontrado:', usuario);
     
     if (usuario) {
       // Guardar en localStorage
@@ -34,8 +37,19 @@ export const authService = {
 
   tienPermisoBodega(bodegaId: number): boolean {
     const usuario = this.getUsuarioActual();
-    if (!usuario) return false;
-    return usuario.bodegasPermitidas.includes(bodegaId);
+    console.log('🔍 authService.tienPermisoBodega - Usuario:', usuario);
+    console.log('🔍 authService.tienPermisoBodega - BodegaId:', bodegaId);
+    
+    if (!usuario) {
+      console.log('❌ authService.tienPermisoBodega - No hay usuario');
+      return false;
+    }
+    
+    const tienePermiso = usuario.bodegasPermitidas.includes(bodegaId);
+    console.log('🔍 authService.tienPermisoBodega - Bodegas permitidas:', usuario.bodegasPermitidas);
+    console.log('🔍 authService.tienPermisoBodega - Tiene permiso:', tienePermiso);
+    
+    return tienePermiso;
   },
 
   esAdmin(): boolean {

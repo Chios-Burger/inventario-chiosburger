@@ -1,6 +1,6 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo, useCallback } from 'react';
 import type { Producto } from '../types/index';
-import { Package, Loader2, Check, Hash, Edit3, XCircle, Ban } from 'lucide-react';
+import { Calculator, Loader2, Check, Hash, Edit3, XCircle, Ban, X } from 'lucide-react';
 
 interface ProductoConteoProps {
   producto: Producto;
@@ -198,29 +198,191 @@ const ProductoConteoComponent = ({
   // Estado para rastrear si estamos en modo edición
   const [isEditing, setIsEditing] = useState(false);
   
+  // Estado para el modal de calculadora
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calculatorValue, setCalculatorValue] = useState('0');
+  const [calculatorOperation, setCalculatorOperation] = useState('');
+  const [previousValue, setPreviousValue] = useState('');
+  
+  // Función para manejar los botones de la calculadora
+  const handleCalculatorButton = useCallback((value: string) => {
+    if (value >= '0' && value <= '9') {
+      // Números
+      if (calculatorValue === '0') {
+        setCalculatorValue(value);
+      } else if (calculatorOperation && calculatorValue.includes(calculatorOperation)) {
+        // Si ya hay una operación, agregar el número después
+        setCalculatorValue(calculatorValue + value);
+      } else {
+        setCalculatorValue(calculatorValue + value);
+      }
+    } else if (value === '.') {
+      // Decimal
+      const parts = calculatorValue.split(/[\+\-\*\/]/);
+      const currentPart = parts[parts.length - 1];
+      if (!currentPart.includes('.')) {
+        setCalculatorValue(calculatorValue + '.');
+      }
+    } else if (['+', '-', '*', '/'].includes(value)) {
+      // Operaciones
+      if (!calculatorOperation) {
+        setPreviousValue(calculatorValue);
+        setCalculatorOperation(value);
+        setCalculatorValue(calculatorValue + ' ' + value + ' ');
+      }
+    } else if (value === '=') {
+      // Resultado
+      if (previousValue && calculatorOperation && calculatorValue.includes(calculatorOperation)) {
+        const parts = calculatorValue.split(calculatorOperation);
+        const current = parseFloat(parts[1]) || 0;
+        const prev = parseFloat(previousValue);
+        let result = 0;
+        
+        switch (calculatorOperation) {
+          case '+':
+            result = prev + current;
+            break;
+          case '-':
+            result = prev - current;
+            break;
+          case '*':
+            result = prev * current;
+            break;
+          case '/':
+            result = current !== 0 ? prev / current : 0;
+            break;
+        }
+        
+        setCalculatorValue(result.toString());
+        setPreviousValue('');
+        setCalculatorOperation('');
+      }
+    }
+  }, [calculatorValue, calculatorOperation, previousValue]);
+  
+  // Efecto para manejar el teclado cuando la calculadora está abierta
+  useEffect(() => {
+    if (!showCalculator) return;
+    
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Prevenir comportamiento por defecto en inputs
+      e.preventDefault();
+      
+      // Números
+      if (e.key >= '0' && e.key <= '9') {
+        handleCalculatorButton(e.key);
+      }
+      // Operaciones
+      else if (['+', '-', '*', '/'].includes(e.key)) {
+        handleCalculatorButton(e.key);
+      }
+      // Enter o = para calcular
+      else if (e.key === 'Enter' || e.key === '=') {
+        handleCalculatorButton('=');
+      }
+      // Punto decimal
+      else if (e.key === '.') {
+        handleCalculatorButton('.');
+      }
+      // Backspace para borrar
+      else if (e.key === 'Backspace') {
+        if (calculatorValue.length > 1) {
+          setCalculatorValue(calculatorValue.slice(0, -1));
+        } else {
+          setCalculatorValue('0');
+        }
+      }
+      // Escape para limpiar
+      else if (e.key === 'Escape') {
+        setCalculatorValue('0');
+        setCalculatorOperation('');
+        setPreviousValue('');
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [showCalculator, calculatorValue, handleCalculatorButton]);
+  
   // Determinar qué botón mostrar
   const showEditButton = isGuardado && !hasChangedSinceSave && !isEditing;
+  
+  // Función para calcular el resultado pendiente
+  const calcularResultadoPendiente = () => {
+    if (previousValue && calculatorOperation && calculatorValue.includes(calculatorOperation)) {
+      const parts = calculatorValue.split(calculatorOperation);
+      
+      // Validar que hay un segundo número
+      if (parts[1]?.trim() === '' || parts[1] === undefined) {
+        alert('Por favor completa la operación antes de guardar');
+        return null;
+      }
+      
+      const current = parseFloat(parts[1]) || 0;
+      const prev = parseFloat(previousValue);
+      
+      let result = 0;
+      switch (calculatorOperation) {
+        case '+':
+          result = prev + current;
+          break;
+        case '-':
+          result = prev - current;
+          break;
+        case '*':
+          result = prev * current;
+          break;
+        case '/':
+          if (current === 0) {
+            alert('Error: División entre cero');
+            return 0;
+          }
+          result = prev / current;
+          break;
+        default:
+          return 0;
+      }
+      
+      // Limitar decimales a 4
+      return Math.round(result * 10000) / 10000;
+    }
+    return parseFloat(calculatorValue) || 0;
+  };
+  
 
   return (
-    <div className={`bg-white rounded-2xl sm:rounded-3xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl ${
+    <div className={`relative bg-white rounded-2xl sm:rounded-3xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl ${
       isInactive ? 'ring-2 ring-gray-400 bg-gradient-to-br from-gray-100 to-gray-50 opacity-75' :
       isGuardado ? 'ring-2 ring-green-400 bg-gradient-to-br from-green-50 to-white' : ''
     }`}>
+      {/* Badge de "No contado" */}
+      {!isGuardado && !isInactive && (
+        <div className="absolute -top-2 -right-2 z-10">
+          <div className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg animate-pulse">
+            NO CONTADO
+          </div>
+        </div>
+      )}
+      
       {/* Header del producto */}
       <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
         <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
-          <div className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl ${
-            isInactive ? 'bg-gray-200' :
-            isGuardado ? 'bg-green-100' : 'bg-purple-100'
-          }`}>
+          <button
+            onClick={() => !isInactive && setShowCalculator(true)}
+            className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl transition-all ${
+              isInactive ? 'bg-gray-200 cursor-not-allowed' :
+              'bg-blue-100 hover:bg-blue-200 cursor-pointer'
+            }`}
+          >
             {isInactive ? (
               <Ban className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
             ) : (
-              <Package className={`w-5 h-5 sm:w-6 sm:h-6 ${
-                isGuardado ? 'text-green-600' : 'text-purple-600'
-              }`} />
+              <Calculator className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
             )}
-          </div>
+          </button>
           <div className="flex-1">
             <h3 className={`text-base sm:text-lg font-bold leading-tight ${
               isInactive ? 'text-gray-500 line-through' : 'text-gray-800'
@@ -441,6 +603,175 @@ const ProductoConteoComponent = ({
           </div>
         )}
       </div>
+      
+      {/* Modal de Calculadora */}
+      {showCalculator && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full">
+            {/* Header de la calculadora */}
+            <div className="bg-blue-600 text-white p-4 rounded-t-2xl">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-bold">Calculadora</h3>
+                <button
+                  onClick={() => {
+                    setShowCalculator(false);
+                    setCalculatorValue('0');
+                    setCalculatorOperation('');
+                    setPreviousValue('');
+                  }}
+                  className="p-1 hover:bg-blue-700 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              {/* Información del producto */}
+              <div className="text-sm space-y-1">
+                <p className="font-medium">{producto.fields['Nombre Producto']}</p>
+                <p>Unidad de conteo: <span className="font-semibold">{unidad}</span></p>
+                <p>Unidad para pedir: <span className="font-semibold">{unidadBodega}</span></p>
+                {producto.fields['Equivalencias Inventarios'] && (
+                  <p className="text-xs bg-blue-700 p-2 rounded mt-2">
+                    Equivalencia: {producto.fields['Equivalencias Inventarios']}
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            {/* Display de la calculadora */}
+            <div className="p-4 bg-gray-100">
+              <div className="bg-white p-3 rounded-lg text-right text-2xl font-mono">
+                {calculatorValue}
+              </div>
+              <p className="text-xs text-gray-500 mt-1 text-center">
+                Puedes usar el teclado • Esc=Limpiar
+              </p>
+            </div>
+            
+            {/* Botones de la calculadora */}
+            <div className="p-4">
+              <div className="grid grid-cols-4 gap-2">
+                {/* Números y operaciones */}
+                {['7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', '=', '+'].map((btn) => (
+                  <button
+                    key={btn}
+                    onClick={() => handleCalculatorButton(btn)}
+                    className={`p-3 rounded-lg font-semibold transition-all ${
+                      ['/', '*', '-', '+', '='].includes(btn)
+                        ? 'bg-blue-500 text-white hover:bg-blue-600'
+                        : 'bg-gray-200 hover:bg-gray-300'
+                    }`}
+                  >
+                    {btn}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Botones adicionales */}
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <button
+                  onClick={() => {
+                    setCalculatorValue('0');
+                    setCalculatorOperation('');
+                    setPreviousValue('');
+                  }}
+                  className="p-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-all"
+                >
+                  C
+                </button>
+                <button
+                  onClick={() => {
+                    if (calculatorValue.length > 1) {
+                      setCalculatorValue(calculatorValue.slice(0, -1));
+                    } else {
+                      setCalculatorValue('0');
+                    }
+                  }}
+                  className="p-3 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-all"
+                >
+                  ←
+                </button>
+                <button
+                  onClick={() => {
+                    const current = parseFloat(calculatorValue) || 0;
+                    setCalculatorValue((current * -1).toString());
+                  }}
+                  className="p-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-all"
+                >
+                  +/-
+                </button>
+              </div>
+              
+              {/* Botones para guardar el resultado */}
+              <div className="mt-4 space-y-2">
+                <p className="text-sm text-gray-600 font-medium">Guardar resultado en:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      const finalValue = calcularResultadoPendiente();
+                      if (finalValue !== null) {
+                        handleInputChange(setC1, finalValue.toString());
+                        setShowCalculator(false);
+                        setCalculatorValue('0');
+                        setCalculatorOperation('');
+                        setPreviousValue('');
+                      }
+                    }}
+                    className="p-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-all"
+                  >
+                    Conteo 1
+                  </button>
+                  <button
+                    onClick={() => {
+                      const finalValue = calcularResultadoPendiente();
+                      if (finalValue !== null) {
+                        handleInputChange(setC2, finalValue.toString());
+                        setShowCalculator(false);
+                        setCalculatorValue('0');
+                        setCalculatorOperation('');
+                        setPreviousValue('');
+                      }
+                    }}
+                    className="p-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-all"
+                  >
+                    Conteo 2
+                  </button>
+                  <button
+                    onClick={() => {
+                      const finalValue = calcularResultadoPendiente();
+                      if (finalValue !== null) {
+                        handleInputChange(setC3, finalValue.toString());
+                        setShowCalculator(false);
+                        setCalculatorValue('0');
+                        setCalculatorOperation('');
+                        setPreviousValue('');
+                      }
+                    }}
+                    className="p-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-all"
+                  >
+                    Conteo 3
+                  </button>
+                  <button
+                    onClick={() => {
+                      const finalValue = calcularResultadoPendiente();
+                      if (finalValue !== null) {
+                        handleInputChange(setCantidadPedir, finalValue.toString());
+                        setShowCalculator(false);
+                        setCalculatorValue('0');
+                        setCalculatorOperation('');
+                        setPreviousValue('');
+                      }
+                    }}
+                    className="p-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-all"
+                  >
+                    Cantidad a Pedir
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

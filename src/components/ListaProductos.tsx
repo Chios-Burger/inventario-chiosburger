@@ -6,6 +6,7 @@ import { Toast } from './Toast';
 import { Timer } from './Timer';
 import { airtableService } from '../services/airtable';
 import { historicoService } from '../services/historico';
+import { authService } from '../services/auth';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useDebounce } from '../hooks/useDebounce';
 
@@ -130,6 +131,8 @@ export const ListaProductos = ({
   const [showMetrics, setShowMetrics] = useState(false);
   const [mostrarSinContarPrimero, setMostrarSinContarPrimero] = useState(false);
   const [ordenSnapshot, setOrdenSnapshot] = useState<string[]>([]); // Guardar el orden en el momento del clic
+  const [intentoGuardarIncompleto, setIntentoGuardarIncompleto] = useState(false); // Para activar reordenamiento
+  const [ordenCongelado, setOrdenCongelado] = useState<string[]>([]); // Guardar el orden actual de IDs
   const [guardandoInventario, setGuardandoInventario] = useState(false); // Estado para mostrar mensaje de guardado
   const [procesandoTodoEnCero, setProcesandoTodoEnCero] = useState(false); // Estado para el botón "Todo en 0"
   const [botonGuardarDeshabilitado, setBotonGuardarDeshabilitado] = useState(false);
@@ -145,6 +148,11 @@ export const ListaProductos = ({
   // Estados para ordenamiento
   const [ordenCategoria, setOrdenCategoria] = useState<'asc' | 'desc' | 'none'>('none');
   const [ordenCodigo, setOrdenCodigo] = useState<'asc' | 'desc' | 'none'>('none');
+  
+  // Obtener usuario actual
+  const usuario = authService.getUsuarioActual();
+  const esContabilidad = usuario?.email === 'contabilidad@chiosburger.com';
+  const esUsuarioSoloLectura = esContabilidad;
 
   // Timer
   useEffect(() => {
@@ -155,6 +163,8 @@ export const ListaProductos = ({
     setConteos({});
     setMostrarSinContarPrimero(false); // Resetear ordenamiento al cambiar de bodega
     setOrdenSnapshot([]); // Limpiar el snapshot del orden
+    setIntentoGuardarIncompleto(false); // Resetear estado de intento incompleto
+    setOrdenCongelado([]); // Resetear orden congelado
     
     intervalRef.current = setInterval(() => {
       setElapsedTime(prev => prev + 1);
@@ -215,6 +225,13 @@ export const ListaProductos = ({
       setProductosGuardados(new Set(JSON.parse(productosGuardadosLocal)));
     }
     
+    // Cargar estado de intento de guardar incompleto
+    const intentoGuardarIncompletoLocal = localStorage.getItem(`intentoGuardarIncompleto_${bodegaId}`);
+    if (intentoGuardarIncompletoLocal === 'true') {
+      console.log('📌 Cargando estado de reordenamiento desde localStorage');
+      setIntentoGuardarIncompleto(true);
+    }
+    
     cargarProductos();
   }, [bodegaId]);
 
@@ -236,12 +253,25 @@ export const ListaProductos = ({
   // Obtener tipos permitidos para hoy (memoizado para evitar recálculos)
   const tiposPermitidosHoy = useMemo(() => getTiposPermitidos(), []);
   const hayTomaHoy = tiposPermitidosHoy !== null;
+  
+  // Calcular porcentaje completado antes de usarlo en el useMemo
+  const productosGuardadosCount = productosGuardados.size;
+  const porcentajeCompletado = productos.length > 0 ? Math.min(Math.round((productosGuardadosCount / productos.length) * 100), 100) : 0;
 
   const productosFiltrados = useMemo(() => {
-    // Si no hay toma hoy, retornar array vacío
-    if (!hayTomaHoy) {
-      return [];
-    }
+    console.log('🔍 Estado actual del reordenamiento:', {
+      intentoGuardarIncompleto,
+      porcentajeCompletado,
+      productosGuardadosCount,
+      totalProductos: productos.length,
+      mostrarSinContarPrimero,
+      ordenCategoria,
+      ordenCodigo
+    });
+    // Siempre mostrar productos (temporal mientras se soluciona el problema)
+    // if (!hayTomaHoy) {
+    //   return [];
+    // }
 
     // Primero filtrar por tipo permitido
     // COMENTADO TEMPORALMENTE: Mostrar todos los productos sin filtrar por tipo A,B,C
@@ -288,6 +318,63 @@ export const ListaProductos = ({
       });
     }
     
+    // Aplicar reordenamiento si se intentó guardar con inventario incompleto
+    if (intentoGuardarIncompleto && porcentajeCompletado < 100) {
+      // Si ya hay un orden congelado, usarlo
+      if (ordenCongelado.length > 0) {
+        console.log('❄️ Usando orden congelado existente');
+        const ordenMap = new Map<string, number>();
+        ordenCongelado.forEach((id, index) => {
+          ordenMap.set(id, index);
+        });
+        
+        return [...productosFiltrados].sort((a, b) => {
+          const posA = ordenMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+          const posB = ordenMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+          return posA - posB;
+        });
+      }
+      console.log('🔄 ENTRÓ A REORDENAMIENTO AUTOMÁTICO');
+      console.log('📊 Porcentaje completado:', porcentajeCompletado);
+      console.log('📦 Total productos filtrados:', productosFiltrados.length);
+      console.log('🔍 Productos guardados Set:', productosGuardados);
+      
+      let productosOrdenados = [...productosFiltrados];
+      
+      // Separar productos contados y no contados
+      const productosNoContados = productosOrdenados.filter(p => !productosGuardados.has(p.id));
+      const productosContados = productosOrdenados.filter(p => productosGuardados.has(p.id));
+      
+      console.log('❌ Productos NO contados:', productosNoContados.length);
+      console.log('✅ Productos contados:', productosContados.length);
+      
+      // Mostrar primeros 3 de cada grupo para verificar
+      console.log('🔍 Primeros 3 NO contados:', productosNoContados.slice(0, 3).map(p => p.fields['Nombre Producto']));
+      console.log('🔍 Primeros 3 contados:', productosContados.slice(0, 3).map(p => p.fields['Nombre Producto']));
+      
+      // Ordenar alfabéticamente cada grupo
+      productosNoContados.sort((a, b) => {
+        const nombreA = a.fields['Nombre Producto'] || '';
+        const nombreB = b.fields['Nombre Producto'] || '';
+        return nombreA.localeCompare(nombreB);
+      });
+      
+      productosContados.sort((a, b) => {
+        const nombreA = a.fields['Nombre Producto'] || '';
+        const nombreB = b.fields['Nombre Producto'] || '';
+        return nombreA.localeCompare(nombreB);
+      });
+      
+      // Concatenar: no contados primero, luego contados
+      const productosReordenados = [...productosNoContados, ...productosContados];
+      console.log('✅ REORDENAMIENTO APLICADO - Total productos reordenados:', productosReordenados.length);
+      console.log('🔍 Primeros 5 productos después del reordenamiento:', productosReordenados.slice(0, 5).map(p => ({
+        nombre: p.fields['Nombre Producto'],
+        guardado: productosGuardados.has(p.id)
+      })));
+      return productosReordenados;
+    }
+    
     // Luego aplicar ordenamiento normal
     let productosOrdenados = [...productosFiltrados];
     
@@ -318,8 +405,16 @@ export const ListaProductos = ({
       return 0;
     });
     
+    console.log('🏁 RESULTADO FINAL del useMemo:', {
+      totalProductos: productosOrdenados.length,
+      primeros3: productosOrdenados.slice(0, 3).map(p => ({
+        nombre: p.fields['Nombre Producto'],
+        guardado: productosGuardados.has(p.id)
+      }))
+    });
+    
     return productosOrdenados;
-  }, [productos, debouncedBusqueda, ordenCategoria, ordenCodigo, mostrarSinContarPrimero, ordenSnapshot, hayTomaHoy, tiposPermitidosHoy]);
+  }, [productos, debouncedBusqueda, ordenCategoria, ordenCodigo, mostrarSinContarPrimero, ordenSnapshot, hayTomaHoy, tiposPermitidosHoy, intentoGuardarIncompleto, porcentajeCompletado, productosGuardados, ordenCongelado]);
 
   const handleConteoChange = useCallback((productoId: string, nuevoConteo: any) => {
     setConteos(prev => {
@@ -367,6 +462,12 @@ export const ListaProductos = ({
   }, [bodegaId]);
 
   const handleGuardarProducto = useCallback(async (productoId: string, esAccionRapida?: boolean, valoresRapidos?: any, esEdicion?: boolean) => {
+    // Bloquear si es usuario de solo lectura
+    if (esUsuarioSoloLectura) {
+      setToast({ message: '⚠️ Usuario de solo lectura - No puede guardar inventarios', type: 'warning' });
+      return;
+    }
+    
     // Si es edición, primero remover de guardados
     if (esEdicion) {
       handleEditarProducto(productoId);
@@ -417,6 +518,12 @@ export const ListaProductos = ({
   const handleTodoEnCero = async () => {
     // Función solo para Planta Producción (bodega ID 3)
     if (bodegaId !== 3) return;
+    
+    // Bloquear si es usuario de solo lectura
+    if (esUsuarioSoloLectura) {
+      setToast({ message: '⚠️ Usuario de solo lectura - No puede guardar inventarios', type: 'warning' });
+      return;
+    }
     
     if (!window.confirm('¿Está seguro de poner todos los productos no guardados en 0?')) {
       return;
@@ -513,6 +620,12 @@ export const ListaProductos = ({
   };
 
   const handleGuardar = async () => {
+    // Bloquear si es usuario de solo lectura
+    if (esUsuarioSoloLectura) {
+      setToast({ message: '⚠️ Usuario de solo lectura - No puede guardar inventarios', type: 'warning' });
+      return;
+    }
+    
     // CAMBIO TEMPORAL: Permitir guardar sin completar todos los productos
     setGuardandoInventario(true);
     
@@ -546,6 +659,10 @@ export const ListaProductos = ({
         // Limpiar datos locales
         localStorage.removeItem(`conteos_${bodegaId}`);
         localStorage.removeItem(`productosGuardados_${bodegaId}`);
+        localStorage.removeItem(`intentoGuardarIncompleto_${bodegaId}`);
+        
+        // Resetear estados
+        setIntentoGuardarIncompleto(false);
         
         setToast({ message: '🎉 Inventario guardado exitosamente', type: 'success' });
         
@@ -585,9 +702,17 @@ export const ListaProductos = ({
     return !conteo || !conteo.touched;
   }).length;
   
-  // CAMBIO TEMPORAL: Permitir guardar inventario siempre
-  // const sePuedeGuardar = productosSinContar === 0 && productos.length > 0;
-  const sePuedeGuardar = productos.length > 0; // Solo verificar que haya productos
+  // Bloquear el botón hasta que el progreso sea 100%
+  const sePuedeGuardar = porcentajeCompletado === 100 && productos.length > 0;
+  
+  // Congelar el orden después del reordenamiento
+  useEffect(() => {
+    if (intentoGuardarIncompleto && ordenCongelado.length === 0 && productosFiltrados.length > 0) {
+      const nuevosIds = productosFiltrados.map(p => p.id);
+      setOrdenCongelado(nuevosIds);
+      console.log('❄️ Orden congelado después del reordenamiento con', nuevosIds.length, 'productos');
+    }
+  }, [intentoGuardarIncompleto, productosFiltrados]);
   
   // Desactivar el reordenamiento cuando todos los productos estén contados
   useEffect(() => {
@@ -595,7 +720,14 @@ export const ListaProductos = ({
       setMostrarSinContarPrimero(false);
       setOrdenSnapshot([]); // Limpiar el snapshot cuando todos estén contados
     }
-  }, [sePuedeGuardar, mostrarSinContarPrimero]);
+    
+    // Desactivar reordenamiento cuando se alcanza el 100%
+    if (intentoGuardarIncompleto && porcentajeCompletado === 100) {
+      setIntentoGuardarIncompleto(false);
+      setOrdenCongelado([]);
+      localStorage.removeItem(`intentoGuardarIncompleto_${bodegaId}`);
+    }
+  }, [sePuedeGuardar, mostrarSinContarPrimero, intentoGuardarIncompleto, porcentajeCompletado, bodegaId]);
 
   const obtenerUnidad = (producto: Producto): string => {
     // Para Chios, Simón Bolón y Santo Cachón, usar la unidad de bodega principal para cantidad a pedir
@@ -612,9 +744,6 @@ export const ListaProductos = ({
     return producto.fields[campoUnidad as keyof typeof producto.fields] as string || 'unidades';
   };
 
-  const productosGuardadosCount = productosGuardados.size;
-  // Usar el total de productos en lugar de productos filtrados para el porcentaje
-  const porcentajeCompletado = productos.length > 0 ? Math.min(Math.round((productosGuardadosCount / productos.length) * 100), 100) : 0;
   const metrics = showMetrics ? calculateMetrics(productos.length) : null;
   
   // Calcular totales por tipo (solo una vez cuando se cargan los productos)
@@ -1015,22 +1144,7 @@ export const ListaProductos = ({
 
       {/* Lista de productos */}
       <div className="space-y-4">
-        {!hayTomaHoy ? (
-          <div className="text-center py-20">
-            <div className="w-24 h-24 bg-orange-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <AlertCircle className="w-12 h-12 text-orange-500" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">
-              No hay toma física programada para hoy
-            </h3>
-            <p className="text-gray-600">
-              {bodegaId === 7 ? 'Las tomas físicas son: Domingo (todos), Martes y Miércoles (A y B)' :
-               bodegaId === 8 ? 'Las tomas físicas son: Lunes (A y B) y Viernes (todos)' :
-               [4, 5, 6].includes(bodegaId) ? 'Las tomas físicas son: Lunes (A y C), Martes/Miércoles/Viernes (B y A)' :
-               'Esta bodega no tiene restricciones por día'}
-            </p>
-          </div>
-        ) : productosFiltrados.length === 0 ? (
+        {productosFiltrados.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-24 h-24 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
               <Package2 className="w-12 h-12 text-gray-400" />
@@ -1052,7 +1166,7 @@ export const ListaProductos = ({
                   unidad={obtenerUnidad(producto)}
                   unidadBodega={obtenerUnidadBodega(producto)}
                   onConteoChange={handleConteoChange}
-                  onGuardarProducto={handleGuardarProducto}
+                  onGuardarProducto={esUsuarioSoloLectura ? undefined : handleGuardarProducto}
                   guardando={guardandoProductos.has(producto.id)}
                   isGuardado={productosGuardados.has(producto.id)}
                   conteoInicial={conteos[producto.id]}
@@ -1064,7 +1178,6 @@ export const ListaProductos = ({
       </div>
 
       {/* Floating Action Buttons - Optimizado para móviles */}
-      {hayTomaHoy && (
       <div className="fixed bottom-3 right-3 sm:bottom-8 sm:right-8 z-50 flex flex-col items-end gap-2 sm:gap-4">
         {/* Botón "Todo en 0" - Solo para Planta Producción */}
         {bodegaId === 3 && (
@@ -1094,18 +1207,6 @@ export const ListaProductos = ({
         
         {/* Botón principal */}
         <div className="relative">
-          {/* Tooltip cuando hay productos sin contar */}
-          {!sePuedeGuardar && (
-            <div className="absolute bottom-full right-0 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-              <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap">
-                <div className="flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  <span>Productos sin contar: {productosSinContar}</span>
-                </div>
-                <div className="absolute bottom-0 right-8 transform translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
-              </div>
-            </div>
-          )}
           
           <button
             onClick={() => {
@@ -1113,6 +1214,21 @@ export const ListaProductos = ({
                 if (window.confirm('¿Estás seguro de que deseas guardar el inventario completo?')) {
                   handleGuardar();
                 }
+              } else if (porcentajeCompletado < 100) {
+                // Activar reordenamiento cuando se intenta guardar con progreso < 100%
+                console.log('🚨 BOTÓN BLOQUEADO CLICKEADO - Activando reordenamiento');
+                console.log('📊 Progreso actual:', porcentajeCompletado + '%');
+                console.log('📊 Productos guardados:', productosGuardadosCount, 'de', productos.length);
+                console.log('🔄 Estado anterior intentoGuardarIncompleto:', intentoGuardarIncompleto);
+                
+                // Limpiar el orden congelado para forzar nuevo reordenamiento
+                setOrdenCongelado([]);
+                
+                // Activar el reordenamiento
+                setIntentoGuardarIncompleto(true);
+                localStorage.setItem(`intentoGuardarIncompleto_${bodegaId}`, 'true');
+                
+                console.log('✅ Reordenamiento activado - El orden se congelará automáticamente');
               }
             }}
             className={`group relative px-8 py-4 rounded-2xl font-medium text-white transition-all duration-300 flex items-center gap-3 ${
@@ -1124,10 +1240,10 @@ export const ListaProductos = ({
               botonGuardarDeshabilitado 
                 ? `Espera ${tiempoRestanteCooldown} segundos para guardar nuevamente` 
                 : !sePuedeGuardar 
-                ? `Productos sin contar: ${productosSinContar}` 
+                ? `Completa el inventario. Progreso: ${porcentajeCompletado}%` 
                 : ''
             }
-            disabled={!sePuedeGuardar || botonGuardarDeshabilitado}
+            disabled={botonGuardarDeshabilitado || esUsuarioSoloLectura}
           >
           <Save className="w-5 h-5" />
           <span>
@@ -1139,7 +1255,6 @@ export const ListaProductos = ({
           </button>
         </div>
       </div>
-      )}
 
       {/* Modal de progreso visual para "Todo en 0" */}
       {procesandoTodoEnCero && totalAProcesar > 0 && (

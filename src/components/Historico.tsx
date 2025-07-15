@@ -25,6 +25,10 @@ export const Historico = () => {
   const usuario = authService.getUsuarioActual();
   const esAdmin = authService.esAdmin();
   const esUsuarioAnalisis = usuario?.email === 'analisis@chiosburger.com';
+  const esGerencia = usuario?.email === 'gerencia@chiosburger.com';
+  const puedeExportarExcel = usuario?.email === 'analisis@chiosburger.com' || 
+                             usuario?.email === 'gerencia@chiosburger.com' || 
+                             usuario?.email === 'contabilidad@chiosburger.com';
 
   // Obtener fecha de hoy en formato ISO (YYYY-MM-DD)
   const hoy = obtenerFechaActual();
@@ -62,6 +66,7 @@ export const Historico = () => {
     
     const esAnalisis = usuario.email.toLowerCase() === 'analisis@chiosburger.com';
     const esGerencia = usuario.email.toLowerCase() === 'gerencia@chiosburger.com';
+    const esSimonBolon = usuario.email.toLowerCase() === 'simonbolon@chiosburger.com';
     const esHoy = esRegistroDeHoy(registro.fecha);
     
     console.log('🔐 Verificando permisos de eliminación:', {
@@ -76,8 +81,8 @@ export const Historico = () => {
     // Análisis puede eliminar cualquier registro
     if (esAnalisis) return true;
     
-    // Gerencia NO puede eliminar nunca
-    if (esGerencia) return false;
+    // Gerencia ahora SÍ puede eliminar cualquier registro
+    if (esGerencia) return true;
     
     // Para otros usuarios, verificar restricciones
     if (!esHoy) {
@@ -85,11 +90,18 @@ export const Historico = () => {
       return false;
     }
     
-    // Para registros del día actual, verificar hora límite (mediodía)
+    // Para registros del día actual, verificar hora límite
     const ahora = new Date();
     const horaActual = ahora.getHours();
+    const esDomingo = ahora.getDay() === 0; // 0 = Domingo
     
-    // Solo pueden eliminar hasta las 12:00 PM (mediodía)
+    // Simón Bolón: si es domingo, puede eliminar todo el día
+    if (esSimonBolon && esDomingo) {
+      const tienPermisoBodega = usuario.bodegasPermitidas.includes(registro.bodegaId);
+      return tienPermisoBodega;
+    }
+    
+    // Para todos los demás (incluido Simón Bolón en otros días): solo hasta mediodía
     if (horaActual >= 12) {
       return false;
     }
@@ -151,6 +163,8 @@ export const Historico = () => {
     
     const esAnalisis = usuario.email.toLowerCase() === 'analisis@chiosburger.com';
     const esGerencia = usuario.email.toLowerCase() === 'gerencia@chiosburger.com';
+    const esContabilidad = usuario.email.toLowerCase() === 'contabilidad@chiosburger.com';
+    const esSimonBolon = usuario.email.toLowerCase() === 'simonbolon@chiosburger.com';
     const esHoy = esRegistroDeHoy(registro.fecha);
     
     // Análisis puede editar TODO sin restricciones
@@ -159,17 +173,27 @@ export const Historico = () => {
     // Gerencia puede editar sin límite de horario (cualquier día)
     if (esGerencia) return true;
     
+    // Contabilidad puede editar sin límite de horario (cualquier día)
+    if (esContabilidad) return true;
+    
     // Para otros usuarios, verificar restricciones
     if (!esHoy) {
       // Solo pueden ver (lectura) registros de días anteriores
       return false;
     }
     
-    // Para registros del día actual, verificar hora límite (mediodía)
+    // Para registros del día actual, verificar hora límite
     const ahora = new Date();
     const horaActual = ahora.getHours();
+    const esDomingo = ahora.getDay() === 0; // 0 = Domingo
     
-    // Solo pueden editar hasta las 12:00 PM (mediodía)
+    // Simón Bolón: si es domingo, puede editar todo el día
+    if (esSimonBolon && esDomingo) {
+      const tienPermisoBodega = usuario.bodegasPermitidas.includes(registro.bodegaId);
+      return tienPermisoBodega;
+    }
+    
+    // Para todos los demás (incluido Simón Bolón en otros días): solo hasta mediodía
     if (horaActual >= 12) {
       return false;
     }
@@ -646,6 +670,20 @@ export const Historico = () => {
                   </button>
                 </>
               )}
+              {puedeExportarExcel && (
+                <>
+                  <button
+                    onClick={() => {
+                      const todosLosRegistros = registrosPorDia.flatMap(dia => dia.inventarios);
+                      exportUtils.exportarTodosExcel(todosLosRegistros);
+                    }}
+                    className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-300 flex items-center gap-2"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    Exportar Todo Excel
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -718,11 +756,11 @@ export const Historico = () => {
                   >
                     <FileText className="w-4 h-4" />
                   </button>
-                  {esRegistroDeHoy(registro.fecha) && (
+                  {puedeEliminar(registro) && (
                     <button
                       onClick={() => handleEliminar(registro)}
                       className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
-                      title="Eliminar registro (solo registros de hoy)"
+                      title={esUsuarioAnalisis ? "Eliminar registro" : "Eliminar registro (solo registros de hoy)"}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -877,28 +915,28 @@ export const Historico = () => {
                             <FileText className="w-4 h-4" />
                           </button>
                           {esUsuarioAnalisis && (
-                            <>
-                              <button
-                                onClick={() => handleExportarCSV(registro)}
-                                className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
-                                title="Exportar CSV"
-                              >
-                                <FileSpreadsheet className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleExportarExcel(registro)}
-                                className="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors"
-                                title="Exportar Excel"
-                              >
-                                <FileSpreadsheet className="w-4 h-4" />
-                              </button>
-                            </>
+                            <button
+                              onClick={() => handleExportarCSV(registro)}
+                              className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
+                              title="Exportar CSV"
+                            >
+                              <FileSpreadsheet className="w-4 h-4" />
+                            </button>
                           )}
-                          {esRegistroDeHoy(registro.fecha) && (
+                          {puedeExportarExcel && (
+                            <button
+                              onClick={() => handleExportarExcel(registro)}
+                              className="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors"
+                              title="Exportar Excel"
+                            >
+                              <FileSpreadsheet className="w-4 h-4" />
+                            </button>
+                          )}
+                          {puedeEliminar(registro) && (
                             <button
                               onClick={() => handleEliminar(registro)}
                               className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
-                              title="Eliminar registro (solo registros de hoy)"
+                              title={esUsuarioAnalisis || esGerencia ? "Eliminar registro" : "Eliminar registro (solo registros de hoy)"}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>

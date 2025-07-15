@@ -1,4 +1,4 @@
-import { Package2, Lock, Edit } from 'lucide-react';
+import { Package2, Lock } from 'lucide-react';
 import { BODEGAS } from '../config';
 import type { Usuario } from '../types/index';
 
@@ -6,9 +6,10 @@ interface SelectorBodegaProps {
   onSeleccionarBodega: (id: number, nombre: string) => void;
   usuario: Usuario;
   onEditarBodega?: (bodega: typeof BODEGAS[0]) => void;
+  onMostrarError?: (mensaje: string) => void;
 }
 
-export const SelectorBodega = ({ onSeleccionarBodega, usuario, onEditarBodega }: SelectorBodegaProps) => {
+export const SelectorBodega = ({ onSeleccionarBodega, usuario, onEditarBodega, onMostrarError }: SelectorBodegaProps) => {
   const tienePermiso = (bodegaId: number): boolean => {
     return usuario.bodegasPermitidas.includes(bodegaId);
   };
@@ -34,34 +35,18 @@ export const SelectorBodega = ({ onSeleccionarBodega, usuario, onEditarBodega }:
           const bloqueada = !tienePermiso(bodega.id);
           
           return (
-            <button
+            <div
               key={bodega.id}
-              onClick={() => !bloqueada && onSeleccionarBodega(bodega.id, bodega.nombre)}
-              disabled={bloqueada}
               className={`
                 relative bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-lg transition-all duration-300
                 ${bloqueada 
-                  ? 'opacity-50 cursor-not-allowed' 
-                  : 'hover:shadow-2xl hover:scale-105 cursor-pointer'
+                  ? 'opacity-50' 
+                  : 'hover:shadow-2xl hover:scale-105'
                 }
               `}
             >
               {/* Iconos superiores */}
-              <div className="absolute top-4 right-4 flex gap-2">
-                {/* Botón de editar para admins */}
-                {usuario.esAdmin && !bloqueada && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditarBodega?.(bodega);
-                    }}
-                    className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors"
-                    title="Editar bodega"
-                  >
-                    <Edit className="w-4 h-4 text-blue-600" />
-                  </button>
-                )}
-                
+              <div className="absolute top-4 right-4 flex gap-2 z-10">
                 {/* Icono de bloqueado */}
                 {bloqueada && (
                   <Lock className="w-5 h-5 text-gray-400" />
@@ -93,7 +78,30 @@ export const SelectorBodega = ({ onSeleccionarBodega, usuario, onEditarBodega }:
               {!bloqueada && (
                 <div className="absolute inset-0 rounded-2xl sm:rounded-3xl ring-2 ring-transparent hover:ring-purple-400 transition-all duration-300"></div>
               )}
-            </button>
+              
+              {/* Botón clickeable - Colocado al final con z-index alto */}
+              <button
+                onClick={() => {
+                  console.log('🔍 Click en bodega:', bodega.id, bodega.nombre);
+                  console.log('🔍 Bloqueada:', bloqueada);
+                  console.log('🔍 Usuario:', usuario);
+                  console.log('🔍 Bodegas permitidas:', usuario.bodegasPermitidas);
+                  if (!bloqueada) {
+                    console.log('🚀 Llamando onSeleccionarBodega...');
+                    onSeleccionarBodega(bodega.id, bodega.nombre);
+                  } else {
+                    console.log('⛔ Bodega bloqueada, no se puede seleccionar');
+                    if (onMostrarError) {
+                      onMostrarError(`No tienes permisos para acceder a la bodega: ${bodega.nombre}`);
+                    }
+                  }
+                }}
+                disabled={bloqueada}
+                className={`w-full h-full absolute inset-0 rounded-2xl sm:rounded-3xl ${!bloqueada ? 'cursor-pointer' : 'cursor-not-allowed'} z-20`}
+                style={{ background: 'transparent', border: 'none' }}
+                aria-label={`Seleccionar ${bodega.nombre}`}
+              />
+            </div>
           );
         })}
       </div>
