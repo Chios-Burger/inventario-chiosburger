@@ -1179,7 +1179,7 @@ export const ListaProductos = ({
           <button
             onClick={handleTodoEnCero}
             disabled={procesandoTodoEnCero}
-            className={`px-6 py-3 rounded-xl font-medium text-white transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl ${
+            className={`px-3 py-1.5 rounded-full font-medium text-white transition-all duration-300 flex items-center gap-1 shadow-lg hover:shadow-xl ${
               procesandoTodoEnCero 
                 ? 'bg-gray-400 cursor-not-allowed' 
                 : 'bg-orange-500 hover:bg-orange-600'
@@ -1188,13 +1188,13 @@ export const ListaProductos = ({
           >
             {procesandoTodoEnCero ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Procesando...</span>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span className="text-xs">Procesando...</span>
               </>
             ) : (
               <>
-                <Package2 className="w-5 h-5" />
-                <span>Todo en 0</span>
+                <Package2 className="w-3 h-3" />
+                <span className="text-xs">Todo en 0</span>
               </>
             )}
           </button>
@@ -1226,9 +1226,9 @@ export const ListaProductos = ({
                 console.log('✅ Reordenamiento activado - El orden se congelará automáticamente');
               }
             }}
-            className={`group relative px-8 py-4 rounded-2xl font-medium text-white transition-all duration-300 flex items-center gap-3 ${
+            className={`group relative p-1 sm:p-1.5 rounded-full font-medium text-white transition-all duration-300 flex items-center justify-center ${
               sePuedeGuardar && !botonGuardarDeshabilitado
-                ? 'bg-gradient-to-r from-purple-500 to-blue-600 hover:shadow-2xl hover:scale-105' 
+                ? 'bg-gradient-to-r from-purple-500 to-blue-600 hover:shadow-xl hover:scale-105' 
                 : 'bg-gray-400 cursor-not-allowed'
             }`}
             title={
@@ -1240,13 +1240,10 @@ export const ListaProductos = ({
             }
             disabled={botonGuardarDeshabilitado || esUsuarioSoloLectura}
           >
-          <Save className="w-5 h-5" />
-          <span>
-            {botonGuardarDeshabilitado 
-              ? `Espera ${tiempoRestanteCooldown}s` 
-              : 'Guardar Inventario'
-            }
-          </span>
+          <div className="flex flex-col items-center gap-0">
+            <Save className="w-3 h-3" />
+            <span className="text-[8px]">Guardar</span>
+          </div>
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Calendar, User, Package, FileText, Trash2, Search, ChevronDown, ChevronUp, BarChart, AlertTriangle, FileSpreadsheet, Database, CloudOff, AlertCircle, Edit, Tag } from 'lucide-react';
 import React from 'react';
+import { VistaLista } from './HistoricoMovilOpciones';
 import { historicoService } from '../services/historico';
 import { exportUtils } from '../utils/exportUtils';
 import { authService } from '../services/auth';
@@ -770,40 +771,26 @@ export const Historico = () => {
                 {/* Detalles expandidos */}
                 {expandedRegistros.has(registro.id) && (
                   <div className="mt-4 pt-4 border-t border-gray-100">
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                    <div className="space-y-1 max-h-60 overflow-y-auto">
                       {filtrarProductosParaMostrar(registro.productos).length === 0 ? (
                         <p className="text-center text-xs text-gray-500 py-4">
                           No hay productos que coincidan con los filtros aplicados
                         </p>
                       ) : (
                         filtrarProductosParaMostrar(registro.productos).map((producto, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-1">
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-gray-700">{producto.nombre}</p>
-                            {producto.categoria && (
-                              <p className="text-xs text-gray-500">{producto.categoria}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="text-right">
-                              <p className={`text-sm font-bold ${
-                                producto.total === 0 ? 'text-red-600' : 'text-gray-800'
-                              }`}>
-                                {formatearNumero(producto.total)} {producto.unidad}
-                              </p>
-                            </div>
-                            {puedeEditar(registro) && (
-                              <button
-                                onClick={() => setProductoEditando({ producto, registro })}
-                                className="p-1 hover:bg-blue-100 rounded transition-colors"
-                                title="Editar total"
-                              >
-                                <Edit className="w-3 h-3 text-blue-600" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))
+                          <VistaLista 
+                            key={idx} 
+                            registro={registro} 
+                            producto={{
+                              nombre: producto.nombre,
+                              total: formatearNumero(producto.total),
+                              unidad: producto.unidad,
+                              cantidadPedir: producto.cantidadPedir || 0,
+                              unidadBodega: producto.unidadBodega
+                            }}
+                            onEdit={puedeEditar(registro) ? () => setProductoEditando({ producto, registro }) : undefined}
+                          />
+                        ))
                       )}
                     </div>
                   </div>

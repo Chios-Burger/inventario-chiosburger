@@ -1,6 +1,6 @@
 import { useState, useEffect, memo, useCallback } from 'react';
 import type { Producto } from '../types/index';
-import { Calculator, Loader2, Check, Hash, Edit3, XCircle, Ban, X } from 'lucide-react';
+import { Calculator, Loader2, Check, Hash, Edit3, XCircle, Ban, X, Grid3x3 } from 'lucide-react';
 
 interface ProductoConteoProps {
   producto: Producto;
@@ -199,7 +199,7 @@ const ProductoConteoComponent = ({
   const [isEditing, setIsEditing] = useState(false);
   
   // Estado para el modal de calculadora
-  const [showCalculator, setShowCalculator] = useState(false);
+  const [showCalculator2, setShowCalculator2] = useState(false);
   const [calculatorValue, setCalculatorValue] = useState('0');
   const [calculatorOperation, setCalculatorOperation] = useState('');
   const [previousValue, setPreviousValue] = useState('');
@@ -262,7 +262,7 @@ const ProductoConteoComponent = ({
   
   // Efecto para manejar el teclado cuando la calculadora está abierta
   useEffect(() => {
-    if (!showCalculator) return;
+    if (!showCalculator2) return;
     
     const handleKeyPress = (e: KeyboardEvent) => {
       // Prevenir comportamiento por defecto en inputs
@@ -305,7 +305,7 @@ const ProductoConteoComponent = ({
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [showCalculator, calculatorValue, handleCalculatorButton]);
+  }, [showCalculator2, calculatorValue, handleCalculatorButton]);
   
   // Determinar qué botón mostrar
   const showEditButton = isGuardado && !hasChangedSinceSave && !isEditing;
@@ -369,20 +369,23 @@ const ProductoConteoComponent = ({
       
       {/* Header del producto */}
       <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
-        <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
-          <button
-            onClick={() => !isInactive && setShowCalculator(true)}
-            className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl transition-all ${
-              isInactive ? 'bg-gray-200 cursor-not-allowed' :
-              'bg-blue-100 hover:bg-blue-200 cursor-pointer'
-            }`}
-          >
-            {isInactive ? (
-              <Ban className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
-            ) : (
-              <Calculator className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-            )}
-          </button>
+        <div className="flex items-start gap-2 sm:gap-3 flex-1 w-full">
+          <div className="flex gap-1">
+            <button
+              onClick={() => !isInactive && setShowCalculator2(true)}
+              className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl transition-all ${
+                isInactive ? 'bg-gray-200 cursor-not-allowed' :
+                'bg-blue-100 hover:bg-blue-200 cursor-pointer'
+              }`}
+              title="Calculadora"
+            >
+              {isInactive ? (
+                <Ban className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
+              ) : (
+                <Calculator className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+              )}
+            </button>
+          </div>
           <div className="flex-1">
             <h3 className={`text-base sm:text-lg font-bold leading-tight ${
               isInactive ? 'text-gray-500 line-through' : 'text-gray-800'
@@ -604,170 +607,168 @@ const ProductoConteoComponent = ({
         )}
       </div>
       
-      {/* Modal de Calculadora */}
-      {showCalculator && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full">
-            {/* Header de la calculadora */}
-            <div className="bg-blue-600 text-white p-4 rounded-t-2xl">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-lg font-bold">Calculadora</h3>
-                <button
-                  onClick={() => {
-                    setShowCalculator(false);
-                    setCalculatorValue('0');
-                    setCalculatorOperation('');
-                    setPreviousValue('');
-                  }}
-                  className="p-1 hover:bg-blue-700 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              {/* Información del producto */}
-              <div className="text-sm space-y-1">
-                <p className="font-medium">{producto.fields['Nombre Producto']}</p>
-                <p>Unidad de conteo: <span className="font-semibold">{unidad}</span></p>
-                <p>Unidad para pedir: <span className="font-semibold">{unidadBodega}</span></p>
-                {producto.fields['Equivalencias Inventarios'] && (
-                  <p className="text-xs bg-blue-700 p-2 rounded mt-2">
-                    Equivalencia: {producto.fields['Equivalencias Inventarios']}
-                  </p>
-                )}
-              </div>
+      
+      {/* Modal de Calculadora 2 - Pantalla Completa */}
+      {showCalculator2 && (
+        <div className="fixed inset-0 bg-white z-[100] flex flex-col">
+          {/* Header de la calculadora */}
+          <div className="bg-blue-600 text-white p-2.5 sm:p-4 flex-shrink-0">
+            <div className="flex justify-between items-center mb-1.5 sm:mb-3">
+              <h3 className="text-sm sm:text-lg font-bold">Calculadora</h3>
+              <button
+                onClick={() => {
+                  setShowCalculator2(false);
+                  setCalculatorValue('0');
+                  setCalculatorOperation('');
+                  setPreviousValue('');
+                }}
+                className="p-1 hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
             
-            {/* Display de la calculadora */}
-            <div className="p-4 bg-gray-100">
-              <div className="bg-white p-3 rounded-lg text-right text-2xl font-mono">
-                {calculatorValue}
-              </div>
-              <p className="text-xs text-gray-500 mt-1 text-center">
-                Puedes usar el teclado • Esc=Limpiar
-              </p>
+            {/* Información del producto */}
+            <div className="text-xs sm:text-sm space-y-1">
+              <p className="font-medium">{producto.fields['Nombre Producto']}</p>
+              <p>Unidad de conteo: <span className="font-semibold">{unidad}</span></p>
+              <p>Unidad para pedir: <span className="font-semibold">{unidadBodega}</span></p>
+              {producto.fields['Equivalencias Inventarios'] && (
+                <p className="text-xs bg-blue-700 p-2 rounded mt-2">
+                  Equivalencia: {producto.fields['Equivalencias Inventarios']}
+                </p>
+              )}
             </div>
-            
-            {/* Botones de la calculadora */}
-            <div className="p-4">
+          </div>
+          
+          {/* Display de la calculadora */}
+          <div className="bg-gray-100 p-3 sm:p-4 flex-shrink-0">
+            <div className="bg-white p-2 sm:p-3 rounded-lg text-right text-lg sm:text-2xl font-mono">
+              {calculatorValue}
+            </div>
+            <p className="text-xs text-gray-500 mt-1 text-center">
+              Puedes usar el teclado • Esc=Limpiar
+            </p>
+          </div>
+          
+          {/* Contenedor de botones que ocupa el resto */}
+          <div className="flex-1 bg-gray-50 p-3 flex flex-col">
+            {/* Botones de guardado arriba */}
+            <div className="mb-3">
+              <p className="text-xs text-gray-600 font-medium mb-2">Guardar en:</p>
               <div className="grid grid-cols-4 gap-2">
-                {/* Números y operaciones */}
-                {['7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', '=', '+'].map((btn) => (
-                  <button
-                    key={btn}
-                    onClick={() => handleCalculatorButton(btn)}
-                    className={`p-3 rounded-lg font-semibold transition-all ${
-                      ['/', '*', '-', '+', '='].includes(btn)
-                        ? 'bg-blue-500 text-white hover:bg-blue-600'
-                        : 'bg-gray-200 hover:bg-gray-300'
-                    }`}
-                  >
-                    {btn}
-                  </button>
-                ))}
-              </div>
-              
-              {/* Botones adicionales */}
-              <div className="grid grid-cols-3 gap-2 mt-2">
                 <button
                   onClick={() => {
-                    setCalculatorValue('0');
-                    setCalculatorOperation('');
-                    setPreviousValue('');
-                  }}
-                  className="p-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-all"
-                >
-                  C
-                </button>
-                <button
-                  onClick={() => {
-                    if (calculatorValue.length > 1) {
-                      setCalculatorValue(calculatorValue.slice(0, -1));
-                    } else {
+                    const finalValue = calcularResultadoPendiente();
+                    if (finalValue !== null) {
+                      handleInputChange(setC1, finalValue.toString());
+                      setShowCalculator2(false);
                       setCalculatorValue('0');
+                      setCalculatorOperation('');
+                      setPreviousValue('');
                     }
                   }}
-                  className="p-3 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-all"
+                  className="p-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 active:bg-green-700"
                 >
-                  ←
+                  C1
                 </button>
                 <button
                   onClick={() => {
-                    const current = parseFloat(calculatorValue) || 0;
-                    setCalculatorValue((current * -1).toString());
+                    const finalValue = calcularResultadoPendiente();
+                    if (finalValue !== null) {
+                      handleInputChange(setC2, finalValue.toString());
+                      setShowCalculator2(false);
+                      setCalculatorValue('0');
+                      setCalculatorOperation('');
+                      setPreviousValue('');
+                    }
                   }}
-                  className="p-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-all"
+                  className="p-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 active:bg-green-700"
                 >
-                  +/-
+                  C2
+                </button>
+                <button
+                  onClick={() => {
+                    const finalValue = calcularResultadoPendiente();
+                    if (finalValue !== null) {
+                      handleInputChange(setC3, finalValue.toString());
+                      setShowCalculator2(false);
+                      setCalculatorValue('0');
+                      setCalculatorOperation('');
+                      setPreviousValue('');
+                    }
+                  }}
+                  className="p-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 active:bg-green-700"
+                >
+                  C3
+                </button>
+                <button
+                  onClick={() => {
+                    const finalValue = calcularResultadoPendiente();
+                    if (finalValue !== null) {
+                      handleInputChange(setCantidadPedir, finalValue.toString());
+                      setShowCalculator2(false);
+                      setCalculatorValue('0');
+                      setCalculatorOperation('');
+                      setPreviousValue('');
+                    }
+                  }}
+                  className="p-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 active:bg-purple-700"
+                >
+                  Pedir
                 </button>
               </div>
+            </div>
+            
+            {/* Grilla de números expandida */}
+            <div className="flex-1 grid grid-cols-4 gap-2">
+              {/* Números y operaciones */}
+              {['7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', '=', '+'].map((btn) => (
+                <button
+                  key={btn}
+                  onClick={() => handleCalculatorButton(btn)}
+                  className={`rounded-lg font-bold text-lg transition-all ${
+                    ['/', '*', '-', '+', '='].includes(btn)
+                      ? 'bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700'
+                      : 'bg-white hover:bg-gray-100 active:bg-gray-200 border border-gray-200'
+                  }`}
+                >
+                  {btn}
+                </button>
+              ))}
               
-              {/* Botones para guardar el resultado */}
-              <div className="mt-4 space-y-2">
-                <p className="text-sm text-gray-600 font-medium">Guardar resultado en:</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => {
-                      const finalValue = calcularResultadoPendiente();
-                      if (finalValue !== null) {
-                        handleInputChange(setC1, finalValue.toString());
-                        setShowCalculator(false);
-                        setCalculatorValue('0');
-                        setCalculatorOperation('');
-                        setPreviousValue('');
-                      }
-                    }}
-                    className="p-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-all"
-                  >
-                    Conteo 1
-                  </button>
-                  <button
-                    onClick={() => {
-                      const finalValue = calcularResultadoPendiente();
-                      if (finalValue !== null) {
-                        handleInputChange(setC2, finalValue.toString());
-                        setShowCalculator(false);
-                        setCalculatorValue('0');
-                        setCalculatorOperation('');
-                        setPreviousValue('');
-                      }
-                    }}
-                    className="p-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-all"
-                  >
-                    Conteo 2
-                  </button>
-                  <button
-                    onClick={() => {
-                      const finalValue = calcularResultadoPendiente();
-                      if (finalValue !== null) {
-                        handleInputChange(setC3, finalValue.toString());
-                        setShowCalculator(false);
-                        setCalculatorValue('0');
-                        setCalculatorOperation('');
-                        setPreviousValue('');
-                      }
-                    }}
-                    className="p-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-all"
-                  >
-                    Conteo 3
-                  </button>
-                  <button
-                    onClick={() => {
-                      const finalValue = calcularResultadoPendiente();
-                      if (finalValue !== null) {
-                        handleInputChange(setCantidadPedir, finalValue.toString());
-                        setShowCalculator(false);
-                        setCalculatorValue('0');
-                        setCalculatorOperation('');
-                        setPreviousValue('');
-                      }
-                    }}
-                    className="p-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-all"
-                  >
-                    Cantidad a Pedir
-                  </button>
-                </div>
-              </div>
+              {/* Botones especiales en la última fila */}
+              <button
+                onClick={() => {
+                  setCalculatorValue('0');
+                  setCalculatorOperation('');
+                  setPreviousValue('');
+                }}
+                className="bg-red-500 text-white rounded-lg font-bold hover:bg-red-600 active:bg-red-700"
+              >
+                C
+              </button>
+              <button
+                onClick={() => {
+                  if (calculatorValue.length > 1) {
+                    setCalculatorValue(calculatorValue.slice(0, -1));
+                  } else {
+                    setCalculatorValue('0');
+                  }
+                }}
+                className="bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600 active:bg-orange-700"
+              >
+                ←
+              </button>
+              <button
+                onClick={() => {
+                  const current = parseFloat(calculatorValue) || 0;
+                  setCalculatorValue((current * -1).toString());
+                }}
+                className="bg-gray-600 text-white rounded-lg font-bold hover:bg-gray-700 active:bg-gray-800 col-span-2"
+              >
+                +/-
+              </button>
             </div>
           </div>
         </div>
