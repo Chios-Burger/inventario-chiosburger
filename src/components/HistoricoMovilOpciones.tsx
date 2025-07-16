@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, Hash, Calendar, Clock, Edit } from 'lucide-react';
+import { Edit } from 'lucide-react';
 
 // Función para simplificar unidades
 const simplificarUnidad = (unidad: string): string => {
@@ -35,7 +35,7 @@ const simplificarUnidad = (unidad: string): string => {
 };
 
 // OPCIÓN 1: Vista de Tarjetas Compactas
-export const VistaCompacta = ({ registro, producto }: any) => (
+export const VistaCompacta = ({ producto }: any) => (
   <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 mb-2">
     <div className="flex justify-between items-center">
       <h4 className="font-medium text-sm truncate flex-1">{producto.nombre}</h4>
@@ -57,7 +57,7 @@ export const VistaCompacta = ({ registro, producto }: any) => (
 );
 
 // OPCIÓN 2: Vista de Lista Simple
-export const VistaLista = ({ registro, producto, onEdit }: any) => (
+export const VistaLista = ({ producto, onEdit }: any) => (
   <div className="bg-white border-b border-gray-100 p-2">
     <div className="flex items-center justify-between">
       <div className="flex-1">
@@ -88,7 +88,7 @@ export const VistaLista = ({ registro, producto, onEdit }: any) => (
 );
 
 // OPCIÓN 3: Vista Expandible/Colapsable
-export const VistaExpandible = ({ registro, producto, isExpanded, onToggle }: any) => (
+export const VistaExpandible = ({ producto, isExpanded, onToggle }: any) => (
   <div className="bg-white rounded-lg shadow-sm border border-gray-100 mb-2 overflow-hidden">
     <button
       onClick={onToggle}
@@ -133,7 +133,7 @@ export const VistaExpandible = ({ registro, producto, isExpanded, onToggle }: an
 );
 
 // OPCIÓN 4: Vista Minimalista con Colores
-export const VistaMinimalista = ({ registro, producto }: any) => (
+export const VistaMinimalista = ({ producto }: any) => (
   <div className="bg-white p-3 border-l-4 border-blue-500 mb-2 shadow-sm">
     <div className="flex justify-between items-center">
       <div className="flex-1">
@@ -153,7 +153,7 @@ export const VistaMinimalista = ({ registro, producto }: any) => (
 );
 
 // OPCIÓN 5: Vista de Tabla Horizontal Scrollable
-export const VistaTablaHorizontal = ({ registro, productos }: any) => (
+export const VistaTablaHorizontal = ({ productos }: any) => (
   <div className="overflow-x-auto -mx-4 px-4">
     <table className="min-w-full">
       <thead>
@@ -191,7 +191,7 @@ export const VistaTablaHorizontal = ({ registro, productos }: any) => (
 );
 
 // OPCIÓN 6: Vista de Una Línea Horizontal
-export const VistaUnaLinea = ({ registro, producto }: any) => (
+export const VistaUnaLinea = ({ producto }: any) => (
   <div className="bg-white border-b border-gray-100 p-2">
     <div className="flex items-center justify-between text-xs">
       <p className="font-medium truncate max-w-[40%]">{producto.nombre}</p>
@@ -206,7 +206,7 @@ export const VistaUnaLinea = ({ registro, producto }: any) => (
 );
 
 // OPCIÓN 7: Vista de Dos Líneas
-export const VistaDosLineas = ({ registro, producto }: any) => (
+export const VistaDosLineas = ({ producto }: any) => (
   <div className="bg-white border-b border-gray-100 p-3">
     <div className="flex items-center justify-between mb-1">
       <h4 className="font-medium text-sm truncate flex-1">{producto.nombre}</h4>
@@ -221,7 +221,7 @@ export const VistaDosLineas = ({ registro, producto }: any) => (
 );
 
 // OPCIÓN 8: Vista Tipo Badge
-export const VistaBadge = ({ registro, producto }: any) => (
+export const VistaBadge = ({ producto }: any) => (
   <div className="bg-white rounded-full shadow-sm border border-gray-100 p-3 mb-2 flex items-center justify-between">
     <div className="flex-1 flex items-center gap-2">
       <h4 className="font-medium text-sm truncate">{producto.nombre}</h4>
@@ -253,7 +253,6 @@ export const DemoHistoricoMovil = () => {
   };
   
   // Datos de ejemplo
-  const registro = { fecha: new Date(), bodega: 'Bodega Principal' };
   const productos = [
     {
       nombre: 'Aceite de Oliva Extra Virgen',
@@ -326,17 +325,16 @@ export const DemoHistoricoMovil = () => {
         </h3>
         
         {vistaActual === 1 && productos.map((producto, idx) => (
-          <VistaCompacta key={idx} registro={registro} producto={producto} />
+          <VistaCompacta key={idx} producto={producto} />
         ))}
         
         {vistaActual === 2 && productos.map((producto, idx) => (
-          <VistaLista key={idx} registro={registro} producto={producto} />
+          <VistaLista key={idx} producto={producto} />
         ))}
         
         {vistaActual === 3 && productos.map((producto, idx) => (
           <VistaExpandible 
             key={idx} 
-            registro={registro} 
             producto={producto}
             isExpanded={expandedItems.has(idx)}
             onToggle={() => toggleExpanded(idx)}
@@ -344,23 +342,23 @@ export const DemoHistoricoMovil = () => {
         ))}
         
         {vistaActual === 4 && productos.map((producto, idx) => (
-          <VistaMinimalista key={idx} registro={registro} producto={producto} />
+          <VistaMinimalista key={idx} producto={producto} />
         ))}
         
         {vistaActual === 5 && (
-          <VistaTablaHorizontal registro={registro} productos={productos} />
+          <VistaTablaHorizontal productos={productos} />
         )}
         
         {vistaActual === 6 && productos.map((producto, idx) => (
-          <VistaUnaLinea key={idx} registro={registro} producto={producto} />
+          <VistaUnaLinea key={idx} producto={producto} />
         ))}
         
         {vistaActual === 7 && productos.map((producto, idx) => (
-          <VistaDosLineas key={idx} registro={registro} producto={producto} />
+          <VistaDosLineas key={idx} producto={producto} />
         ))}
         
         {vistaActual === 8 && productos.map((producto, idx) => (
-          <VistaBadge key={idx} registro={registro} producto={producto} />
+          <VistaBadge key={idx} producto={producto} />
         ))}
       </div>
     </div>

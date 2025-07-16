@@ -1,6 +1,6 @@
 import { useState, useEffect, memo, useCallback } from 'react';
 import type { Producto } from '../types/index';
-import { Calculator, Loader2, Check, Hash, Edit3, XCircle, Ban, X, Grid3x3 } from 'lucide-react';
+import { Calculator, Loader2, Check, Hash, Edit3, XCircle, Ban, X } from 'lucide-react';
 
 interface ProductoConteoProps {
   producto: Producto;

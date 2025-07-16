@@ -780,7 +780,6 @@ export const Historico = () => {
                         filtrarProductosParaMostrar(registro.productos).map((producto, idx) => (
                           <VistaLista 
                             key={idx} 
-                            registro={registro} 
                             producto={{
                               nombre: producto.nombre,
                               total: formatearNumero(producto.total),
