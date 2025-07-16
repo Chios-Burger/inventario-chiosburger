@@ -103,5 +103,27 @@ export const airtableService = {
       9: 'Unidad Conteo Bodega Pulmon'
     };
     return campos[bodegaId] || '';
+  },
+
+  async obtenerCategoriasUnicas(): Promise<string[]> {
+    let todasLasCategorias: Set<string> = new Set();
+    
+    // Obtener productos de todas las bodegas
+    for (let bodegaId = 1; bodegaId <= 9; bodegaId++) {
+      try {
+        const productos = await this.obtenerProductos(bodegaId);
+        productos.forEach(producto => {
+          const categoria = producto.fields['Categoría'];
+          if (categoria && typeof categoria === 'string') {
+            todasLasCategorias.add(categoria);
+          }
+        });
+      } catch (error) {
+        console.error(`Error al obtener productos de bodega ${bodegaId}:`, error);
+      }
+    }
+    
+    // Convertir Set a array y ordenar alfabéticamente
+    return Array.from(todasLasCategorias).sort();
   }
 };
