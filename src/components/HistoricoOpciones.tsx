@@ -699,12 +699,31 @@ export const HistoricoOpciones = ({
                       </p>
                       <div className="flex items-center gap-0.5">
                         <input
-                          type="number"
+                          type="tel"
+                          inputMode="decimal"
+                          pattern="[0-9]*[.,]?[0-9]*"
                           step="0.01"
                           value={producto.cantidadPedir}
                           onChange={(e) => actualizarPedido(producto.id, parseFloat(e.target.value) || 0)}
-                          className="w-7 px-0 py-0 border rounded-sm text-center text-[8px] font-medium h-4"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('Input clicked - cantidadPedir');
+                          }}
+                          onTouchStart={(e) => {
+                            e.stopPropagation();
+                            console.log('Input touched - cantidadPedir');
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          className="w-7 px-0 py-0 border rounded-sm text-center text-[8px] font-medium min-h-[44px] relative z-20"
+                          style={{ 
+                            WebkitUserSelect: 'text',
+                            touchAction: 'manipulation',
+                            fontSize: '16px'
+                          }}
                           disabled={(!estaEditando && estaGuardado) || esUsuarioSoloLectura}
+                          readOnly={false}
+                          autoComplete="off"
+                          placeholder="0"
                         />
                         {!esUsuarioSoloLectura && (
                           <button
@@ -733,15 +752,33 @@ export const HistoricoOpciones = ({
                       {producto.conteos.map((conteo, index) => (
                         <input
                           key={index}
-                          type="number"
+                          type="tel"
+                          inputMode="decimal"
+                          pattern="[0-9]*[.,]?[0-9]*"
                           step="0.01"
                           value={conteo >= 0 ? conteo : ''}
                           onChange={(e) => actualizarConteo(producto.id, index, parseFloat(e.target.value) || 0)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log(`Input clicked - conteo ${index + 1}`);
+                          }}
+                          onTouchStart={(e) => {
+                            e.stopPropagation();
+                            console.log(`Input touched - conteo ${index + 1}`);
+                          }}
+                          onFocus={(e) => e.target.select()}
                           placeholder="0"
-                          className={`flex-1 min-w-0 max-w-[1.75rem] px-0 py-0 border rounded-sm text-center text-[8px] font-medium h-4 ${
+                          className={`flex-1 min-w-0 max-w-[1.75rem] px-0 py-0 border rounded-sm text-center text-[8px] font-medium min-h-[44px] relative z-20 ${
                             esInactivo ? 'bg-gray-100' : 'bg-white'
                           }`}
+                          style={{ 
+                            WebkitUserSelect: 'text',
+                            touchAction: 'manipulation',
+                            fontSize: '16px'
+                          }}
                           disabled={estaGuardado || esInactivo || esUsuarioSoloLectura}
+                          readOnly={false}
+                          autoComplete="off"
                         />
                       ))}
                         </div>

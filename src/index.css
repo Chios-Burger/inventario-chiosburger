@@ -2,16 +2,20 @@
 
 /* Fixes críticos para móvil - DEBEN IR PRIMERO */
 @layer base {
-  /* Prevenir zoom en iOS */
+  /* Prevenir zoom en iOS y asegurar touch funcione */
   input[type="tel"],
   input[type="number"],
   input[type="text"],
+  input[type="date"],
+  input[type="checkbox"],
   select,
   textarea {
     font-size: 16px !important;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
+    touch-action: manipulation !important;
+    -webkit-touch-callout: none !important;
   }
   
   /* Asegurar que los inputs sean clickeables en móvil */
@@ -19,11 +23,28 @@
     -webkit-user-select: text !important;
     user-select: text !important;
     cursor: text !important;
+    position: relative !important;
+    z-index: 1 !important;
+  }
+  
+  /* Tamaño mínimo para targets touch en móvil */
+  @media (max-width: 768px) {
+    input[type="tel"],
+    input[type="number"],
+    input[type="text"],
+    input[type="date"] {
+      min-height: 44px !important;
+    }
   }
   
   /* Desactivar tap highlight */
   * {
     -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Fix específico para inputs no respondiendo */
+  input:not([type="checkbox"]):not([type="radio"]) {
+    -webkit-user-modify: read-write-plaintext-only !important;
   }
 }
 

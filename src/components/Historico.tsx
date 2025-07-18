@@ -577,7 +577,23 @@ export const Historico = () => {
               placeholder="Buscar por nombre, código o categoría..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Search input clicked');
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                console.log('Search input touched');
+              }}
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400 relative z-20"
+              style={{ 
+                WebkitUserSelect: 'text',
+                touchAction: 'manipulation',
+                fontSize: '16px',
+                minHeight: '44px'
+              }}
+              readOnly={false}
+              autoComplete="off"
             />
           </div>
 
@@ -649,8 +665,23 @@ export const Historico = () => {
                 type="date"
                 value={fechaDesde}
                 onChange={(e) => setFechaDesde(e.target.value)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Date input clicked - fechaDesde');
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  console.log('Date input touched - fechaDesde');
+                }}
                 placeholder="Desde"
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
+                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400 relative z-20"
+                style={{ 
+                  WebkitUserSelect: 'text',
+                  touchAction: 'manipulation',
+                  fontSize: '16px',
+                  minHeight: '44px'
+                }}
+                readOnly={false}
               />
             </div>
             <span className="text-gray-500">-</span>
@@ -660,8 +691,23 @@ export const Historico = () => {
                 type="date"
                 value={fechaHasta}
                 onChange={(e) => setFechaHasta(e.target.value)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Date input clicked - fechaHasta');
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  console.log('Date input touched - fechaHasta');
+                }}
                 placeholder="Hasta"
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
+                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400 relative z-20"
+                style={{ 
+                  WebkitUserSelect: 'text',
+                  touchAction: 'manipulation',
+                  fontSize: '16px',
+                  minHeight: '44px'
+                }}
+                readOnly={false}
               />
             </div>
           </div>
@@ -677,7 +723,20 @@ export const Historico = () => {
                 type="checkbox"
                 checked={mostrarSoloConCero}
                 onChange={(e) => setMostrarSoloConCero(e.target.checked)}
-                className="w-4 h-4 text-purple-600 rounded focus:ring-purple-400"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Checkbox clicked');
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  console.log('Checkbox touched');
+                }}
+                className="w-4 h-4 text-purple-600 rounded focus:ring-purple-400 relative z-20"
+                style={{ 
+                  touchAction: 'manipulation',
+                  minWidth: '44px',
+                  minHeight: '44px'
+                }}
               />
               <span className="text-sm text-gray-700">Solo productos en cero</span>
             </label>

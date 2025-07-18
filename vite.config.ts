@@ -24,5 +24,28 @@ import { defineConfig } from 'vite'
     optimizeDeps: {
       force: true  // NUEVO: Fuerza re-optimización
     },
-    cacheDir: '.vite-new'  // NUEVO: Usa un directorio de caché diferente
+    cacheDir: '.vite-new',  // NUEVO: Usa un directorio de caché diferente
+    build: {
+      // Configuración específica para producción
+      target: 'es2015', // Mejor compatibilidad con navegadores
+      minify: 'esbuild',
+      sourcemap: false,
+      cssMinify: true,
+      rollupOptions: {
+        output: {
+          // Evitar problemas de code splitting
+          manualChunks: undefined,
+          // Asegurar que los assets tengan nombres consistentes
+          assetFileNames: 'assets/[name]-[hash][extname]',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          entryFileNames: 'assets/[name]-[hash].js'
+        }
+      }
+    },
+    // Asegurar que los estilos inline funcionen en producción
+    css: {
+      modules: {
+        localsConvention: 'camelCase'
+      }
+    }
   })

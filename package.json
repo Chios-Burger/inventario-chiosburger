@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "clean": "rm -rf dist .vite-new node_modules/.vite",
+    "build:clean": "npm run clean && npm run build",
     "lint": "eslint .",
     "preview": "vite preview",
     "server:install": "cd server && npm install",
