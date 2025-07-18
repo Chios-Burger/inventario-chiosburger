@@ -198,75 +198,90 @@ const ProductoConteoComponent = ({
   // Estado para rastrear si estamos en modo edición
   const [isEditing, setIsEditing] = useState(false);
   
-  // Estado para el modal de calculadora
-  const [showCalculator2, setShowCalculator2] = useState(false);
-  const [calculatorValue, setCalculatorValue] = useState('0');
-  const [calculatorOperation, setCalculatorOperation] = useState('');
-  const [previousValue, setPreviousValue] = useState('');
+  // Estado para el modal de calculadora - Optimizado con un solo estado
+  const [calculatorState, setCalculatorState] = useState({
+    show: false,
+    value: '0',
+    operation: '',
+    previousValue: ''
+  });
   
-  // Función para manejar los botones de la calculadora
+  // Función para manejar los botones de la calculadora - Optimizada con useCallback
   const handleCalculatorButton = useCallback((value: string) => {
-    if (value >= '0' && value <= '9') {
-      // Números
-      if (calculatorValue === '0') {
-        setCalculatorValue(value);
-      } else if (calculatorOperation && calculatorValue.includes(calculatorOperation)) {
-        // Si ya hay una operación, agregar el número después
-        setCalculatorValue(calculatorValue + value);
-      } else {
-        setCalculatorValue(calculatorValue + value);
-      }
-    } else if (value === '.') {
-      // Decimal
-      const parts = calculatorValue.split(/[\+\-\*\/]/);
-      const currentPart = parts[parts.length - 1];
-      if (!currentPart.includes('.')) {
-        setCalculatorValue(calculatorValue + '.');
-      }
-    } else if (['+', '-', '*', '/'].includes(value)) {
-      // Operaciones
-      if (!calculatorOperation) {
-        setPreviousValue(calculatorValue);
-        setCalculatorOperation(value);
-        setCalculatorValue(calculatorValue + ' ' + value + ' ');
-      }
-    } else if (value === '=') {
-      // Resultado
-      if (previousValue && calculatorOperation && calculatorValue.includes(calculatorOperation)) {
-        const parts = calculatorValue.split(calculatorOperation);
-        const current = parseFloat(parts[1]) || 0;
-        const prev = parseFloat(previousValue);
-        let result = 0;
-        
-        switch (calculatorOperation) {
-          case '+':
-            result = prev + current;
-            break;
-          case '-':
-            result = prev - current;
-            break;
-          case '*':
-            result = prev * current;
-            break;
-          case '/':
-            result = current !== 0 ? prev / current : 0;
-            break;
+    setCalculatorState(prevState => {
+      const { value: calcValue, operation, previousValue } = prevState;
+      
+      if (value >= '0' && value <= '9') {
+        // Números
+        if (calcValue === '0') {
+          return { ...prevState, value: value };
+        } else if (operation && calcValue.includes(operation)) {
+          // Si ya hay una operación, agregar el número después
+          return { ...prevState, value: calcValue + value };
+        } else {
+          return { ...prevState, value: calcValue + value };
         }
-        
-        setCalculatorValue(result.toString());
-        setPreviousValue('');
-        setCalculatorOperation('');
+      } else if (value === '.') {
+        // Decimal
+        const parts = calcValue.split(/[\+\-\*\/]/);
+        const currentPart = parts[parts.length - 1];
+        if (!currentPart.includes('.')) {
+          return { ...prevState, value: calcValue + '.' };
+        }
+      } else if (['+', '-', '*', '/'].includes(value)) {
+        // Operaciones
+        if (!operation) {
+          return {
+            ...prevState,
+            previousValue: calcValue,
+            operation: value,
+            value: calcValue + ' ' + value + ' '
+          };
+        }
+      } else if (value === '=') {
+        // Resultado
+        if (previousValue && operation && calcValue.includes(operation)) {
+          const parts = calcValue.split(operation);
+          const current = parseFloat(parts[1]) || 0;
+          const prev = parseFloat(previousValue);
+          let result = 0;
+          
+          switch (operation) {
+            case '+':
+              result = prev + current;
+              break;
+            case '-':
+              result = prev - current;
+              break;
+            case '*':
+              result = prev * current;
+              break;
+            case '/':
+              result = current !== 0 ? prev / current : 0;
+              break;
+          }
+          
+          return {
+            ...prevState,
+            value: result.toString(),
+            previousValue: '',
+            operation: ''
+          };
+        }
       }
-    }
-  }, [calculatorValue, calculatorOperation, previousValue]);
+      return prevState;
+    });
+  }, []);
   
-  // Efecto para manejar el teclado cuando la calculadora está abierta
+  // Efecto para manejar el teclado cuando la calculadora está abierta - Optimizado
   useEffect(() => {
-    if (!showCalculator2) return;
+    if (!calculatorState.show) return;
     
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Prevenir comportamiento por defecto en inputs
-      e.preventDefault();
+      // Solo prevenir default para teclas de calculadora
+      if (['0','1','2','3','4','5','6','7','8','9','+','-','*','/','=','Enter','.','Backspace','Escape'].includes(e.key)) {
+        e.preventDefault();
+      }
       
       // Números
       if (e.key >= '0' && e.key <= '9') {
@@ -286,17 +301,22 @@ const ProductoConteoComponent = ({
       }
       // Backspace para borrar
       else if (e.key === 'Backspace') {
-        if (calculatorValue.length > 1) {
-          setCalculatorValue(calculatorValue.slice(0, -1));
-        } else {
-          setCalculatorValue('0');
-        }
+        setCalculatorState(prevState => {
+          if (prevState.value.length > 1) {
+            return { ...prevState, value: prevState.value.slice(0, -1) };
+          } else {
+            return { ...prevState, value: '0' };
+          }
+        });
       }
       // Escape para limpiar
       else if (e.key === 'Escape') {
-        setCalculatorValue('0');
-        setCalculatorOperation('');
-        setPreviousValue('');
+        setCalculatorState(prevState => ({
+          ...prevState,
+          value: '0',
+          operation: '',
+          previousValue: ''
+        }));
       }
     };
     
@@ -305,15 +325,17 @@ const ProductoConteoComponent = ({
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [showCalculator2, calculatorValue, handleCalculatorButton]);
+  }, [calculatorState.show, handleCalculatorButton]);
   
   // Determinar qué botón mostrar
   const showEditButton = isGuardado && !hasChangedSinceSave && !isEditing;
   
   // Función para calcular el resultado pendiente
-  const calcularResultadoPendiente = () => {
-    if (previousValue && calculatorOperation && calculatorValue.includes(calculatorOperation)) {
-      const parts = calculatorValue.split(calculatorOperation);
+  const calcularResultadoPendiente = useCallback(() => {
+    const { value: calcValue, operation, previousValue } = calculatorState;
+    
+    if (previousValue && operation && calcValue.includes(operation)) {
+      const parts = calcValue.split(operation);
       
       // Validar que hay un segundo número
       if (parts[1]?.trim() === '' || parts[1] === undefined) {
@@ -325,7 +347,7 @@ const ProductoConteoComponent = ({
       const prev = parseFloat(previousValue);
       
       let result = 0;
-      switch (calculatorOperation) {
+      switch (operation) {
         case '+':
           result = prev + current;
           break;
@@ -349,8 +371,8 @@ const ProductoConteoComponent = ({
       // Limitar decimales a 4
       return Math.round(result * 10000) / 10000;
     }
-    return parseFloat(calculatorValue) || 0;
-  };
+    return parseFloat(calcValue) || 0;
+  }, [calculatorState]);
   
 
   return (
@@ -372,7 +394,16 @@ const ProductoConteoComponent = ({
         <div className="flex items-start gap-2 sm:gap-3 flex-1 w-full">
           <div className="flex gap-1">
             <button
-              onClick={() => !isInactive && setShowCalculator2(true)}
+              onClick={() => {
+              if (!isInactive) {
+                setCalculatorState({
+                  show: true,
+                  value: '0',
+                  operation: '',
+                  previousValue: ''
+                });
+              }
+            }}
               className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl transition-all ${
                 isInactive ? 'bg-gray-200 cursor-not-allowed' :
                 'bg-blue-100 hover:bg-blue-200 cursor-pointer'
@@ -609,7 +640,7 @@ const ProductoConteoComponent = ({
       
       
       {/* Modal de Calculadora 2 - Pantalla Completa */}
-      {showCalculator2 && (
+      {calculatorState.show && (
         <div className="fixed inset-0 bg-white z-[100] flex flex-col">
           {/* Header de la calculadora */}
           <div className="bg-blue-600 text-white p-2.5 sm:p-4 flex-shrink-0">
@@ -617,10 +648,12 @@ const ProductoConteoComponent = ({
               <h3 className="text-sm sm:text-lg font-bold">Calculadora</h3>
               <button
                 onClick={() => {
-                  setShowCalculator2(false);
-                  setCalculatorValue('0');
-                  setCalculatorOperation('');
-                  setPreviousValue('');
+                  setCalculatorState({
+                    show: false,
+                    value: '0',
+                    operation: '',
+                    previousValue: ''
+                  });
                 }}
                 className="p-1 hover:bg-blue-700 rounded-lg transition-colors"
               >
@@ -644,7 +677,7 @@ const ProductoConteoComponent = ({
           {/* Display de la calculadora */}
           <div className="bg-gray-100 p-3 sm:p-4 flex-shrink-0">
             <div className="bg-white p-2 sm:p-3 rounded-lg text-right text-lg sm:text-2xl font-mono">
-              {calculatorValue}
+              {calculatorState.value}
             </div>
             <p className="text-xs text-gray-500 mt-1 text-center">
               Puedes usar el teclado • Esc=Limpiar
@@ -662,10 +695,12 @@ const ProductoConteoComponent = ({
                     const finalValue = calcularResultadoPendiente();
                     if (finalValue !== null) {
                       handleInputChange(setC1, finalValue.toString());
-                      setShowCalculator2(false);
-                      setCalculatorValue('0');
-                      setCalculatorOperation('');
-                      setPreviousValue('');
+                      setCalculatorState({
+                        show: false,
+                        value: '0',
+                        operation: '',
+                        previousValue: ''
+                      });
                     }
                   }}
                   className="p-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 active:bg-green-700"
@@ -677,10 +712,12 @@ const ProductoConteoComponent = ({
                     const finalValue = calcularResultadoPendiente();
                     if (finalValue !== null) {
                       handleInputChange(setC2, finalValue.toString());
-                      setShowCalculator2(false);
-                      setCalculatorValue('0');
-                      setCalculatorOperation('');
-                      setPreviousValue('');
+                      setCalculatorState({
+                        show: false,
+                        value: '0',
+                        operation: '',
+                        previousValue: ''
+                      });
                     }
                   }}
                   className="p-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 active:bg-green-700"
@@ -692,10 +729,12 @@ const ProductoConteoComponent = ({
                     const finalValue = calcularResultadoPendiente();
                     if (finalValue !== null) {
                       handleInputChange(setC3, finalValue.toString());
-                      setShowCalculator2(false);
-                      setCalculatorValue('0');
-                      setCalculatorOperation('');
-                      setPreviousValue('');
+                      setCalculatorState({
+                        show: false,
+                        value: '0',
+                        operation: '',
+                        previousValue: ''
+                      });
                     }
                   }}
                   className="p-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 active:bg-green-700"
@@ -707,10 +746,12 @@ const ProductoConteoComponent = ({
                     const finalValue = calcularResultadoPendiente();
                     if (finalValue !== null) {
                       handleInputChange(setCantidadPedir, finalValue.toString());
-                      setShowCalculator2(false);
-                      setCalculatorValue('0');
-                      setCalculatorOperation('');
-                      setPreviousValue('');
+                      setCalculatorState({
+                        show: false,
+                        value: '0',
+                        operation: '',
+                        previousValue: ''
+                      });
                     }
                   }}
                   className="p-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 active:bg-purple-700"
@@ -740,9 +781,12 @@ const ProductoConteoComponent = ({
               {/* Botones especiales en la última fila */}
               <button
                 onClick={() => {
-                  setCalculatorValue('0');
-                  setCalculatorOperation('');
-                  setPreviousValue('');
+                  setCalculatorState(prevState => ({
+                    ...prevState,
+                    value: '0',
+                    operation: '',
+                    previousValue: ''
+                  }));
                 }}
                 className="bg-red-500 text-white rounded-lg font-bold hover:bg-red-600 active:bg-red-700"
               >
@@ -750,11 +794,13 @@ const ProductoConteoComponent = ({
               </button>
               <button
                 onClick={() => {
-                  if (calculatorValue.length > 1) {
-                    setCalculatorValue(calculatorValue.slice(0, -1));
-                  } else {
-                    setCalculatorValue('0');
-                  }
+                  setCalculatorState(prevState => {
+                    if (prevState.value.length > 1) {
+                      return { ...prevState, value: prevState.value.slice(0, -1) };
+                    } else {
+                      return { ...prevState, value: '0' };
+                    }
+                  });
                 }}
                 className="bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600 active:bg-orange-700"
               >
@@ -762,8 +808,10 @@ const ProductoConteoComponent = ({
               </button>
               <button
                 onClick={() => {
-                  const current = parseFloat(calculatorValue) || 0;
-                  setCalculatorValue((current * -1).toString());
+                  setCalculatorState(prevState => {
+                    const current = parseFloat(prevState.value) || 0;
+                    return { ...prevState, value: (current * -1).toString() };
+                  });
                 }}
                 className="bg-gray-600 text-white rounded-lg font-bold hover:bg-gray-700 active:bg-gray-800 col-span-2"
               >

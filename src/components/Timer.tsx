@@ -41,9 +41,9 @@ const TimerComponent = ({ startTime, className = "" }: TimerProps) => {
   };
 
   return (
-    <div className={`px-3 sm:px-4 py-1.5 sm:py-2 bg-purple-400/20 border border-purple-400/30 backdrop-blur-lg rounded-xl sm:rounded-2xl shadow-lg flex items-center gap-2 ${className}`}>
-      <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-purple-700" />
-      <span className="text-xs font-medium text-purple-700">{formatTime(elapsedTime)}</span>
+    <div className={`px-1.5 py-0.5 bg-purple-400/20 border border-purple-400/30 backdrop-blur-lg rounded-md shadow-sm flex items-center gap-1 ${className}`}>
+      <Clock className="w-2.5 h-2.5 text-purple-700" />
+      <span className="text-[8px] font-medium text-purple-700">{formatTime(elapsedTime)}</span>
     </div>
   );
 };

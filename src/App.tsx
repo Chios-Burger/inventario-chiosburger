@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Package2, LogOut, Home, History, AlertCircle, Menu, X } from 'lucide-react';
+import { Package2, LogOut, Home, History, AlertCircle, Menu, X, Eye } from 'lucide-react';
 import { Login } from './components/Login';
 import { SelectorBodega } from './components/SelectorBodega';
 import { ListaProductos } from './components/ListaProductos';
 import { Historico } from './components/Historico';
+import { HistoricoOpciones } from './components/HistoricoOpciones';
 import { Toast } from './components/Toast';
+import NotificationModal from './components/NotificationModal';
 import { authService } from './services/auth';
 import { syncService } from './services/syncService';
 import { historicoService } from './services/historico';
+import { notificationSystem } from './utils/notificationSystem';
 import type { Usuario } from './types/index';
 import './App.css';
 
@@ -15,10 +18,11 @@ function App() {
   const [bodegaId, setBodegaId] = useState<number | null>(null);
   const [bodegaNombre, setBodegaNombre] = useState<string>('');
   const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [vista, setVista] = useState<'inventario' | 'historico'>('inventario');
+  const [vista, setVista] = useState<'inventario' | 'historico' | 'opciones-historico'>('inventario');
   const [error, setError] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState<{message: string; type: 'success' | 'error' | 'info' | 'offline'} | null>(null);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
 
   useEffect(() => {
     // Verificar si hay un usuario logueado
@@ -46,6 +50,17 @@ function App() {
       syncService.stopAutoSync();
     };
   }, []);
+
+  // Verificar notificaciones pendientes
+  useEffect(() => {
+    const checkNotifications = setInterval(() => {
+      if (notificationSystem.hasPendingNotifications() && !showNotificationModal) {
+        setShowNotificationModal(true);
+      }
+    }, 5000); // Verificar cada 5 segundos
+
+    return () => clearInterval(checkNotifications);
+  }, [showNotificationModal]);
 
   const handleLogin = () => {
     const usuarioActual = authService.getUsuarioActual();
@@ -98,15 +113,15 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo y título */}
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg sm:rounded-xl shadow-md">
-                <Package2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg shadow-md">
+                <Package2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg sm:text-xl font-bold text-gray-800">
+                <h1 className="text-sm sm:text-base font-bold text-gray-800">
                   Sistema de Inventario
                 </h1>
-                <p className="text-xs text-gray-500 hidden sm:block">ChiosBurger</p>
+                <p className="text-[10px] text-gray-500 hidden sm:block">ChiosBurger</p>
               </div>
             </div>
 
@@ -133,6 +148,17 @@ function App() {
               >
                 <History className="w-4 h-4 inline mr-2" />
                 Histórico
+              </button>
+              <button
+                onClick={() => setVista('opciones-historico')}
+                className={`px-4 py-2 rounded-xl font-medium text-sm transition-all ${
+                  vista === 'opciones-historico' 
+                    ? 'bg-purple-100 text-purple-700' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Eye className="w-4 h-4 inline mr-2" />
+                Opciones Histórico
               </button>
             </nav>
 
@@ -191,6 +217,20 @@ function App() {
                 >
                   <History className="w-4 h-4 inline mr-2" />
                   Histórico
+                </button>
+                <button
+                  onClick={() => {
+                    setVista('opciones-historico');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all text-left ${
+                    vista === 'opciones-historico' 
+                      ? 'bg-purple-100 text-purple-700' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Eye className="w-4 h-4 inline mr-2" />
+                  Opciones Histórico
                 </button>
               </nav>
               
@@ -260,9 +300,20 @@ function App() {
                 </>
               )}
             </>
-          ) : (
+          ) : vista === 'historico' ? (
             <Historico />
-          )}
+          ) : vista === 'opciones-historico' ? (
+            bodegaId && bodegaNombre ? (
+              <HistoricoOpciones 
+                bodegaId={bodegaId} 
+                bodegaNombre={bodegaNombre} 
+              />
+            ) : (
+              <div className="text-center py-20">
+                <p className="text-gray-500">Selecciona una bodega primero</p>
+              </div>
+            )
+          ) : null}
       </main>
       
       {/* Toast notifications */}
@@ -273,6 +324,12 @@ function App() {
           onClose={() => setToast(null)}
         />
       )}
+      
+      {/* Notification Modal */}
+      <NotificationModal 
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { RegistroHistorico, RegistroDiario, ProductoHistorico, Producto, Conteo } from '../types/index';
 import { authService } from './auth';
 import { airtableService } from './airtable';
+import { notificationSystem } from '../utils/notificationSystem';
 import { 
   obtenerFechaActual, 
   fechaAISO, 
@@ -281,6 +282,9 @@ export const historicoService = {
         const result = await response.json();
         console.log('✅ Inventario guardado en base de datos exitosamente', result);
         
+        // Agregar notificación para bodega principal
+        notificationSystem.addNotification(registro.bodegaNombre);
+        
         // Eliminar de localStorage ya que se guardó en BD
         const registrosActualizados = this.obtenerHistoricosLocales();
         const registrosFiltered = registrosActualizados.filter(r => r.id !== registro.id);
@@ -288,6 +292,8 @@ export const historicoService = {
       }
     } catch {
       // No lanzamos error, el inventario ya está guardado localmente
+      // Agregar notificación también cuando se guarda solo localmente
+      notificationSystem.addNotification(registro.bodegaNombre);
     }
   },
 

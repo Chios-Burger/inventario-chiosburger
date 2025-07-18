@@ -12,7 +12,7 @@ import { fechaAISO, obtenerFechaActual, normalizarFechaAISO } from '../utils/dat
 
 export const Historico = () => {
   const [registrosPorDia, setRegistrosPorDia] = useState<RegistroDiario[]>([]);
-  const [filtroFecha, setFiltroFecha] = useState('');
+  const [filtroFecha] = useState('');
   const [filtroBodega, setFiltroBodega] = useState('todos');
   const [filtroUsuario, setFiltroUsuario] = useState('todos');
   const [filtroTipo, setFiltroTipo] = useState('todos');
@@ -22,6 +22,10 @@ export const Historico = () => {
   const [ordenarPor, setOrdenarPor] = useState<'fecha' | 'bodega' | 'usuario'>('fecha');
   const [cargando, setCargando] = useState(true);
   const [productoEditando, setProductoEditando] = useState<{producto: ProductoHistorico, registro: RegistroHistorico} | null>(null);
+  
+  // Nuevos estados para filtro de rango de fechas
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
   
   const usuario = authService.getUsuarioActual();
   const esAdmin = authService.esAdmin();
@@ -154,8 +158,8 @@ export const Historico = () => {
   };
 
   const handleExportarTodosCSV = () => {
-    const todosLosRegistros = registrosPorDia.flatMap(dia => dia.inventarios);
-    exportUtils.exportarTodosCSV(todosLosRegistros);
+    // Usar registros filtrados en lugar de todos los registros
+    exportUtils.exportarTodosCSV(registrosFiltrados);
   };
 
   // Verificar si se puede editar un registro según roles
@@ -234,8 +238,8 @@ export const Historico = () => {
 
 
   const handleExportarTodos = () => {
-    const todosLosRegistros = registrosPorDia.flatMap(dia => dia.inventarios);
-    exportUtils.exportarTodosPDF(todosLosRegistros);
+    // Usar registros filtrados en lugar de todos los registros
+    exportUtils.exportarTodosPDF(registrosFiltrados);
   };
 
   const toggleExpandRegistro = (id: string) => {
@@ -290,7 +294,7 @@ export const Historico = () => {
         return false;
       }
 
-      // Filtro por fecha
+      // Filtro por fecha específica (mantener funcionalidad existente)
       if (filtroFecha) {
         // Normalizar ambas fechas a formato YYYY-MM-DD para comparación
         const normalizarFecha = (fecha: string): string => {
@@ -314,6 +318,35 @@ export const Historico = () => {
         const filtroFechaNorm = normalizarFecha(filtroFecha);
         
         if (fechaRegistroNorm !== filtroFechaNorm) {
+          return false;
+        }
+      }
+      
+      // Filtro por rango de fechas
+      if (fechaDesde || fechaHasta) {
+        const normalizarFecha = (fecha: string): string => {
+          if (fecha.includes('T')) {
+            return fecha.split('T')[0];
+          }
+          if (fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            return fecha;
+          }
+          if (fecha.includes('/')) {
+            const [d, m, y] = fecha.split('/');
+            return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+          }
+          return fecha;
+        };
+        
+        const fechaRegistroNorm = normalizarFecha(inv.fecha);
+        
+        // Aplicar filtro desde
+        if (fechaDesde && fechaRegistroNorm < fechaDesde) {
+          return false;
+        }
+        
+        // Aplicar filtro hasta
+        if (fechaHasta && fechaRegistroNorm > fechaHasta) {
           return false;
         }
       }
@@ -608,15 +641,29 @@ export const Historico = () => {
             </select>
           </div>
 
-          {/* Filtro fecha */}
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="date"
-              value={filtroFecha}
-              onChange={(e) => setFiltroFecha(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
-            />
+          {/* Filtro rango de fechas */}
+          <div className="flex gap-2 items-center">
+            <div className="relative flex-1">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="date"
+                value={fechaDesde}
+                onChange={(e) => setFechaDesde(e.target.value)}
+                placeholder="Desde"
+                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
+              />
+            </div>
+            <span className="text-gray-500">-</span>
+            <div className="relative flex-1">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="date"
+                value={fechaHasta}
+                onChange={(e) => setFechaHasta(e.target.value)}
+                placeholder="Hasta"
+                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
+              />
+            </div>
           </div>
         </div>
 
@@ -675,13 +722,13 @@ export const Historico = () => {
                 <>
                   <button
                     onClick={() => {
-                      const todosLosRegistros = registrosPorDia.flatMap(dia => dia.inventarios);
-                      exportUtils.exportarTodosCSV(todosLosRegistros);
+                      // Exportar como Excel
+                      exportUtils.exportarTodosExcel(registrosFiltrados);
                     }}
                     className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-300 flex items-center gap-2"
                   >
                     <FileSpreadsheet className="w-4 h-4" />
-                    Exportar Todo CSV
+                    Exportar Todo XLS
                   </button>
                 </>
               )}

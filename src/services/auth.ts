@@ -13,6 +13,8 @@ export const authService = {
     if (usuario) {
       // Guardar en localStorage
       localStorage.setItem('usuario', JSON.stringify(usuario));
+      // Guardar email específicamente para el sistema de notificaciones
+      localStorage.setItem('userEmail', usuario.email);
       return usuario;
     }
     
@@ -21,6 +23,7 @@ export const authService = {
 
   logout(): void {
     localStorage.removeItem('usuario');
+    localStorage.removeItem('userEmail');
   },
 
   getUsuarioActual(): Usuario | null {
@@ -55,5 +58,10 @@ export const authService = {
   esAdmin(): boolean {
     const usuario = this.getUsuarioActual();
     return usuario?.esAdmin || false;
+  },
+
+  getUserEmail(): string | null {
+    const usuario = this.getUsuarioActual();
+    return usuario?.email || null;
   }
 };

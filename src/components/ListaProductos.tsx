@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Loader2, AlertCircle, Package2, X, Save, Clock, TrendingUp, BarChart3, Award, ArrowUp, Sparkles, ArrowUpDown, ArrowUp01, ArrowDown01, Hash, Tag } from 'lucide-react';
+import { Search, Loader2, AlertCircle, Package2, X, Save, Clock, TrendingUp, BarChart3, Award, ArrowUp, Sparkles, ArrowUpDown, ArrowUp01, ArrowDown01, Hash, Tag, Check } from 'lucide-react';
 import type { Producto } from '../types/index';
 import { ProductoConteo } from './ProductoConteo';
 import { Toast } from './Toast';
@@ -148,6 +148,48 @@ export const ListaProductos = ({
   // Estados para ordenamiento
   const [ordenCategoria, setOrdenCategoria] = useState<'asc' | 'desc' | 'none'>('none');
   const [ordenCodigo, setOrdenCodigo] = useState<'asc' | 'desc' | 'none'>('none');
+  
+  // Estados para agrupación
+  const [agruparPorCategoria, setAgruparPorCategoria] = useState(false);
+  const [ordenarPorTipo, setOrdenarPorTipo] = useState(false);
+  
+  // Función para obtener el tipo de producto
+  const obtenerTipoProducto = (campos: any): string => {
+    // Buscar el tipo del producto en diferentes campos posibles
+    const posiblesNombres = [
+      'Tipo A,B o C',
+      'Tipo A, B o C',
+      'Tipo A,B,C',
+      'Tipo A, B, C',
+      'Tipo ABC',
+      'TipoABC',
+      'Tipo',
+      'tipo'
+    ];
+    
+    for (const nombre of posiblesNombres) {
+      if (campos[nombre]) {
+        return campos[nombre];
+      }
+    }
+    
+    return '';
+  };
+  
+  // Función para agrupar productos por categoría
+  const agruparProductosPorCategoria = (productos: typeof productosFiltrados) => {
+    const grupos: Record<string, typeof productosFiltrados> = {};
+    
+    productos.forEach(producto => {
+      const categoria = producto.fields['Categoría'] || 'Sin categoría';
+      if (!grupos[categoria]) {
+        grupos[categoria] = [];
+      }
+      grupos[categoria].push(producto);
+    });
+    
+    return grupos;
+  };
   
   // Obtener usuario actual
   const usuario = authService.getUsuarioActual();
@@ -378,6 +420,15 @@ export const ListaProductos = ({
     // Luego aplicar ordenamiento normal
     let productosOrdenados = [...productosFiltrados];
     
+    // Aplicar ordenamiento por tipo A-B-C si está activo
+    if (ordenarPorTipo) {
+      productosOrdenados.sort((a, b) => {
+        const tipoA = obtenerTipoProducto(a.fields) || 'Z';
+        const tipoB = obtenerTipoProducto(b.fields) || 'Z';
+        return tipoA.localeCompare(tipoB);
+      });
+    }
+    
     // Aplicar ordenamiento por filtros
     productosOrdenados.sort((a, b) => {
       // Ordenar por código si está activo
@@ -414,7 +465,7 @@ export const ListaProductos = ({
     });
     
     return productosOrdenados;
-  }, [productos, debouncedBusqueda, ordenCategoria, ordenCodigo, mostrarSinContarPrimero, ordenSnapshot, hayTomaHoy, tiposPermitidosHoy, intentoGuardarIncompleto, porcentajeCompletado, productosGuardados, ordenCongelado]);
+  }, [productos, debouncedBusqueda, ordenCategoria, ordenCodigo, mostrarSinContarPrimero, ordenSnapshot, hayTomaHoy, tiposPermitidosHoy, intentoGuardarIncompleto, porcentajeCompletado, productosGuardados, ordenCongelado, ordenarPorTipo]);
 
   const handleConteoChange = useCallback((productoId: string, nuevoConteo: any) => {
     setConteos(prev => {
@@ -909,28 +960,6 @@ export const ListaProductos = ({
           </div>
         </div>
         
-        {/* Barra de búsqueda moderna */}
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-4 sm:pl-5 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Buscar productos..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full pl-11 sm:pl-14 pr-11 sm:pr-14 py-3.5 sm:py-5 bg-white border border-gray-200 rounded-xl sm:rounded-2xl focus:ring-4 focus:ring-purple-100 focus:border-purple-400 transition-all text-gray-700 placeholder-gray-400 shadow-sm text-sm sm:text-base"
-          />
-          {busqueda && (
-            <button
-              onClick={() => setBusqueda('')}
-              className="absolute right-3 sm:right-5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
-            >
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-          )}
-        </div>
-        
         
         {/* Información de tipos permitidos hoy - COMENTADO */}
         {/* hayTomaHoy && tiposPermitidosHoy && (
@@ -945,8 +974,34 @@ export const ListaProductos = ({
           </div>
         ) */}
         
-        {/* Filtros de ordenamiento */}
+        {/* Filtros de agrupación y ordenamiento */}
         <div className="mt-4">
+          {/* Toggles de agrupación */}
+          <div className="mb-3 flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={() => setAgruparPorCategoria(!agruparPorCategoria)}
+              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                agruparPorCategoria
+                  ? 'bg-green-100 text-green-700 border-2 border-green-300'
+                  : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              <span className="text-sm">Agrupar por Categorías</span>
+              {agruparPorCategoria && <Check className="w-4 h-4" />}
+            </button>
+            
+            <button
+              onClick={() => setOrdenarPorTipo(!ordenarPorTipo)}
+              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                ordenarPorTipo
+                  ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
+                  : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              <span className="text-sm">Ordenar por Tipo (A-B-C)</span>
+              {ordenarPorTipo && <Check className="w-4 h-4" />}
+            </button>
+          </div>
           {/* Indicador de filtros activos */}
           {(ordenCategoria !== 'none' || ordenCodigo !== 'none') && (
             <div className="mb-3 text-xs text-gray-600 flex items-center gap-2">
@@ -1023,58 +1078,83 @@ export const ListaProductos = ({
         </div>
       </div>
 
-      {/* Progress Bar - Opción 2 con porcentajes */}
+      {/* Progress Bar y Buscador - Sticky */}
       <div className="sticky top-16 z-30 mb-3 sm:mb-4">
-        <div className="bg-white rounded-lg px-2 py-1 shadow-md border border-gray-100 flex items-center gap-2">
-          <span className="text-[10px] font-medium text-gray-700">{productosGuardadosCount}/{productos.length}</span>
-          
-          <div className="flex-1 flex items-center gap-1">
-            <div className="flex-1 flex items-center gap-1">
-              <span className="text-[9px] font-bold text-blue-600">A</span>
-              <div className="flex-1 h-2 bg-blue-100 rounded overflow-hidden">
-                <div className="h-full bg-blue-500"
-                  style={{ width: productosPorTipo.totales.A > 0 ? `${(productosPorTipo.guardados.A / productosPorTipo.totales.A) * 100}%` : '0%' }}
-                />
-              </div>
-              <span className="text-[8px] text-gray-500">
-                {productosPorTipo.totales.A > 0 
-                  ? `${Math.round((productosPorTipo.guardados.A / productosPorTipo.totales.A) * 100)}%`
-                  : '0%'}
-              </span>
-            </div>
+        <div className="bg-white rounded-lg shadow-md border border-gray-100 p-2 space-y-2">
+          {/* Barra de progreso */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-medium text-gray-700">{productosGuardadosCount}/{productos.length}</span>
             
             <div className="flex-1 flex items-center gap-1">
-              <span className="text-[9px] font-bold text-green-600">B</span>
-              <div className="flex-1 h-2 bg-green-100 rounded overflow-hidden">
-                <div className="h-full bg-green-500"
-                  style={{ width: productosPorTipo.totales.B > 0 ? `${(productosPorTipo.guardados.B / productosPorTipo.totales.B) * 100}%` : '0%' }}
-                />
+              <div className="flex-1 flex items-center gap-1">
+                <span className="text-[9px] font-bold text-blue-600">A</span>
+                <div className="flex-1 h-2 bg-blue-100 rounded overflow-hidden">
+                  <div className="h-full bg-blue-500"
+                    style={{ width: productosPorTipo.totales.A > 0 ? `${(productosPorTipo.guardados.A / productosPorTipo.totales.A) * 100}%` : '0%' }}
+                  />
+                </div>
+                <span className="text-[8px] text-gray-500">
+                  {productosPorTipo.totales.A > 0 
+                    ? `${Math.round((productosPorTipo.guardados.A / productosPorTipo.totales.A) * 100)}%`
+                    : '0%'}
+                </span>
               </div>
-              <span className="text-[8px] text-gray-500">
-                {productosPorTipo.totales.B > 0 
-                  ? `${Math.round((productosPorTipo.guardados.B / productosPorTipo.totales.B) * 100)}%`
-                  : '0%'}
-              </span>
+              
+              <div className="flex-1 flex items-center gap-1">
+                <span className="text-[9px] font-bold text-green-600">B</span>
+                <div className="flex-1 h-2 bg-green-100 rounded overflow-hidden">
+                  <div className="h-full bg-green-500"
+                    style={{ width: productosPorTipo.totales.B > 0 ? `${(productosPorTipo.guardados.B / productosPorTipo.totales.B) * 100}%` : '0%' }}
+                  />
+                </div>
+                <span className="text-[8px] text-gray-500">
+                  {productosPorTipo.totales.B > 0 
+                    ? `${Math.round((productosPorTipo.guardados.B / productosPorTipo.totales.B) * 100)}%`
+                    : '0%'}
+                </span>
+              </div>
+              
+              <div className="flex-1 flex items-center gap-1">
+                <span className="text-[9px] font-bold text-yellow-600">C</span>
+                <div className="flex-1 h-2 bg-yellow-100 rounded overflow-hidden">
+                  <div className="h-full bg-yellow-500"
+                    style={{ width: productosPorTipo.totales.C > 0 ? `${(productosPorTipo.guardados.C / productosPorTipo.totales.C) * 100}%` : '0%' }}
+                  />
+                </div>
+                <span className="text-[8px] text-gray-500">
+                  {productosPorTipo.totales.C > 0 
+                    ? `${Math.round((productosPorTipo.guardados.C / productosPorTipo.totales.C) * 100)}%`
+                    : '0%'}
+                </span>
+              </div>
             </div>
             
-            <div className="flex-1 flex items-center gap-1">
-              <span className="text-[9px] font-bold text-yellow-600">C</span>
-              <div className="flex-1 h-2 bg-yellow-100 rounded overflow-hidden">
-                <div className="h-full bg-yellow-500"
-                  style={{ width: productosPorTipo.totales.C > 0 ? `${(productosPorTipo.guardados.C / productosPorTipo.totales.C) * 100}%` : '0%' }}
-                />
-              </div>
-              <span className="text-[8px] text-gray-500">
-                {productosPorTipo.totales.C > 0 
-                  ? `${Math.round((productosPorTipo.guardados.C / productosPorTipo.totales.C) * 100)}%`
-                  : '0%'}
-              </span>
-            </div>
+            <span className="text-[9px] font-bold text-purple-600">{porcentajeCompletado}%</span>
+            <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+            {startTime && <Timer startTime={startTime} className="!p-0 !px-1 !py-0 !text-[9px]" />}
           </div>
           
-          <span className="text-[9px] font-bold text-purple-600">{porcentajeCompletado}%</span>
-          <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-          {startTime && <Timer startTime={startTime} className="!p-0 !px-1 !py-0 !text-[9px]" />}
+          {/* Barra de búsqueda */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-1.5 flex items-center pointer-events-none">
+              <Search className="h-2.5 w-2.5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="w-full pl-5 pr-5 py-0.5 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-purple-100 focus:border-purple-400 transition-all text-gray-700 placeholder-gray-400 text-[10px]"
+            />
+            {busqueda && (
+              <button
+                onClick={() => setBusqueda('')}
+                className="absolute right-0.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-0.5"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1146,10 +1226,59 @@ export const ListaProductos = ({
             </div>
             <p className="text-gray-500 font-medium">No se encontraron productos</p>
           </div>
+        ) : agruparPorCategoria ? (
+          // Vista agrupada por categoría
+          (() => {
+            const productosAgrupados = productosFiltrados.reduce((acc, producto) => {
+              const categoria = producto.fields['Categoría'] || 'Sin categoría';
+              if (!acc[categoria]) {
+                acc[categoria] = [];
+              }
+              acc[categoria].push(producto);
+              return acc;
+            }, {} as Record<string, typeof productosFiltrados>);
+            
+            return Object.entries(productosAgrupados).map(([categoria, productosCategoria]) => (
+              <div key={categoria} className="mb-6">
+                {/* Header de categoría */}
+                <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg mb-3 shadow-md">
+                  <h3 className="font-bold text-sm sm:text-base">{categoria}</h3>
+                  <p className="text-xs opacity-90">{productosCategoria.length} productos</p>
+                </div>
+                
+                {/* Productos de la categoría */}
+                <div className="space-y-4">
+                  {productosCategoria.map(producto => {
+                    const estaGuardado = productosGuardados.has(producto.id);
+                    const sinContar = !estaGuardado;
+                    
+                    return (
+                      <div 
+                        key={producto.id} 
+                        className={`${sinContar ? 'ring-2 ring-red-400 rounded-2xl' : ''} transition-all duration-300`}
+                      >
+                        <ProductoConteo
+                          producto={producto}
+                          unidad={obtenerUnidad(producto)}
+                          unidadBodega={obtenerUnidadBodega(producto)}
+                          onConteoChange={handleConteoChange}
+                          onGuardarProducto={esUsuarioSoloLectura ? undefined : handleGuardarProducto}
+                          guardando={guardandoProductos.has(producto.id)}
+                          isGuardado={productosGuardados.has(producto.id)}
+                          conteoInicial={conteos[producto.id]}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ));
+          })()
         ) : (
+          // Vista normal sin agrupar
           productosFiltrados.map(producto => {
             const estaGuardado = productosGuardados.has(producto.id);
-            const sinContar = !estaGuardado; // Simplificado: sin contar = no guardado
+            const sinContar = !estaGuardado;
             
             return (
               <div 

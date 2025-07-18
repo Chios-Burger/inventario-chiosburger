@@ -441,7 +441,7 @@ export const exportUtils = {
   exportarTodosCSV(registros: RegistroHistorico[]): void {
     if (registros.length === 0) return;
 
-    // Crear contenido CSV con todos los registros
+    // Crear contenido CSV con todos los registros - FORMATO ORIGINAL
     const headers = [
       'Fecha',
       'Hora',
@@ -521,6 +521,90 @@ export const exportUtils = {
     URL.revokeObjectURL(url);
   },
 
+  // Exportar todos a Excel - FORMATO ORIGINAL
+  exportarTodosExcel(registros: RegistroHistorico[]): void {
+    if (registros.length === 0) return;
+
+    // Usar el mismo formato que CSV pero exportar como XLS
+    const headers = [
+      'Fecha',
+      'Hora',
+      'Bodega',
+      'Usuario',
+      'Código',
+      'Producto',
+      'Categoría',
+      'Tipo',
+      'Conteo 1',
+      'Conteo 2',
+      'Conteo 3',
+      'Total',
+      'Cantidad a Pedir',
+      'Unidad',
+      'Unidad Bodega',
+      'Equivalencias'
+    ];
+
+    const rows: string[][] = [];
+
+    // Agregar resumen al inicio
+    const totalProductos = registros.reduce((acc, r) => acc + r.productos.length, 0);
+    const totalEnCero = registros.reduce((acc, r) => 
+      acc + r.productos.filter(p => p.total === 0).length, 0
+    );
+
+    rows.push([`Total de sesiones: ${registros.length}`]);
+    rows.push([`Total de productos: ${totalProductos}`]);
+    rows.push([`Productos en cero: ${totalEnCero}`]);
+    rows.push([`Fecha de exportación: ${new Date().toLocaleString('es-EC')}`]);
+    rows.push([]); // Línea vacía
+
+    registros.forEach(registro => {
+      registro.productos.forEach(p => {
+        rows.push([
+          registro.fecha,
+          registro.hora,
+          registro.bodega,
+          registro.usuario,
+          p.codigo || '',
+          p.nombre,
+          p.categoria || 'Sin categoría',
+          p.tipo || 'Sin tipo',
+          this.formatearNumeroParaExport(p.c1),
+          this.formatearNumeroParaExport(p.c2),
+          this.formatearNumeroParaExport(p.c3),
+          this.formatearNumeroParaExport(p.total),
+          this.formatearNumeroParaExport(p.cantidadPedir),
+          p.unidad,
+          p.unidadBodega,
+          p.equivalencia || ''
+        ]);
+      });
+    });
+
+    // Usar punto y coma como separador
+    const csvContent = [
+      headers,
+      ...rows
+    ].map(row => row.map(cell => {
+      const cellStr = cell.toString().replace(/"/g, '""');
+      return cellStr.includes(';') || cellStr.includes(',') || cellStr.includes('\n') 
+        ? `"${cellStr}"` 
+        : cellStr;
+    }).join(';')).join('\n');
+
+    // Crear blob y descargar como .xls
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `historico_inventarios_${new Date().toISOString().split('T')[0]}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+
   // Exportar a Excel (formato específico para usuario análisis)
   exportarExcel(registro: RegistroHistorico): void {
     // Verificar permisos
@@ -585,14 +669,55 @@ export const exportUtils = {
     // Función auxiliar para formatear números en HTML
     const formatNum = (num: number) => this.formatearNumeroParaExport(num);
     
+    // Obtener todas las fechas únicas ordenadas
+    const fechasUnicas = [...new Set(registros.map(r => r.fecha))].sort();
+    
+    // Agrupar productos primero por bodega y luego por categoría
+    const bodegas = new Map<string, Map<string, Map<string, any>>>();
+    
+    registros.forEach(registro => {
+      const bodegaNombre = registro.bodega;
+      
+      // Si no existe la bodega, crearla
+      if (!bodegas.has(bodegaNombre)) {
+        bodegas.set(bodegaNombre, new Map());
+      }
+      
+      const categoriasDeBodega = bodegas.get(bodegaNombre)!;
+      
+      registro.productos.forEach(producto => {
+        const categoria = producto.categoria || 'Sin categoría';
+        
+        // Si no existe la categoría en esta bodega, crearla
+        if (!categoriasDeBodega.has(categoria)) {
+          categoriasDeBodega.set(categoria, new Map());
+        }
+        
+        const productosDeCategoria = categoriasDeBodega.get(categoria)!;
+        const key = `${producto.codigo || 'SIN-CODIGO'}_${producto.nombre}`;
+        
+        if (!productosDeCategoria.has(key)) {
+          productosDeCategoria.set(key, {
+            codigo: producto.codigo || '',
+            nombre: producto.nombre,
+            datos: {}
+          });
+        }
+        
+        // Guardar datos para esta fecha
+        productosDeCategoria.get(key).datos[registro.fecha] = {
+          conteo: formatNum(producto.total),
+          unidad: producto.unidad,
+          cantidadPedir: formatNum(producto.cantidadPedir),
+          unidadBodega: producto.unidadBodega
+        };
+      });
+    });
+    
     // Calcular estadísticas generales
-    const totalProductos = registros.reduce((acc, r) => acc + r.productos.length, 0);
     const totalEnCero = registros.reduce((acc, r) => 
       acc + r.productos.filter(p => p.total === 0).length, 0
     );
-    // const totalAPedir = registros.reduce((acc, r) => 
-    //   acc + r.productos.filter(p => p.cantidadPedir > 0).length, 0
-    // );
 
     const html = `
       <!DOCTYPE html>
@@ -628,7 +753,7 @@ export const exportUtils = {
           }
           .summary {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 15px;
             margin: 20px 0;
           }
@@ -648,15 +773,18 @@ export const exportUtils = {
             color: #666;
             margin-top: 5px;
           }
-          .session {
-            margin-bottom: 30px;
+          .categoria-section {
+            margin-bottom: 40px;
             page-break-inside: avoid;
           }
-          .session-header {
+          .categoria-header {
             background-color: #e8f4e8;
-            padding: 10px;
+            padding: 15px;
             border-radius: 4px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #2d5016;
           }
           table {
             width: 100%;
@@ -719,54 +847,72 @@ export const exportUtils = {
             <div class="summary-label">Total Sesiones</div>
           </div>
           <div class="summary-item">
-            <div class="summary-value">${totalProductos}</div>
-            <div class="summary-label">Total Productos</div>
+            <div class="summary-value">${bodegas.size}</div>
+            <div class="summary-label">Total Bodegas</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-value">${Array.from(bodegas.values()).reduce((total, categorias) => total + categorias.size, 0)}</div>
+            <div class="summary-label">Total Categorías</div>
           </div>
           <div class="summary-item">
             <div class="summary-value">${totalEnCero}</div>
             <div class="summary-label">Productos en Cero</div>
           </div>
         </div>
+        
+        <p style="margin: 20px 0; font-weight: bold;">
+          Rango de fechas: ${fechasUnicas[0]} - ${fechasUnicas[fechasUnicas.length - 1]}
+        </p>
 
-        ${registros.map(registro => `
-          <div class="session">
-            <h2>${registro.bodega} - ${registro.fecha}</h2>
-            <div class="session-header">
-              <strong>Usuario:</strong> ${registro.usuario} | 
-              <strong>Hora:</strong> ${registro.hora} | 
-              <strong>Duración:</strong> ${registro.duracion} | 
-              <strong>Productos:</strong> ${registro.productosGuardados}/${registro.totalProductos}
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th>Tipo</th>
-                  <th class="numeric">C1</th>
-                  <th class="numeric">C2</th>
-                  <th class="numeric">C3</th>
-                  <th class="numeric">Total</th>
-                  <th class="numeric">Pedir</th>
-                  <th>Unidad</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${registro.productos.map(p => `
-                  <tr class="${p.total === 0 ? 'zero-row' : ''}">
-                    <td>${p.nombre}</td>
-                    <td>${p.tipo || '-'}</td>
-                    <td class="numeric">${formatNum(p.c1)}</td>
-                    <td class="numeric">${formatNum(p.c2)}</td>
-                    <td class="numeric">${formatNum(p.c3)}</td>
-                    <td class="numeric"><strong>${formatNum(p.total)}</strong></td>
-                    <td class="numeric">${formatNum(p.cantidadPedir)}</td>
-                    <td>${p.unidadBodega}</td>
+        ${Array.from(bodegas.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([bodega, categorias]) => {
+          return `
+          <h2 style="color: #059669; margin-top: 40px; background-color: #d1fae5; padding: 15px; border-radius: 8px;">
+            Bodega: ${bodega}
+          </h2>
+          
+          ${Array.from(categorias.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([categoria, productos]) => {
+            // Convertir productos a array y ordenar
+            const productosArray = Array.from(productos.values()).sort((a, b) => {
+              const codigoA = a.codigo || a.nombre;
+              const codigoB = b.codigo || b.nombre;
+              return codigoA.localeCompare(codigoB);
+            });
+            
+            return `
+            <div class="categoria-section">
+              <div class="categoria-header">
+                ${categoria} (${productosArray.length} productos)
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    ${fechasUnicas.map(fecha => `<th class="numeric">${fecha}</th>`).join('')}
                   </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        `).join('')}
+                </thead>
+                <tbody>
+                  ${productosArray.map(producto => {
+                    const filaClass = Object.values(producto.datos).some((d: any) => d.conteo === '0') ? 'zero-row' : '';
+                    return `
+                    <tr class="${filaClass}">
+                      <td>${producto.codigo}</td>
+                      <td>${producto.nombre}</td>
+                      ${fechasUnicas.map(fecha => {
+                        const datos = producto.datos[fecha];
+                        if (datos) {
+                          return `<td class="numeric">${datos.conteo} ${datos.unidad}<br><small style="color: #666;">${datos.cantidadPedir} ${datos.unidadBodega}</small></td>`;
+                        } else {
+                          return '<td class="numeric">-</td>';
+                        }
+                      }).join('')}
+                    </tr>
+                  `}).join('')}
+                </tbody>
+              </table>
+            </div>
+          `}).join('')}
+        `}).join('')}
 
         <div class="footer">
           <p>Generado el ${new Date().toLocaleString('es-EC')}</p>
