@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+/* Fixes críticos para móvil - DEBEN IR PRIMERO */
+@layer base {
+  /* Prevenir zoom en iOS */
+  input[type="tel"],
+  input[type="number"],
+  input[type="text"],
+  select,
+  textarea {
+    font-size: 16px !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+  
+  /* Asegurar que los inputs sean clickeables en móvil */
+  input {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    cursor: text !important;
+  }
+  
+  /* Desactivar tap highlight */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 /* Animaciones modernas */
 @keyframes slide-in {
   from {
@@ -190,10 +217,12 @@ html {
   transform: translateY(-2px) scale(1.01);
 }
 
-/* Input focus effects */
-input:focus,
-textarea:focus {
-  transform: scale(1.02);
+/* Input focus effects - Deshabilitado para móvil */
+@media (min-width: 768px) {
+  input:focus,
+  textarea:focus {
+    transform: scale(1.02);
+  }
 }
 
 /* Button press effect */

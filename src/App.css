@@ -1,8 +1,6 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  min-height: 100vh;
 }
 
 .logo {
@@ -39,4 +37,31 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Mejoras para inputs en móvil */
+input[type="number"],
+input[type="tel"],
+input[type="text"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  font-size: 16px !important; /* Previene zoom en iOS */
+}
+
+/* Asegurar que los botones sean tocables */
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Prevenir zoom en iOS al tocar inputs */
+@media screen and (max-width: 768px) {
+  input[type="number"],
+  input[type="tel"],
+  input[type="text"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }

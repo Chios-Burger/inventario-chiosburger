@@ -132,10 +132,18 @@ const ProductoConteoComponent = ({
     setter: React.Dispatch<React.SetStateAction<number>>,
     value: string
   ) => {
+    console.log('Input change:', value); // Debug
     setTouched(true);
-    const numValue = value === '' ? 0 : parseFloat(value);
-    if (!isNaN(numValue)) {
-      setter(numValue);
+    // Permitir valores vacíos y números
+    if (value === '') {
+      setter(0);
+    } else {
+      // Reemplazar coma por punto para decimales
+      const cleanValue = value.replace(',', '.');
+      const numValue = parseFloat(cleanValue);
+      if (!isNaN(numValue)) {
+        setter(numValue);
+      }
     }
   };
 
@@ -382,7 +390,7 @@ const ProductoConteoComponent = ({
     }`}>
       {/* Badge de "No contado" */}
       {!isGuardado && !isInactive && (
-        <div className="absolute -top-2 -right-2 z-10">
+        <div className="absolute -top-2 -right-2 z-10 pointer-events-none">
           <div className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg animate-pulse">
             NO CONTADO
           </div>
@@ -404,7 +412,7 @@ const ProductoConteoComponent = ({
                 });
               }
             }}
-              className={`p-3 sm:p-3 rounded-xl sm:rounded-2xl transition-all touch-manipulation ${
+              className={`p-3 sm:p-3 rounded-xl sm:rounded-2xl transition-all touch-manipulation min-w-[48px] min-h-[48px] ${
                 isInactive ? 'bg-gray-200 cursor-not-allowed' :
                 'bg-blue-100 hover:bg-blue-200 active:bg-blue-300 cursor-pointer'
               }`}
@@ -461,19 +469,38 @@ const ProductoConteoComponent = ({
             Conteo 1
           </label>
           <input
-            type="number"
+            type="tel"
             inputMode="decimal"
             pattern="[0-9]*[.,]?[0-9]*"
             step="0.01"
             value={c1 || ''}
             onChange={(e) => handleInputChange(setC1, e.target.value)}
+            onFocus={(e) => {
+              e.target.select();
+              console.log('Input focused'); // Debug
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('Input clicked'); // Debug
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              console.log('Input touched'); // Debug
+            }}
             disabled={isGuardado && !isEditing}
-            className={`w-full px-2 sm:px-3 py-3 sm:py-3.5 border-2 rounded-lg sm:rounded-xl transition-all text-center font-medium text-base sm:text-lg touch-manipulation ${
+            readOnly={false}
+            className={`w-full px-2 sm:px-3 py-3 sm:py-3.5 border-2 rounded-lg sm:rounded-xl transition-all text-center font-medium text-base sm:text-lg min-h-[44px] relative z-20 ${
               isGuardado && !isEditing 
                 ? 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed' 
-                : 'bg-white border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400'
+                : 'bg-white border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 cursor-text'
             }`}
+            style={{ 
+              WebkitUserSelect: 'text',
+              touchAction: 'manipulation',
+              fontSize: '16px'
+            }}
             placeholder="0"
+            autoComplete="off"
           />
         </div>
         <div>
@@ -481,19 +508,29 @@ const ProductoConteoComponent = ({
             Conteo 2
           </label>
           <input
-            type="number"
+            type="tel"
             inputMode="decimal"
             pattern="[0-9]*[.,]?[0-9]*"
             step="0.01"
             value={c2 || ''}
             onChange={(e) => handleInputChange(setC2, e.target.value)}
+            onFocus={(e) => e.target.select()}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
             disabled={isGuardado && !isEditing}
-            className={`w-full px-2 sm:px-3 py-3 sm:py-3.5 border-2 rounded-lg sm:rounded-xl transition-all text-center font-medium text-base sm:text-lg touch-manipulation ${
+            readOnly={false}
+            className={`w-full px-2 sm:px-3 py-3 sm:py-3.5 border-2 rounded-lg sm:rounded-xl transition-all text-center font-medium text-base sm:text-lg min-h-[44px] relative z-20 ${
               isGuardado && !isEditing 
                 ? 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed' 
-                : 'bg-white border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400'
+                : 'bg-white border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 cursor-text'
             }`}
+            style={{ 
+              WebkitUserSelect: 'text',
+              touchAction: 'manipulation',
+              fontSize: '16px'
+            }}
             placeholder="0"
+            autoComplete="off"
           />
         </div>
         <div>
@@ -501,19 +538,29 @@ const ProductoConteoComponent = ({
             Conteo 3
           </label>
           <input
-            type="number"
+            type="tel"
             inputMode="decimal"
             pattern="[0-9]*[.,]?[0-9]*"
             step="0.01"
             value={c3 || ''}
             onChange={(e) => handleInputChange(setC3, e.target.value)}
+            onFocus={(e) => e.target.select()}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
             disabled={isGuardado && !isEditing}
-            className={`w-full px-2 sm:px-3 py-3 sm:py-3.5 border-2 rounded-lg sm:rounded-xl transition-all text-center font-medium text-base sm:text-lg touch-manipulation ${
+            readOnly={false}
+            className={`w-full px-2 sm:px-3 py-3 sm:py-3.5 border-2 rounded-lg sm:rounded-xl transition-all text-center font-medium text-base sm:text-lg min-h-[44px] relative z-20 ${
               isGuardado && !isEditing 
                 ? 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed' 
-                : 'bg-white border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400'
+                : 'bg-white border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 cursor-text'
             }`}
+            style={{ 
+              WebkitUserSelect: 'text',
+              touchAction: 'manipulation',
+              fontSize: '16px'
+            }}
             placeholder="0"
+            autoComplete="off"
           />
         </div>
         <div>
@@ -546,19 +593,29 @@ const ProductoConteoComponent = ({
           </label>
           <div className="flex items-center gap-2 max-w-full">
             <input
-              type="number"
+              type="tel"
               inputMode="decimal"
               pattern="[0-9]*[.,]?[0-9]*"
               step="0.01"
               value={cantidadPedir || ''}
               onChange={(e) => handleInputChange(setCantidadPedir, e.target.value)}
+              onFocus={(e) => e.target.select()}
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
               disabled={isGuardado && !isEditing}
-              className={`w-2/3 px-2 sm:px-3 py-2.5 sm:py-3 border-2 rounded-lg transition-all font-medium text-base touch-manipulation ${
+              readOnly={false}
+              className={`w-2/3 px-2 sm:px-3 py-2.5 sm:py-3 border-2 rounded-lg transition-all font-medium text-base min-h-[44px] relative z-20 ${
                 isGuardado && !isEditing 
                   ? 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed' 
-                  : 'bg-white border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400'
+                  : 'bg-white border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 cursor-text'
               }`}
+              style={{ 
+                WebkitUserSelect: 'text',
+                touchAction: 'manipulation',
+                fontSize: '16px'
+              }}
               placeholder="0"
+              autoComplete="off"
             />
             <span className="w-1/3 text-xs font-semibold text-gray-700 bg-purple-100 px-2 sm:px-3 py-2 rounded-lg whitespace-nowrap flex-shrink-0 text-center">
               {unidad}
