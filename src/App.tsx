@@ -28,7 +28,7 @@ function App() {
   useEffect(() => {
     // Initialize mobile fixes
     initializeMobileFixes();
-    const observer = startMobileFixObserver();
+    startMobileFixObserver();
     
     // Verificar si hay un usuario logueado
     const usuarioGuardado = authService.getUsuarioActual();
