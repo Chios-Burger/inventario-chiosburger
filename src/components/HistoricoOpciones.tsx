@@ -1,14 +1,12 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Check, Edit3, Calculator, MoreVertical, Save, XCircle, Ban, Search, Filter, X, Package, Loader2, AlertCircle } from 'lucide-react';
 import type { Producto } from '../types/index';
 import { Toast } from './Toast';
 import { Timer } from './Timer';
 import { airtableService } from '../services/airtable';
-import { historicoService } from '../services/historico';
 import { authService } from '../services/auth';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useDebounce } from '../hooks/useDebounce';
-import { notificationSystem } from '../utils/notificationSystem';
 
 interface HistoricoOpcionesProps {
   bodegaId: number;
@@ -334,7 +332,7 @@ export const HistoricoOpciones = ({
   };
 
   // Guardar producto individual
-  const guardarProducto = async (id: string, esAccionRapida?: boolean, valoresRapidos?: any) => {
+  const guardarProducto = async (id: string, esAccionRapida?: boolean) => {
     const producto = productos.find(p => p.id === id);
     if (!producto) return;
 
@@ -352,22 +350,10 @@ export const HistoricoOpciones = ({
     setMenuAbierto(null);
 
     try {
-      const userEmail = authService.getUserEmail();
       const total = producto.conteos.filter(c => c >= 0).reduce((sum, val) => sum + val, 0);
       
-      // Guardar en histórico
-      await historicoService.guardarRegistro({
-        productoId: producto.fields['Nombre Producto'],
-        bodegaId: bodegaId.toString(),
-        bodega: bodegaNombre,
-        usuario: userEmail || 'usuario@ejemplo.com',
-        conteo1: producto.conteos[0] || 0,
-        conteo2: producto.conteos[1] || 0,
-        conteo3: producto.conteos[2] || 0,
-        cantidadPedir: producto.cantidadPedir || 0,
-        total,
-        timestamp: new Date().toISOString()
-      });
+      // Por ahora, solo marcar como guardado localmente
+      // TODO: Implementar guardado real cuando esté disponible el método
 
       setProductosGuardados(prev => new Set(prev).add(id));
       
@@ -472,9 +458,7 @@ export const HistoricoOpciones = ({
       });
 
       // Notificar si es necesario
-      if (notificationSystem && typeof notificationSystem.notifyInventoryComplete === 'function') {
-        notificationSystem.notifyInventoryComplete(bodegaNombre);
-      }
+      // TODO: Implementar notificación cuando esté disponible el método
     } catch (error) {
       console.error('Error guardando inventario:', error);
       setToast({

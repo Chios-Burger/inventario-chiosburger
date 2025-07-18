@@ -176,20 +176,6 @@ export const ListaProductos = ({
     return '';
   };
   
-  // Función para agrupar productos por categoría
-  const agruparProductosPorCategoria = (productos: typeof productosFiltrados) => {
-    const grupos: Record<string, typeof productosFiltrados> = {};
-    
-    productos.forEach(producto => {
-      const categoria = producto.fields['Categoría'] || 'Sin categoría';
-      if (!grupos[categoria]) {
-        grupos[categoria] = [];
-      }
-      grupos[categoria].push(producto);
-    });
-    
-    return grupos;
-  };
   
   // Obtener usuario actual
   const usuario = authService.getUsuarioActual();

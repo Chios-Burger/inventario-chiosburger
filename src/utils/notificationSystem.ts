@@ -28,12 +28,12 @@ class NotificationSystem {
 
   // Reproducir sonido de notificación
   playSound(): void {
-    if (!this.isPlaying) {
-      this.isPlaying = true;
+    if (!this.state.isPlaying) {
+      this.state.isPlaying = true;
       this.audio.play().catch(error => {
         console.error('Error al reproducir sonido:', error);
       }).finally(() => {
-        this.isPlaying = false;
+        this.state.isPlaying = false;
       });
     }
   }

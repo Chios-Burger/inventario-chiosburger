@@ -283,7 +283,7 @@ export const historicoService = {
         console.log('✅ Inventario guardado en base de datos exitosamente', result);
         
         // Agregar notificación para bodega principal
-        notificationSystem.addNotification(registro.bodegaNombre);
+        notificationSystem.addNotification(registro.bodega);
         
         // Eliminar de localStorage ya que se guardó en BD
         const registrosActualizados = this.obtenerHistoricosLocales();
@@ -293,7 +293,7 @@ export const historicoService = {
     } catch {
       // No lanzamos error, el inventario ya está guardado localmente
       // Agregar notificación también cuando se guarda solo localmente
-      notificationSystem.addNotification(registro.bodegaNombre);
+      notificationSystem.addNotification(registro.bodega);
     }
   },
 
