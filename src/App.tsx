@@ -50,10 +50,7 @@ function App() {
     syncService.startAutoSync();
     
     return () => {
-      // Cleanup mobile fix observer
-      if (observer) {
-        observer.disconnect();
-      }
+      // Cleanup mobile fix observer - no longer needed since it returns null
       
       // Detener sincronización al desmontar
       historicoService.detenerSincronizacionAutomatica();

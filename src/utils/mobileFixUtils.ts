@@ -35,7 +35,7 @@ export const initializeMobileFixes = () => {
 };
 
 // Simplified - no dynamic fixes needed
-export const fixDynamicElement = (element: HTMLElement) => {
+export const fixDynamicElement = (_element: HTMLElement) => {
   // Do nothing - let the browser handle it naturally
 };
 
