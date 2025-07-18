@@ -26,19 +26,21 @@ export const initializeMobileFixes = () => {
     setTimeout(() => {
       const inputs = document.querySelectorAll('input, button, select, textarea');
       inputs.forEach((element) => {
-        // Force reflow to ensure styles are applied
-        element.style.display = 'none';
-        element.offsetHeight; // Trigger reflow
-        element.style.display = '';
-        
-        // Add explicit touch event listeners if missing
-        if (!element.hasAttribute('data-touch-fixed')) {
-          element.setAttribute('data-touch-fixed', 'true');
+        if (element instanceof HTMLElement) {
+          // Force reflow to ensure styles are applied
+          element.style.display = 'none';
+          element.offsetHeight; // Trigger reflow
+          element.style.display = '';
           
-          // Ensure touch events work
-          element.addEventListener('touchstart', (e) => {
-            e.stopPropagation();
-          }, { passive: true });
+          // Add explicit touch event listeners if missing
+          if (!element.hasAttribute('data-touch-fixed')) {
+            element.setAttribute('data-touch-fixed', 'true');
+            
+            // Ensure touch events work
+            element.addEventListener('touchstart', (e) => {
+              e.stopPropagation();
+            }, { passive: true });
+          }
         }
       });
     }, 100);

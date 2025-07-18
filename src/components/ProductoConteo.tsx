@@ -177,9 +177,9 @@ const ProductoConteoComponent = ({
     const nuevosValores = { c1: 0, c2: 0, c3: 0, cantidadPedir: cantidadPedir || 0, touched: true };
     
     // Actualizar estado local inmediatamente
-    setC1(0);
-    setC2(0);
-    setC3(0);
+    setC1Input('0');
+    setC2Input('0');
+    setC3Input('0');
     // Mantener cantidadPedir con su valor actual
     setTouched(true);
     setSavedValues(nuevosValores);
@@ -196,10 +196,10 @@ const ProductoConteoComponent = ({
     const nuevosValores = { c1: -1, c2: -1, c3: -1, cantidadPedir: -1, touched: true };
     
     // Actualizar estado local inmediatamente
-    setC1(-1);
-    setC2(-1);
-    setC3(-1);
-    setCantidadPedir(-1);
+    setC1Input('-1');
+    setC2Input('-1');
+    setC3Input('-1');
+    setCantidadPedirInput('-1');
     setTouched(true);
     setSavedValues(nuevosValores);
     setIsEditing(false);
@@ -764,7 +764,7 @@ const ProductoConteoComponent = ({
                   onClick={() => {
                     const finalValue = calcularResultadoPendiente();
                     if (finalValue !== null) {
-                      handleInputChange(setC1, finalValue.toString());
+                      handleInputChange(setC1Input, finalValue.toString());
                       setCalculatorState({
                         show: false,
                         value: '0',
@@ -781,7 +781,7 @@ const ProductoConteoComponent = ({
                   onClick={() => {
                     const finalValue = calcularResultadoPendiente();
                     if (finalValue !== null) {
-                      handleInputChange(setC2, finalValue.toString());
+                      handleInputChange(setC2Input, finalValue.toString());
                       setCalculatorState({
                         show: false,
                         value: '0',
@@ -798,7 +798,7 @@ const ProductoConteoComponent = ({
                   onClick={() => {
                     const finalValue = calcularResultadoPendiente();
                     if (finalValue !== null) {
-                      handleInputChange(setC3, finalValue.toString());
+                      handleInputChange(setC3Input, finalValue.toString());
                       setCalculatorState({
                         show: false,
                         value: '0',
@@ -815,7 +815,7 @@ const ProductoConteoComponent = ({
                   onClick={() => {
                     const finalValue = calcularResultadoPendiente();
                     if (finalValue !== null) {
-                      handleInputChange(setCantidadPedir, finalValue.toString());
+                      handleInputChange(setCantidadPedirInput, finalValue.toString());
                       setCalculatorState({
                         show: false,
                         value: '0',
