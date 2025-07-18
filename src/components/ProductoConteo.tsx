@@ -404,16 +404,16 @@ const ProductoConteoComponent = ({
                 });
               }
             }}
-              className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl transition-all ${
+              className={`p-3 sm:p-3 rounded-xl sm:rounded-2xl transition-all touch-manipulation ${
                 isInactive ? 'bg-gray-200 cursor-not-allowed' :
-                'bg-blue-100 hover:bg-blue-200 cursor-pointer'
+                'bg-blue-100 hover:bg-blue-200 active:bg-blue-300 cursor-pointer'
               }`}
               title="Calculadora"
             >
               {isInactive ? (
-                <Ban className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
+                <Ban className="w-6 h-6 sm:w-6 sm:h-6 text-gray-600" />
               ) : (
-                <Calculator className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+                <Calculator className="w-6 h-6 sm:w-6 sm:h-6 text-blue-600" />
               )}
             </button>
           </div>
@@ -462,14 +462,16 @@ const ProductoConteoComponent = ({
           </label>
           <input
             type="number"
+            inputMode="decimal"
+            pattern="[0-9]*[.,]?[0-9]*"
             step="0.01"
             value={c1 || ''}
             onChange={(e) => handleInputChange(setC1, e.target.value)}
             disabled={isGuardado && !isEditing}
-            className={`w-full px-2 sm:px-3 py-2.5 sm:py-3 border rounded-lg sm:rounded-xl transition-all text-center font-medium text-sm sm:text-base ${
+            className={`w-full px-2 sm:px-3 py-3 sm:py-3.5 border-2 rounded-lg sm:rounded-xl transition-all text-center font-medium text-base sm:text-lg touch-manipulation ${
               isGuardado && !isEditing 
                 ? 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed' 
-                : 'bg-gray-50 border-gray-200 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 focus:bg-white'
+                : 'bg-white border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400'
             }`}
             placeholder="0"
           />
@@ -480,14 +482,16 @@ const ProductoConteoComponent = ({
           </label>
           <input
             type="number"
+            inputMode="decimal"
+            pattern="[0-9]*[.,]?[0-9]*"
             step="0.01"
             value={c2 || ''}
             onChange={(e) => handleInputChange(setC2, e.target.value)}
             disabled={isGuardado && !isEditing}
-            className={`w-full px-2 sm:px-3 py-2.5 sm:py-3 border rounded-lg sm:rounded-xl transition-all text-center font-medium text-sm sm:text-base ${
+            className={`w-full px-2 sm:px-3 py-3 sm:py-3.5 border-2 rounded-lg sm:rounded-xl transition-all text-center font-medium text-base sm:text-lg touch-manipulation ${
               isGuardado && !isEditing 
                 ? 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed' 
-                : 'bg-gray-50 border-gray-200 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 focus:bg-white'
+                : 'bg-white border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400'
             }`}
             placeholder="0"
           />
@@ -498,14 +502,16 @@ const ProductoConteoComponent = ({
           </label>
           <input
             type="number"
+            inputMode="decimal"
+            pattern="[0-9]*[.,]?[0-9]*"
             step="0.01"
             value={c3 || ''}
             onChange={(e) => handleInputChange(setC3, e.target.value)}
             disabled={isGuardado && !isEditing}
-            className={`w-full px-2 sm:px-3 py-2.5 sm:py-3 border rounded-lg sm:rounded-xl transition-all text-center font-medium text-sm sm:text-base ${
+            className={`w-full px-2 sm:px-3 py-3 sm:py-3.5 border-2 rounded-lg sm:rounded-xl transition-all text-center font-medium text-base sm:text-lg touch-manipulation ${
               isGuardado && !isEditing 
                 ? 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed' 
-                : 'bg-gray-50 border-gray-200 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 focus:bg-white'
+                : 'bg-white border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400'
             }`}
             placeholder="0"
           />
@@ -541,14 +547,16 @@ const ProductoConteoComponent = ({
           <div className="flex items-center gap-2 max-w-full">
             <input
               type="number"
+              inputMode="decimal"
+              pattern="[0-9]*[.,]?[0-9]*"
               step="0.01"
               value={cantidadPedir || ''}
               onChange={(e) => handleInputChange(setCantidadPedir, e.target.value)}
               disabled={isGuardado && !isEditing}
-              className={`w-2/3 px-2 sm:px-3 py-2 sm:py-2.5 border rounded-lg transition-all font-medium text-sm ${
+              className={`w-2/3 px-2 sm:px-3 py-2.5 sm:py-3 border-2 rounded-lg transition-all font-medium text-base touch-manipulation ${
                 isGuardado && !isEditing 
                   ? 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed' 
-                  : 'bg-white border-gray-200 focus:ring-2 focus:ring-purple-400 focus:border-purple-400'
+                  : 'bg-white border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400'
               }`}
               placeholder="0"
             />
