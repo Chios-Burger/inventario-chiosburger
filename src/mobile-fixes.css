@@ -27,21 +27,11 @@
     isolation: isolate !important;
   }
   
-  /* Force pointer events */
+  /* Remove this rule - it was causing issues
   * {
     pointer-events: auto !important;
   }
-  
-  /* Disable any overlays that might block */
-  .fixed,
-  .absolute {
-    pointer-events: none !important;
-  }
-  
-  .fixed > *,
-  .absolute > * {
-    pointer-events: auto !important;
-  }
+  */
   
   /* Ensure touch targets are accessible */
   button,

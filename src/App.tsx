@@ -14,7 +14,6 @@ import { notificationSystem } from './utils/notificationSystem';
 import { initializeMobileFixes, startMobileFixObserver } from './utils/mobileFixUtils';
 import type { Usuario } from './types/index';
 import './App.css';
-import './mobile-fixes.css';
 
 function App() {
   const [bodegaId, setBodegaId] = useState<number | null>(null);

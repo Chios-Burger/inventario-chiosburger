@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "./mobile-fixes.css";
 
 /* Fixes críticos para móvil - DEBEN IR PRIMERO */
 @layer base {
@@ -291,4 +290,32 @@ html {
     margin: 0;
     border-radius: 0;
   }
+}
+
+/* Android-specific fixes */
+.android input[type="text"],
+.android input[type="tel"],
+.android input[type="number"],
+.android input {
+  /* Ensure inputs are tappable on Android */
+  position: relative !important;
+  z-index: 999 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+  cursor: pointer !important;
+}
+
+/* Fix for absolute positioned buttons on Android */
+.android button {
+  position: relative !important;
+  z-index: 999 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+}
+
+/* Specific fix for calculator button */
+.android button.absolute {
+  position: absolute !important;
+  z-index: 9999 !important;
 }
