@@ -925,6 +925,21 @@ app.get('/api/auditoria/ediciones', async (req, res) => {
   }
 });
 
+// Endpoint para obtener productos por bodega (usado por HistoricoOpciones)
+app.get('/api/productos/bodega/:bodegaId', async (req, res) => {
+  const { bodegaId } = req.params;
+  
+  // Por ahora devolver un array vacío ya que los productos vienen de Airtable
+  // Este endpoint existe solo para evitar errores 404
+  res.json([]);
+});
+
+// Endpoint para obtener categorías únicas
+app.get('/api/productos/categorias', async (req, res) => {
+  // Por ahora devolver un array vacío
+  res.json([]);
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
