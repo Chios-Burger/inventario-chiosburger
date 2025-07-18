@@ -639,7 +639,7 @@ export const HistoricoOpciones = ({
       </div>
 
       {/* Lista de productos */}
-      <div className="space-y-0.5 w-full pb-16">
+      <div className="space-y-0.5 w-full pb-16" style={{ isolation: 'isolate' }}>
         {productosFiltrados.length === 0 ? (
           <div className="text-center py-8">
             <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />

@@ -11,8 +11,10 @@ import { authService } from './services/auth';
 import { syncService } from './services/syncService';
 import { historicoService } from './services/historico';
 import { notificationSystem } from './utils/notificationSystem';
+import { initializeMobileFixes, startMobileFixObserver } from './utils/mobileFixUtils';
 import type { Usuario } from './types/index';
 import './App.css';
+import './mobile-fixes.css';
 
 function App() {
   const [bodegaId, setBodegaId] = useState<number | null>(null);
@@ -25,6 +27,10 @@ function App() {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
 
   useEffect(() => {
+    // Initialize mobile fixes
+    initializeMobileFixes();
+    const observer = startMobileFixObserver();
+    
     // Verificar si hay un usuario logueado
     const usuarioGuardado = authService.getUsuarioActual();
     if (usuarioGuardado) {
@@ -45,6 +51,11 @@ function App() {
     syncService.startAutoSync();
     
     return () => {
+      // Cleanup mobile fix observer
+      if (observer) {
+        observer.disconnect();
+      }
+      
       // Detener sincronización al desmontar
       historicoService.detenerSincronizacionAutomatica();
       syncService.stopAutoSync();

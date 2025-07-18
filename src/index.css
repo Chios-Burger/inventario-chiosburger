@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./mobile-fixes.css";
 
 /* Fixes críticos para móvil - DEBEN IR PRIMERO */
 @layer base {
@@ -45,6 +46,23 @@
   /* Fix específico para inputs no respondiendo */
   input:not([type="checkbox"]):not([type="radio"]) {
     -webkit-user-modify: read-write-plaintext-only !important;
+  }
+  
+  /* Asegurar que elementos interactivos estén por encima de otros elementos */
+  input, button, select, textarea, a {
+    position: relative !important;
+    z-index: 10 !important;
+  }
+  
+  /* Prevenir pointer-events issues en móvil */
+  input, button, select, textarea {
+    pointer-events: auto !important;
+  }
+  
+  /* Fix para overlay/backdrop issues */
+  .fixed {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
   }
 }
 
@@ -117,11 +135,16 @@
   -webkit-backdrop-filter: blur(10px);
 }
 
-/* Smooth transitions */
-* {
+/* Smooth transitions - Exclude inputs and buttons to prevent touch issues */
+*:not(input):not(button):not(select):not(textarea) {
   transition-property: background-color, border-color, color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
+}
+
+/* Specific transitions for interactive elements */
+input, button, select, textarea {
+  transition: none !important;
 }
 
 /* Custom gradients */
@@ -246,9 +269,19 @@ html {
   }
 }
 
-/* Button press effect */
-button:active {
-  transform: scale(0.98);
+/* Button press effect - Disabled on mobile to prevent touch issues */
+@media (min-width: 768px) {
+  button:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Mobile-specific button styles */
+@media (max-width: 767px) {
+  button {
+    -webkit-transform: none !important;
+    transform: none !important;
+  }
 }
 
 /* Responsive utilities */

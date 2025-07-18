@@ -1,0 +1,120 @@
+/* CRITICAL MOBILE FIXES FOR PRODUCTION */
+
+/* Disable ALL transitions and transforms on mobile for interactive elements */
+@media (max-width: 768px) {
+  input,
+  button,
+  select,
+  textarea,
+  a,
+  [role="button"],
+  [onclick],
+  [tabindex] {
+    transition: none !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    animation: none !important;
+    -webkit-animation: none !important;
+  }
+  
+  /* Ensure clickable elements are on top */
+  input,
+  button,
+  select,
+  textarea {
+    position: relative !important;
+    z-index: 10 !important;
+    isolation: isolate !important;
+  }
+  
+  /* Force pointer events */
+  * {
+    pointer-events: auto !important;
+  }
+  
+  /* Disable any overlays that might block */
+  .fixed,
+  .absolute {
+    pointer-events: none !important;
+  }
+  
+  .fixed > *,
+  .absolute > * {
+    pointer-events: auto !important;
+  }
+  
+  /* Ensure touch targets are accessible */
+  button,
+  input,
+  select,
+  textarea,
+  a {
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    touch-action: manipulation !important;
+  }
+  
+  /* Input specific fixes */
+  input {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+  }
+  
+  /* Disable hardware acceleration which can cause issues */
+  input,
+  button {
+    -webkit-transform: translateZ(0) !important;
+    transform: translateZ(0) !important;
+    will-change: auto !important;
+  }
+  
+  /* Fix for absolute positioned elements */
+  .absolute button,
+  .absolute input {
+    position: relative !important;
+    z-index: 20 !important;
+  }
+  
+  /* Calculator button specific fix */
+  button[class*="absolute"][class*="-top"] {
+    position: absolute !important;
+    z-index: 30 !important;
+    pointer-events: auto !important;
+    isolation: isolate !important;
+  }
+}
+
+/* Production-only fixes */
+html.production {
+  /* Disable all fancy effects in production on mobile */
+  * {
+    -webkit-backface-visibility: hidden !important;
+    backface-visibility: hidden !important;
+  }
+  
+  /* Force layer creation for interactive elements */
+  input,
+  button,
+  select,
+  textarea {
+    transform: translate3d(0, 0, 0) !important;
+  }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+  input,
+  button,
+  select,
+  textarea {
+    -webkit-appearance: none !important;
+    cursor: pointer !important;
+  }
+  
+  input[type="tel"],
+  input[type="number"],
+  input[type="text"] {
+    font-size: 16px !important;
+  }
+}

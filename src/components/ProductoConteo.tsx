@@ -35,10 +35,17 @@ const ProductoConteoComponent = ({
   isGuardado = false,
   conteoInicial
 }: ProductoConteoProps) => {
-  const [c1, setC1] = useState<number>(conteoInicial?.c1 || 0);
-  const [c2, setC2] = useState<number>(conteoInicial?.c2 || 0);
-  const [c3, setC3] = useState<number>(conteoInicial?.c3 || 0);
-  const [cantidadPedir, setCantidadPedir] = useState<number>(conteoInicial?.cantidadPedir || 0);
+  // Estados duales: string para mostrar, number para cálculos
+  const [c1Input, setC1Input] = useState<string>((conteoInicial?.c1 || 0).toString());
+  const [c2Input, setC2Input] = useState<string>((conteoInicial?.c2 || 0).toString());
+  const [c3Input, setC3Input] = useState<string>((conteoInicial?.c3 || 0).toString());
+  const [cantidadPedirInput, setCantidadPedirInput] = useState<string>((conteoInicial?.cantidadPedir || 0).toString());
+  
+  // Valores numéricos derivados
+  const c1 = parseFloat(c1Input) || 0;
+  const c2 = parseFloat(c2Input) || 0;
+  const c3 = parseFloat(c3Input) || 0;
+  const cantidadPedir = parseFloat(cantidadPedirInput) || 0;
   const [touched, setTouched] = useState(conteoInicial?.touched || false);
   const [savedValues, setSavedValues] = useState<{c1: number; c2: number; c3: number; cantidadPedir: number} | null>(null);
 
@@ -49,10 +56,10 @@ const ProductoConteoComponent = ({
   // Actualizar valores solo cuando cambie el producto (no cuando el usuario esté escribiendo)
   useEffect(() => {
     if (conteoInicial && !touched) {
-      setC1(conteoInicial.c1 || 0);
-      setC2(conteoInicial.c2 || 0);
-      setC3(conteoInicial.c3 || 0);
-      setCantidadPedir(conteoInicial.cantidadPedir || 0);
+      setC1Input((conteoInicial.c1 || 0).toString());
+      setC2Input((conteoInicial.c2 || 0).toString());
+      setC3Input((conteoInicial.c3 || 0).toString());
+      setCantidadPedirInput((conteoInicial.cantidadPedir || 0).toString());
       setTouched(conteoInicial.touched || false);
     }
   }, [producto.id]); // Solo cuando cambie el producto
@@ -129,21 +136,19 @@ const ProductoConteoComponent = ({
   }, [isGuardado]); // Solo depender de isGuardado, no de los valores
 
   const handleInputChange = (
-    setter: React.Dispatch<React.SetStateAction<number>>,
+    setter: React.Dispatch<React.SetStateAction<string>>,
     value: string
   ) => {
     console.log('Input change:', value); // Debug
     setTouched(true);
-    // Permitir valores vacíos y números
-    if (value === '') {
-      setter(0);
-    } else {
-      // Reemplazar coma por punto para decimales
-      const cleanValue = value.replace(',', '.');
-      const numValue = parseFloat(cleanValue);
-      if (!isNaN(numValue)) {
-        setter(numValue);
-      }
+    
+    // Reemplazar coma por punto
+    const cleanValue = value.replace(',', '.');
+    
+    // Permitir: números, punto decimal, string vacío
+    // Esta regex permite "5", "5.", "5.2", ".5", etc.
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      setter(cleanValue);
     }
   };
 
@@ -469,12 +474,12 @@ const ProductoConteoComponent = ({
             Conteo 1
           </label>
           <input
-            type="tel"
+            type="text"
             inputMode="decimal"
             pattern="[0-9]*[.,]?[0-9]*"
-            step="0.01"
-            value={c1 || ''}
-            onChange={(e) => handleInputChange(setC1, e.target.value)}
+            step="any"
+            value={c1Input}
+            onChange={(e) => handleInputChange(setC1Input, e.target.value)}
             onFocus={(e) => {
               e.target.select();
               console.log('Input focused'); // Debug
@@ -508,12 +513,12 @@ const ProductoConteoComponent = ({
             Conteo 2
           </label>
           <input
-            type="tel"
+            type="text"
             inputMode="decimal"
             pattern="[0-9]*[.,]?[0-9]*"
-            step="0.01"
-            value={c2 || ''}
-            onChange={(e) => handleInputChange(setC2, e.target.value)}
+            step="any"
+            value={c2Input}
+            onChange={(e) => handleInputChange(setC2Input, e.target.value)}
             onFocus={(e) => e.target.select()}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
@@ -538,12 +543,12 @@ const ProductoConteoComponent = ({
             Conteo 3
           </label>
           <input
-            type="tel"
+            type="text"
             inputMode="decimal"
             pattern="[0-9]*[.,]?[0-9]*"
-            step="0.01"
-            value={c3 || ''}
-            onChange={(e) => handleInputChange(setC3, e.target.value)}
+            step="any"
+            value={c3Input}
+            onChange={(e) => handleInputChange(setC3Input, e.target.value)}
             onFocus={(e) => e.target.select()}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
@@ -597,8 +602,8 @@ const ProductoConteoComponent = ({
               inputMode="decimal"
               pattern="[0-9]*[.,]?[0-9]*"
               step="0.01"
-              value={cantidadPedir || ''}
-              onChange={(e) => handleInputChange(setCantidadPedir, e.target.value)}
+              value={cantidadPedirInput}
+              onChange={(e) => handleInputChange(setCantidadPedirInput, e.target.value)}
               onFocus={(e) => e.target.select()}
               onClick={(e) => e.stopPropagation()}
               onTouchStart={(e) => e.stopPropagation()}
