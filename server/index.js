@@ -707,6 +707,9 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
       throw new Error('No se pudo determinar la fecha del registro');
     }
 
+    // Verificar si el productoId tiene el formato nuevo con timestamp
+    const esIdNuevo = productoId && productoId.includes('+');
+    
     // Construir UPDATE query según la estructura de cada tabla
     let updateQuery;
     let updateParams;
@@ -717,58 +720,107 @@ app.put('/api/inventario/:registroId/editar', async (req, res) => {
       case 'toma_planta':
       case 'toma_bodegapulmon':
         // Estas tablas NO tienen columna cant_pedir
-        updateQuery = `
-          UPDATE public.${tablaInventario}
-          SET total = $1
-          WHERE fecha = $2
-          AND (producto ILIKE $3 OR codigo = $4)
-          RETURNING id, producto
-        `;
-        updateParams = [
-          totalNuevo.toString(),
-          fechaExtraida,
-          `%${productoNombre}%`,
-          productoCodigo || productoId
-        ];
+        if (esIdNuevo) {
+          // Para IDs nuevos con timestamp, buscar por ID exacto
+          updateQuery = `
+            UPDATE public.${tablaInventario}
+            SET total = $1
+            WHERE id = $2
+            RETURNING id, producto
+          `;
+          updateParams = [
+            totalNuevo.toString(),
+            productoId
+          ];
+        } else {
+          // Para IDs antiguos, mantener búsqueda por fecha y nombre/código
+          updateQuery = `
+            UPDATE public.${tablaInventario}
+            SET total = $1
+            WHERE fecha = $2
+            AND (producto ILIKE $3 OR codigo = $4)
+            RETURNING id, producto
+          `;
+          updateParams = [
+            totalNuevo.toString(),
+            fechaExtraida,
+            `%${productoNombre}%`,
+            productoCodigo || productoId
+          ];
+        }
         break;
         
       case 'tomasFisicas':
         // Esta tabla usa nombres de columnas diferentes
-        updateQuery = `
-          UPDATE public."tomasFisicas"
-          SET cantidad = $1,
-              "cantidadSolicitada" = $2
-          WHERE fecha = $3
-          AND (productos ILIKE $4 OR cod_prod = $5)
-          RETURNING codtomas as id, productos
-        `;
-        updateParams = [
-          totalNuevo.toString(),
-          cantidadNueva.toString(),
-          fechaExtraida,
-          `%${productoNombre}%`,
-          productoCodigo || productoId
-        ];
+        if (esIdNuevo) {
+          // Para IDs nuevos con timestamp, buscar por ID exacto
+          updateQuery = `
+            UPDATE public."tomasFisicas"
+            SET cantidad = $1,
+                "cantidadSolicitada" = $2
+            WHERE codtomas = $3
+            RETURNING codtomas as id, productos
+          `;
+          updateParams = [
+            totalNuevo.toString(),
+            cantidadNueva.toString(),
+            productoId
+          ];
+        } else {
+          // Para IDs antiguos, mantener búsqueda por fecha y nombre/código
+          updateQuery = `
+            UPDATE public."tomasFisicas"
+            SET cantidad = $1,
+                "cantidadSolicitada" = $2
+            WHERE fecha = $3
+            AND (productos ILIKE $4 OR cod_prod = $5)
+            RETURNING codtomas as id, productos
+          `;
+          updateParams = [
+            totalNuevo.toString(),
+            cantidadNueva.toString(),
+            fechaExtraida,
+            `%${productoNombre}%`,
+            productoCodigo || productoId
+          ];
+        }
         break;
         
       case 'toma_simon_bolon':
       case 'toma_santo_cachon':
         // Estas tablas SÍ tienen columna cant_pedir
-        updateQuery = `
-          UPDATE public.${tablaInventario}
-          SET total = $1,
-              cant_pedir = $2
-          WHERE fecha = $3
-          AND (producto ILIKE $4 OR codigo = $5)
-          RETURNING id, producto
-        `;
-        updateParams = [
-          totalNuevo,
-          cantidadNueva,
-          fechaExtraida,
-          `%${productoNombre}%`,
-          productoCodigo || productoId
-        ];
+        if (esIdNuevo) {
+          // Para IDs nuevos con timestamp, buscar por ID exacto
+          updateQuery = `
+            UPDATE public.${tablaInventario}
+            SET total = $1,
+                cant_pedir = $2
+            WHERE id = $3
+            RETURNING id, producto
+          `;
+          updateParams = [
+            totalNuevo,
+            cantidadNueva,
+            productoId
+          ];
+        } else {
+          // Para IDs antiguos, mantener búsqueda por fecha y nombre/código
+          updateQuery = `
+            UPDATE public.${tablaInventario}
+            SET total = $1,
+                cant_pedir = $2
+            WHERE fecha = $3
+            AND (producto ILIKE $4 OR codigo = $5)
+            RETURNING id, producto
+          `;
+          updateParams = [
+            totalNuevo,
+            cantidadNueva,
+            fechaExtraida,
+            `%${productoNombre}%`,
+            productoCodigo || productoId
+          ];
+        }
         break;
         
       default:

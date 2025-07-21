@@ -561,25 +561,26 @@ export const historicoService = {
         throw new Error('Registro no encontrado');
       }
       
-      // Buscar el producto específico
-      // Primero intentar por ID exacto, luego por código
+      // Buscar el producto específico por ID exacto
       let productoIndex = registroActual.productos.findIndex(p => p.id === productoId);
       
-      // Si no se encuentra por ID, buscar por código (más flexible para productos de BD)
-      if (productoIndex === -1) {
-        // Extraer el código del productoId si tiene el formato nuevo (YYMMDD-bodegaCODIGO+timestamp)
+      // Si no se encuentra por ID y es un registro antiguo sin timestamp, buscar por código
+      if (productoIndex === -1 && !productoId.includes('+')) {
+        // Solo para IDs antiguos sin timestamp
+        // Extraer el código del productoId si tiene el formato antiguo
         let codigoBusqueda = productoId;
-        if (productoId.includes('-') && productoId.includes('+')) {
-          // Formato nuevo: extraer código entre guión y +
+        if (productoId.includes('-')) {
           const partes = productoId.split('-');
           if (partes.length > 1) {
-            const parteCodigo = partes[1].split('+')[0];
-            // Quitar el primer dígito que es el bodegaId
-            codigoBusqueda = parteCodigo.substring(1);
+            const parteCodigo = partes[1];
+            // Quitar el primer dígito que es el bodegaId si existe
+            if (parteCodigo.length > 1 && !isNaN(parseInt(parteCodigo[0]))) {
+              codigoBusqueda = parteCodigo.substring(1);
+            }
           }
         }
         
-        // Buscar por código
+        // Buscar por código solo para registros antiguos
         productoIndex = registroActual.productos.findIndex(p => 
           p.codigo === codigoBusqueda || p.codigo === productoId
         );

@@ -36,16 +36,23 @@ export const SelectorBodega = ({ onSeleccionarBodega, usuario, onMostrarError }:
           return (
             <div
               key={bodega.id}
+              onClick={() => {
+                if (!bloqueada) {
+                  onSeleccionarBodega(bodega.id, bodega.nombre);
+                } else if (onMostrarError) {
+                  onMostrarError(`No tienes permisos para acceder a la bodega: ${bodega.nombre}`);
+                }
+              }}
               className={`
                 relative bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-lg transition-all duration-300
                 ${bloqueada 
-                  ? 'opacity-50' 
-                  : 'hover:shadow-2xl hover:scale-105'
+                  ? 'opacity-50 cursor-not-allowed' 
+                  : 'hover:shadow-2xl hover:scale-105 cursor-pointer'
                 }
               `}
             >
               {/* Iconos superiores */}
-              <div className="absolute top-4 right-4 flex gap-2 z-10">
+              <div className="absolute top-4 right-4 flex gap-2 pointer-events-none">
                 {/* Icono de bloqueado */}
                 {bloqueada && (
                   <Lock className="w-5 h-5 text-gray-400" />
@@ -53,7 +60,7 @@ export const SelectorBodega = ({ onSeleccionarBodega, usuario, onMostrarError }:
               </div>
 
               {/* Contenido */}
-              <div className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl mb-3 sm:mb-4 mx-auto w-fit ${
+              <div className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl mb-3 sm:mb-4 mx-auto w-fit pointer-events-none ${
                 bloqueada ? 'bg-gray-100' : 'bg-gradient-to-br from-purple-100 to-blue-100'
               }`}>
                 <Package2 className={`w-8 h-8 sm:w-10 sm:h-10 ${
@@ -61,45 +68,22 @@ export const SelectorBodega = ({ onSeleccionarBodega, usuario, onMostrarError }:
                 }`} />
               </div>
               
-              <h3 className={`text-lg sm:text-xl font-bold mb-1 sm:mb-2 ${
+              <h3 className={`text-lg sm:text-xl font-bold mb-1 sm:mb-2 pointer-events-none ${
                 bloqueada ? 'text-gray-400' : 'text-gray-800'
               }`}>
                 {bodega.nombre}
               </h3>
               
-              <p className={`text-xs sm:text-sm ${
+              <p className={`text-xs sm:text-sm pointer-events-none ${
                 bloqueada ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                {bloqueada ? 'Sin acceso' : 'Click para continuar'}
+                {bloqueada ? 'Sin acceso' : ''}
               </p>
 
               {/* Indicador visual adicional */}
               {!bloqueada && (
-                <div className="absolute inset-0 rounded-2xl sm:rounded-3xl ring-2 ring-transparent hover:ring-purple-400 transition-all duration-300"></div>
+                <div className="absolute inset-0 rounded-2xl sm:rounded-3xl ring-2 ring-transparent hover:ring-purple-400 transition-all duration-300 pointer-events-none"></div>
               )}
-              
-              {/* Botón clickeable - Colocado al final con z-index alto */}
-              <button
-                onClick={() => {
-                  console.log('🔍 Click en bodega:', bodega.id, bodega.nombre);
-                  console.log('🔍 Bloqueada:', bloqueada);
-                  console.log('🔍 Usuario:', usuario);
-                  console.log('🔍 Bodegas permitidas:', usuario.bodegasPermitidas);
-                  if (!bloqueada) {
-                    console.log('🚀 Llamando onSeleccionarBodega...');
-                    onSeleccionarBodega(bodega.id, bodega.nombre);
-                  } else {
-                    console.log('⛔ Bodega bloqueada, no se puede seleccionar');
-                    if (onMostrarError) {
-                      onMostrarError(`No tienes permisos para acceder a la bodega: ${bodega.nombre}`);
-                    }
-                  }
-                }}
-                disabled={bloqueada}
-                className={`w-full h-full absolute inset-0 rounded-2xl sm:rounded-3xl ${!bloqueada ? 'cursor-pointer' : 'cursor-not-allowed'} z-20`}
-                style={{ background: 'transparent', border: 'none' }}
-                aria-label={`Seleccionar ${bodega.nombre}`}
-              />
             </div>
           );
         })}
