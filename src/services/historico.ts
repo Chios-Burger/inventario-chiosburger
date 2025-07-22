@@ -383,16 +383,35 @@ export const historicoService = {
         )
       }))
       .sort((a, b) => {
-        // Las fechas están en formato YYYY-MM-DD
-        const fechaA = new Date(a.fecha);
-        const fechaB = new Date(b.fecha);
+        // Convertir fechas a formato ISO para comparación consistente
+        const normalizarFecha = (fecha: string): Date => {
+          if (fecha.includes('/')) {
+            // Formato DD/MM/YYYY
+            const [dia, mes, año] = fecha.split('/');
+            return new Date(`${año}-${mes}-${dia}`);
+          } else {
+            // Formato YYYY-MM-DD
+            return new Date(fecha);
+          }
+        };
+        
+        const fechaA = normalizarFecha(a.fecha);
+        const fechaB = normalizarFecha(b.fecha);
         return fechaB.getTime() - fechaA.getTime();
       });
   },
 
   async obtenerHistoricosPorFecha(fecha: string): Promise<RegistroHistorico[]> {
     const historicos = await this.obtenerHistoricos();
-    return historicos.filter(registro => registro.fecha === fecha);
+    
+    // Convertir fecha ISO (YYYY-MM-DD) a formato display (DD/MM/YYYY) para comparar con registros antiguos
+    const [year, month, day] = fecha.split('-');
+    const fechaDisplay = `${day}/${month}/${year}`;
+    
+    return historicos.filter(registro => {
+      // Comparar con ambos formatos para compatibilidad con registros antiguos y nuevos
+      return registro.fecha === fecha || registro.fecha === fechaDisplay;
+    });
   },
 
   async obtenerHistoricosPorBodega(bodegaId: number): Promise<RegistroHistorico[]> {
