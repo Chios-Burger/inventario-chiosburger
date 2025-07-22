@@ -1,5 +1,6 @@
 import type { RegistroHistorico } from '../types/index';
 import { authService } from '../services/auth';
+import * as XLSX from 'xlsx';
 
 export const exportUtils = {
   // Verificar si el usuario puede exportar en formato específico
@@ -934,6 +935,356 @@ export const exportUtils = {
     if (ventana) {
       ventana.document.write(html);
       ventana.document.close();
+    }
+  },
+
+  // Exportar pedidos del día a Excel
+  exportarPedidosExcel(pedidos: any[], fecha: string): void {
+    if (pedidos.length === 0) {
+      alert('No hay pedidos para exportar');
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(pedidos);
+
+    // Ajustar ancho de columnas
+    const columnWidths = [
+      { wch: 12 }, // Código
+      { wch: 30 }, // Producto
+      { wch: 20 }, // Categoría
+      { wch: 10 }, // Tipo
+      { wch: 10 }, // Unidad
+      { wch: 12 }, // Total Pedido
+      { wch: 10 }, // Estado
+    ];
+
+    // Agregar anchos para cada bodega
+    const numBodegas = Object.keys(pedidos[0]).filter(key => 
+      !['Código', 'Producto', 'Categoría', 'Tipo', 'Unidad', 'Total Pedido', 'Estado'].includes(key)
+    ).length;
+    
+    for (let i = 0; i < numBodegas; i++) {
+      columnWidths.push({ wch: 15 });
+    }
+
+    ws['!cols'] = columnWidths;
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Pedidos del Día');
+
+    // Crear resumen por categoría
+    const resumenPorCategoria = pedidos.reduce((acc: any, pedido) => {
+      const categoria = pedido['Categoría'] || 'Sin categoría';
+      if (!acc[categoria]) {
+        acc[categoria] = {
+          'Categoría': categoria,
+          'Cantidad de Productos': 0,
+          'Total Unidades': 0
+        };
+      }
+      acc[categoria]['Cantidad de Productos']++;
+      acc[categoria]['Total Unidades'] += pedido['Total Pedido'];
+      return acc;
+    }, {});
+
+    const resumenData = Object.values(resumenPorCategoria);
+    const wsResumen = XLSX.utils.json_to_sheet(resumenData);
+    wsResumen['!cols'] = [
+      { wch: 25 }, // Categoría
+      { wch: 20 }, // Cantidad de Productos
+      { wch: 15 }  // Total Unidades
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen por Categoría');
+
+    // Descargar archivo
+    const fechaFormato = fecha.split('-').reverse().join('-');
+    XLSX.writeFile(wb, `pedidos_del_dia_${fechaFormato}.xlsx`);
+  },
+
+  // Exportar pedidos del día a PDF
+  exportarPedidosPDF(pedidos: any[], fecha: string, bodegasLocales: any[], bodegaFiltrada: any | null): void {
+    const [year, month, day] = fecha.split('-');
+    const fechaFormato = `${day}/${month}/${year}`;
+    
+    const formatNum = (num: number): string => {
+      if (num % 1 !== 0) {
+        const partes = num.toString().split('.');
+        const decimales = partes[1]?.length || 0;
+        return num.toFixed(Math.min(decimales, 4));
+      }
+      return num.toString();
+    };
+
+    // Agrupar por categoría para el resumen
+    const pedidosPorCategoria: { [key: string]: any[] } = {};
+    pedidos.forEach(pedido => {
+      const categoria = pedido.categoria || 'Sin categoría';
+      if (!pedidosPorCategoria[categoria]) {
+        pedidosPorCategoria[categoria] = [];
+      }
+      pedidosPorCategoria[categoria].push(pedido);
+    });
+
+    // Título según el filtro
+    const titulo = bodegaFiltrada 
+      ? `Pedidos del Día - ${bodegaFiltrada.nombre}`
+      : 'Pedidos del Día - Todos los Locales';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Pedidos del Día - ${fechaFormato}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #333;
+      padding: 20px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #333;
+    }
+    
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 5px;
+      color: #333;
+    }
+    
+    .header h2 {
+      font-size: 18px;
+      color: #666;
+      font-weight: normal;
+    }
+    
+    .info {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .info-item {
+      font-size: 13px;
+    }
+    
+    .resumen {
+      margin-bottom: 20px;
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 5px;
+    }
+    
+    .resumen h3 {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #333;
+    }
+    
+    .resumen-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    
+    .resumen-item {
+      background: white;
+      padding: 8px;
+      border-radius: 3px;
+      text-align: center;
+    }
+    
+    .resumen-item .label {
+      font-size: 11px;
+      color: #666;
+    }
+    
+    .resumen-item .value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin-top: 2px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      background: white;
+    }
+    
+    th {
+      background: #f0f0f0;
+      padding: 8px;
+      text-align: left;
+      font-weight: bold;
+      font-size: 11px;
+      border: 1px solid #ddd;
+    }
+    
+    td {
+      padding: 6px;
+      border: 1px solid #ddd;
+      font-size: 11px;
+    }
+    
+    .categoria-header {
+      background: #e0e0e0;
+      font-weight: bold;
+      font-size: 13px;
+    }
+    
+    .text-center {
+      text-align: center;
+    }
+    
+    .text-right {
+      text-align: right;
+    }
+    
+    .total-pedido {
+      font-weight: bold;
+      color: #6b46c1;
+    }
+    
+    .estado-pendiente {
+      color: #d97706;
+      font-weight: bold;
+    }
+    
+    .estado-preparado {
+      color: #059669;
+      font-weight: bold;
+    }
+    
+    .footer {
+      margin-top: 30px;
+      padding-top: 10px;
+      border-top: 1px solid #ddd;
+      font-size: 10px;
+      color: #666;
+      text-align: center;
+    }
+    
+    @media print {
+      body {
+        padding: 10px;
+      }
+      
+      .no-print {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>ChiosBurger - Sistema de Inventario</h1>
+    <h2>${titulo}</h2>
+  </div>
+  
+  <div class="info">
+    <div class="info-item">
+      <strong>Fecha:</strong> ${fechaFormato}
+    </div>
+    <div class="info-item">
+      <strong>Hora de generación:</strong> ${new Date().toLocaleTimeString('es-EC')}
+    </div>
+  </div>
+  
+  <div class="resumen">
+    <h3>Resumen de Pedidos</h3>
+    <div class="resumen-grid">
+      <div class="resumen-item">
+        <div class="label">Total Productos</div>
+        <div class="value">${pedidos.length}</div>
+      </div>
+      <div class="resumen-item">
+        <div class="label">Pendientes</div>
+        <div class="value">${pedidos.filter(p => p.estado !== 'preparado').length}</div>
+      </div>
+      <div class="resumen-item">
+        <div class="label">Preparados</div>
+        <div class="value">${pedidos.filter(p => p.estado === 'preparado').length}</div>
+      </div>
+    </div>
+  </div>
+  
+  ${Object.entries(pedidosPorCategoria)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([categoria, productos]) => `
+      <table>
+        <thead>
+          <tr>
+            <th colspan="${bodegaFiltrada ? 5 : (4 + bodegasLocales.length)}" class="categoria-header">
+              ${categoria} (${productos.length} productos)
+            </th>
+          </tr>
+          <tr>
+            <th>Código</th>
+            <th>Producto</th>
+            ${bodegaFiltrada ? `
+              <th class="text-center">Cantidad</th>
+            ` : bodegasLocales.map(bodega => `
+              <th class="text-center">${bodega.nombre.replace('Chios ', '').replace('Santo ', '').replace('Simón ', '')}</th>
+            `).join('')}
+            <th class="text-center">Total</th>
+            <th class="text-center">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${productos
+            .sort((a, b) => a.nombre.localeCompare(b.nombre))
+            .map(pedido => `
+              <tr>
+                <td>${pedido.codigo}</td>
+                <td>${pedido.nombre}</td>
+                ${bodegaFiltrada ? `
+                  <td class="text-center">${pedido.pedidosPorBodega[bodegaFiltrada.id] || '-'}</td>
+                ` : bodegasLocales.map(bodega => `
+                  <td class="text-center">${pedido.pedidosPorBodega[bodega.id] || '-'}</td>
+                `).join('')}
+                <td class="text-center total-pedido">${formatNum(pedido.totalPedido)} ${pedido.unidad}</td>
+                <td class="text-center ${pedido.estado === 'preparado' ? 'estado-preparado' : 'estado-pendiente'}">
+                  ${pedido.estado === 'preparado' ? 'Preparado' : 'Pendiente'}
+                </td>
+              </tr>
+            `).join('')}
+        </tbody>
+      </table>
+    `).join('')}
+  
+  <div class="footer">
+    <p>Documento generado por el Sistema de Inventario ChiosBurger</p>
+    <p>Este documento es para uso interno</p>
+  </div>
+</body>
+</html>
+    `;
+
+    const ventana = window.open('', '_blank');
+    if (ventana) {
+      ventana.document.write(html);
+      ventana.document.close();
+      
+      // Esperar un momento antes de abrir el diálogo de impresión
+      setTimeout(() => {
+        ventana.print();
+      }, 500);
     }
   }
 };

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Package2, LogOut, Home, History, AlertCircle, Menu, X, Eye } from 'lucide-react';
+import { Package2, LogOut, Home, History, AlertCircle, Menu, X, Eye, ShoppingCart } from 'lucide-react';
 import { Login } from './components/Login';
 import { SelectorBodega } from './components/SelectorBodega';
 import { ListaProductos } from './components/ListaProductos';
 import { Historico } from './components/Historico';
 import { HistoricoOpciones } from './components/HistoricoOpciones';
+import { PedidosDelDia } from './components/PedidosDelDia';
 import { Toast } from './components/Toast';
 import NotificationModal from './components/NotificationModal';
 import { authService } from './services/auth';
@@ -19,7 +20,7 @@ function App() {
   const [bodegaId, setBodegaId] = useState<number | null>(null);
   const [bodegaNombre, setBodegaNombre] = useState<string>('');
   const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [vista, setVista] = useState<'inventario' | 'historico' | 'opciones-historico'>('inventario');
+  const [vista, setVista] = useState<'inventario' | 'historico' | 'opciones-historico' | 'pedidos'>('inventario');
   const [error, setError] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState<{message: string; type: 'success' | 'error' | 'info' | 'offline'} | null>(null);
@@ -167,6 +168,23 @@ function App() {
                 <Eye className="w-4 h-4 inline mr-2" />
                 Opciones Histórico
               </button>
+              {/* Botón Pedidos solo para usuarios autorizados */}
+              {(usuario.email === 'bodegaprincipal@chiosburger.com' || 
+                usuario.email === 'analisis@chiosburger.com' || 
+                usuario.email === 'gerencia@chiosburger.com' || 
+                usuario.email === 'contabilidad@chiosburger.com') && (
+                <button
+                  onClick={() => setVista('pedidos')}
+                  className={`px-4 py-2 rounded-xl font-medium text-sm transition-all ${
+                    vista === 'pedidos' 
+                      ? 'bg-purple-100 text-purple-700' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <ShoppingCart className="w-4 h-4 inline mr-2" />
+                  Pedidos del Día
+                </button>
+              )}
             </nav>
 
             {/* Usuario y logout desktop */}
@@ -239,6 +257,26 @@ function App() {
                   <Eye className="w-4 h-4 inline mr-2" />
                   Opciones Histórico
                 </button>
+                {/* Botón Pedidos móvil solo para usuarios autorizados */}
+                {(usuario.email === 'bodegaprincipal@chiosburger.com' || 
+                  usuario.email === 'analisis@chiosburger.com' || 
+                  usuario.email === 'gerencia@chiosburger.com' || 
+                  usuario.email === 'contabilidad@chiosburger.com') && (
+                  <button
+                    onClick={() => {
+                      setVista('pedidos');
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all text-left ${
+                      vista === 'pedidos' 
+                        ? 'bg-purple-100 text-purple-700' 
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <ShoppingCart className="w-4 h-4 inline mr-2" />
+                    Pedidos del Día
+                  </button>
+                )}
               </nav>
               
               <div className="flex items-center justify-between border-t border-gray-100 pt-4">
@@ -320,6 +358,8 @@ function App() {
                 <p className="text-gray-500">Selecciona una bodega primero</p>
               </div>
             )
+          ) : vista === 'pedidos' ? (
+            <PedidosDelDia />
           ) : null}
       </main>
       

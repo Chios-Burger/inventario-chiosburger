@@ -248,10 +248,10 @@ export const historicoService = {
       origen: 'local' // Marcar como origen local
     };
 
-    // Guardar en localStorage primero (con fechaDisplay para mostrar)
+    // Guardar en localStorage primero (SIEMPRE con fecha ISO)
     const registroParaLocalStorage = {
       ...registro,
-      fecha: fechaDisplay, // En localStorage guardamos la fecha en formato display
+      fecha: fechaISO, // SIEMPRE guardamos la fecha en formato ISO (YYYY-MM-DD)
       origen: 'local' as 'local', // Marcar como origen local con tipo correcto
       sincronizado: false // Marcar como no sincronizado inicialmente
     };
@@ -391,6 +391,11 @@ export const historicoService = {
         const fechaB = new Date(b.fecha);
         return fechaB.getTime() - fechaA.getTime();
       });
+  },
+
+  async obtenerHistoricosPorFecha(fecha: string): Promise<RegistroHistorico[]> {
+    const historicos = await this.obtenerHistoricos();
+    return historicos.filter(registro => registro.fecha === fecha);
   },
 
   async obtenerHistoricosPorBodega(bodegaId: number): Promise<RegistroHistorico[]> {
