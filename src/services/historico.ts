@@ -5,7 +5,6 @@ import { notificationSystem } from '../utils/notificationSystem';
 import { 
   obtenerFechaActual, 
   fechaAISO, 
-  fechaADisplay, 
   horaADisplay, 
   generarIdUnico as generarIdUnicoUtil
 } from '../utils/dateUtils';
@@ -174,8 +173,6 @@ export const historicoService = {
     }
 
     const ahora = obtenerFechaActual();
-    // Formato para mostrar
-    const fechaDisplay = fechaADisplay(ahora);
     // Formato para el ID y la base de datos (YYYY-MM-DD)
     const fechaISO = fechaAISO(ahora);
     const hora = horaADisplay(ahora);
