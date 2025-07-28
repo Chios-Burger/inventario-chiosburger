@@ -44,18 +44,56 @@ export const PedidosDelDia = () => {
   const cargarPedidos = async () => {
     try {
       setCargando(true);
-      const registros = await historicoService.obtenerHistoricosPorFecha(fecha);
+      
+      // Para usuarios especiales, obtener TODOS los históricos sin filtrar por permisos
+      const usuariosEspeciales = ['bodegaprincipal@chiosburger.com', 'gerencia@chiosburger.com', 'analiasis@chiosburger.com'];
+      let registros: RegistroHistorico[] = [];
+      
+      console.log('🔍 DEPURACIÓN - Cargando pedidos del día');
+      console.log('Usuario actual:', usuario?.email);
+      console.log('Es usuario especial:', usuario && usuariosEspeciales.includes(usuario.email));
+      console.log('Fecha solicitada:', fecha);
+      
+      if (usuario && usuariosEspeciales.includes(usuario.email)) {
+        // Obtener todos los registros de la fecha, sin importar permisos
+        console.log('📥 Obteniendo registros SIN FILTRO para usuario especial');
+        const todosLosRegistros = await historicoService.obtenerHistoricosPorFechaSinFiltro(fecha);
+        registros = todosLosRegistros;
+        console.log('Total registros obtenidos (todas las bodegas):', registros.length);
+      } else {
+        // Para otros usuarios, usar el método normal que filtra por permisos
+        console.log('📥 Obteniendo registros CON FILTRO de permisos');
+        registros = await historicoService.obtenerHistoricosPorFecha(fecha);
+      }
       
       // Filtrar solo registros de locales
       const registrosLocales = registros.filter(r => 
         bodegasLocales.some(b => b.id === r.bodegaId)
       );
       
+      console.log('📍 Registros de locales encontrados:', registrosLocales.length);
+      registrosLocales.forEach(registro => {
+        const bodega = bodegasLocales.find(b => b.id === registro.bodegaId);
+        console.log(`  - ${bodega?.nombre}: ${registro.productos.length} productos`);
+        
+        // Mostrar productos con cantidadPedir > 0
+        const productosConPedido = registro.productos.filter(p => p.cantidadPedir > 0);
+        if (productosConPedido.length > 0) {
+          console.log(`    ✅ Productos con pedido: ${productosConPedido.length}`);
+          productosConPedido.slice(0, 3).forEach(p => {
+            console.log(`      • ${p.nombre}: ${p.cantidadPedir}`);
+          });
+        } else {
+          console.log(`    ⚠️ Sin productos con cantidadPedir > 0`);
+        }
+      });
+      
       // Consolidar pedidos
       const consolidado = consolidarPedidos(registrosLocales);
+      console.log('📊 Total productos consolidados con pedidos:', consolidado.length);
       setPedidosConsolidados(consolidado);
     } catch (error) {
-      console.error('Error al cargar pedidos:', error);
+      console.error('❌ Error al cargar pedidos:', error);
     } finally {
       setCargando(false);
     }
@@ -63,10 +101,24 @@ export const PedidosDelDia = () => {
 
   const consolidarPedidos = (registros: RegistroHistorico[]): PedidoConsolidado[] => {
     const pedidosMap = new Map<string, PedidoConsolidado>();
+    
+    console.log('🔄 CONSOLIDANDO PEDIDOS');
+    console.log('Total registros a procesar:', registros.length);
+    
+    let totalProductosAnalizados = 0;
+    let totalProductosConPedido = 0;
 
     registros.forEach(registro => {
+      const bodega = bodegasLocales.find(b => b.id === registro.bodegaId);
+      console.log(`\n🏭 Procesando bodega: ${bodega?.nombre || 'ID ' + registro.bodegaId}`);
+      
       registro.productos.forEach(producto => {
+        totalProductosAnalizados++;
+        
         if (producto.cantidadPedir > 0) {
+          totalProductosConPedido++;
+          console.log(`  ✅ ${producto.nombre}: cantidadPedir = ${producto.cantidadPedir}`);
+          
           // Usar código como clave principal, o nombre si no hay código
           const key = producto.codigo || producto.nombre;
           
@@ -89,9 +141,18 @@ export const PedidosDelDia = () => {
           pedido.pedidosPorBodega[registro.bodegaId] = 
             (pedido.pedidosPorBodega[registro.bodegaId] || 0) + producto.cantidadPedir;
           pedido.totalPedido += producto.cantidadPedir;
+        } else if (producto.cantidadPedir === 0) {
+          // No mostrar todos los productos en 0, solo contar
+        } else {
+          console.log(`  ⚠️ ${producto.nombre}: cantidadPedir = ${producto.cantidadPedir} (valor inválido)`);
         }
       });
     });
+    
+    console.log('\n📋 RESUMEN:');
+    console.log('Total productos analizados:', totalProductosAnalizados);
+    console.log('Productos con pedido (cantidadPedir > 0):', totalProductosConPedido);
+    console.log('Productos consolidados únicos:', pedidosMap.size);
 
     return Array.from(pedidosMap.values()).sort((a, b) => 
       a.categoria.localeCompare(b.categoria) || a.nombre.localeCompare(b.nombre)

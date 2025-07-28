@@ -414,6 +414,79 @@ export const historicoService = {
     });
   },
 
+  async obtenerHistoricosPorFechaSinFiltro(fecha: string): Promise<RegistroHistorico[]> {
+    try {
+      console.log('🔍 obtenerHistoricosPorFechaSinFiltro - INICIO');
+      console.log('Fecha solicitada:', fecha);
+      
+      // Obtener TODOS los históricos de TODAS las bodegas, sin filtrar por permisos
+      const todosLosHistoricos: RegistroHistorico[] = [];
+      const todasLasBodegas = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+      
+      // Convertir fecha ISO (YYYY-MM-DD) a formato display (DD/MM/YYYY) para comparar con registros antiguos
+      const [year, month, day] = fecha.split('-');
+      const fechaDisplay = `${day}/${month}/${year}`;
+      console.log('Fecha display para comparar:', fechaDisplay);
+      
+      // Consultar todas las bodegas sin importar permisos
+      for (const bodegaId of todasLasBodegas) {
+        try {
+          const url = `${API_URL}/inventarios/${bodegaId}`;
+          console.log(`🏭 Consultando bodega ${bodegaId}:`, url);
+          
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data) {
+              console.log(`  ✅ Bodega ${bodegaId}: ${data.data.length} registros totales`);
+              const historicos = this.convertirDatosBD(data.data, bodegaId);
+              
+              // Filtrar por fecha
+              const historicosFecha = historicos.filter(registro => 
+                registro.fecha === fecha || registro.fecha === fechaDisplay
+              );
+              
+              console.log(`  📅 Registros del ${fecha}: ${historicosFecha.length}`);
+              
+              // Mostrar info sobre cantidadPedir
+              historicosFecha.forEach(registro => {
+                const productosConPedido = registro.productos.filter(p => p.cantidadPedir > 0);
+                if (productosConPedido.length > 0) {
+                  console.log(`    🛋️ ${productosConPedido.length} productos con pedido`);
+                }
+              });
+              
+              todosLosHistoricos.push(...historicosFecha);
+            } else {
+              console.log(`  ⚠️ Bodega ${bodegaId}: Sin datos`);
+            }
+          } else {
+            console.log(`  ❌ Bodega ${bodegaId}: Error HTTP ${response.status}`);
+          }
+        } catch (error) {
+          console.error(`  ❌ Error al consultar bodega ${bodegaId}:`, error);
+        }
+      }
+      
+      // También incluir datos locales de todas las bodegas
+      const datosLocales = this.obtenerHistoricosLocales();
+      console.log('💾 Datos locales totales:', datosLocales.length);
+      
+      const datosLocalesFecha = datosLocales.filter(registro => 
+        registro.fecha === fecha || registro.fecha === fechaDisplay
+      );
+      console.log('💾 Datos locales de la fecha:', datosLocalesFecha.length);
+      
+      const resultado = [...todosLosHistoricos, ...datosLocalesFecha];
+      console.log('🎯 TOTAL registros devueltos:', resultado.length);
+      
+      return resultado;
+    } catch (error) {
+      console.error('❌ Error general en obtenerHistoricosPorFechaSinFiltro:', error);
+      return [];
+    }
+  },
+
   async obtenerHistoricosPorBodega(bodegaId: number): Promise<RegistroHistorico[]> {
     const historicos = await this.obtenerHistoricos();
     return historicos
