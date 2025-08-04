@@ -41,11 +41,20 @@ const ProductoConteoComponent = ({
   const [c3Input, setC3Input] = useState<string>((conteoInicial?.c3 || 0).toString());
   const [cantidadPedirInput, setCantidadPedirInput] = useState<string>((conteoInicial?.cantidadPedir || 0).toString());
   
+  // Función mejorada para parsear decimales
+  const parseDecimal = (value: string): number => {
+    if (!value || value === '' || value === '-') return 0;
+    // Si termina en punto, agregar un 0 para parseFloat
+    const normalizedValue = value.endsWith('.') ? value + '0' : value;
+    const parsed = parseFloat(normalizedValue);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+  
   // Valores numéricos derivados
-  const c1 = parseFloat(c1Input) || 0;
-  const c2 = parseFloat(c2Input) || 0;
-  const c3 = parseFloat(c3Input) || 0;
-  const cantidadPedir = parseFloat(cantidadPedirInput) || 0;
+  const c1 = parseDecimal(c1Input);
+  const c2 = parseDecimal(c2Input);
+  const c3 = parseDecimal(c3Input);
+  const cantidadPedir = parseDecimal(cantidadPedirInput);
   const [touched, setTouched] = useState(conteoInicial?.touched || false);
   const [savedValues, setSavedValues] = useState<{c1: number; c2: number; c3: number; cantidadPedir: number} | null>(null);
 
@@ -126,7 +135,7 @@ const ProductoConteoComponent = ({
     if (touched) {
       onConteoChange(producto.id, { c1, c2, c3, cantidadPedir, touched: true });
     }
-  }, [c1, c2, c3, cantidadPedir, producto.id, touched, isGuardado, onConteoChange]);
+  }, [c1, c2, c3, cantidadPedir, producto.id, touched]);
 
   // Cuando se guarda, almacenar los valores actuales
   useEffect(() => {
@@ -139,16 +148,23 @@ const ProductoConteoComponent = ({
     setter: React.Dispatch<React.SetStateAction<string>>,
     value: string
   ) => {
-    console.log('Input change:', value); // Debug
     setTouched(true);
     
     // Reemplazar coma por punto
     const cleanValue = value.replace(',', '.');
     
-    // Permitir: números, punto decimal, string vacío
-    // Esta regex permite "5", "5.", "5.2", ".5", etc.
-    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+    // Permitir: números, punto decimal, string vacío, números negativos
+    // Esta regex permite "5", "5.", "5.2", ".5", "-1", etc.
+    if (cleanValue === '' || cleanValue === '-' || /^-?\d*\.?\d*$/.test(cleanValue)) {
       setter(cleanValue);
+    }
+  };
+  
+  // Handler para cuando el input pierde el foco
+  const handleInputBlur = () => {
+    // Forzar actualización del conteo cuando el input pierde el foco
+    if (touched) {
+      onConteoChange(producto.id, { c1, c2, c3, cantidadPedir, touched: true });
     }
   };
 
@@ -480,17 +496,15 @@ const ProductoConteoComponent = ({
             step="any"
             value={c1Input}
             onChange={(e) => handleInputChange(setC1Input, e.target.value)}
+            onBlur={handleInputBlur}
             onFocus={(e) => {
               e.target.select();
-              console.log('Input focused'); // Debug
             }}
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Input clicked'); // Debug
             }}
             onTouchStart={(e) => {
               e.stopPropagation();
-              console.log('Input touched'); // Debug
             }}
             disabled={isGuardado && !isEditing}
             readOnly={false}
@@ -519,6 +533,7 @@ const ProductoConteoComponent = ({
             step="any"
             value={c2Input}
             onChange={(e) => handleInputChange(setC2Input, e.target.value)}
+            onBlur={handleInputBlur}
             onFocus={(e) => e.target.select()}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
@@ -549,6 +564,7 @@ const ProductoConteoComponent = ({
             step="any"
             value={c3Input}
             onChange={(e) => handleInputChange(setC3Input, e.target.value)}
+            onBlur={handleInputBlur}
             onFocus={(e) => e.target.select()}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
@@ -604,6 +620,7 @@ const ProductoConteoComponent = ({
               step="0.01"
               value={cantidadPedirInput}
               onChange={(e) => handleInputChange(setCantidadPedirInput, e.target.value)}
+              onBlur={handleInputBlur}
               onFocus={(e) => e.target.select()}
               onClick={(e) => e.stopPropagation()}
               onTouchStart={(e) => e.stopPropagation()}

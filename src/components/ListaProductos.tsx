@@ -141,6 +141,7 @@ export const ListaProductos = ({
   const [progresoProcesamiento, setProgresoProcesamiento] = useState(0);
   const [totalAProcesar, setTotalAProcesar] = useState(0);
   const [productoActual, setProductoActual] = useState('');
+  const [resetKey, setResetKey] = useState(0); // Key para forzar re-renderizado
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isOnline = useOnlineStatus();
   const debouncedBusqueda = useDebounce(busqueda, 300);
@@ -663,7 +664,17 @@ export const ListaProductos = ({
       return;
     }
     
-    // CAMBIO TEMPORAL: Permitir guardar sin completar todos los productos
+    // Validar que todos los productos estén guardados
+    const productosNoGuardados = productos.filter(producto => !productosGuardados.has(producto.id));
+    
+    if (productosNoGuardados.length > 0) {
+      setToast({ 
+        message: `⚠️ Debes guardar todos los productos antes de guardar el inventario. Faltan ${productosNoGuardados.length} productos por guardar.`, 
+        type: 'error' 
+      });
+      return;
+    }
+    
     setGuardandoInventario(true);
     
     try {
@@ -700,6 +711,9 @@ export const ListaProductos = ({
         
         // Resetear estados
         setIntentoGuardarIncompleto(false);
+        setConteos({}); // Limpiar conteos en memoria
+        setProductosGuardados(new Set()); // Limpiar productos guardados
+        setResetKey(prev => prev + 1); // Incrementar key para forzar re-renderizado
         
         setToast({ message: '🎉 Inventario guardado exitosamente', type: 'success' });
         
@@ -1240,7 +1254,7 @@ export const ListaProductos = ({
                     
                     return (
                       <div 
-                        key={producto.id} 
+                        key={`${producto.id}-${resetKey}`} 
                         className={`${sinContar ? 'ring-2 ring-red-400 rounded-2xl' : ''} transition-all duration-300`}
                       >
                         <ProductoConteo
@@ -1251,7 +1265,7 @@ export const ListaProductos = ({
                           onGuardarProducto={esUsuarioSoloLectura ? undefined : handleGuardarProducto}
                           guardando={guardandoProductos.has(producto.id)}
                           isGuardado={productosGuardados.has(producto.id)}
-                          conteoInicial={conteos[producto.id]}
+                          conteoInicial={resetKey > 0 ? undefined : conteos[producto.id]}
                         />
                       </div>
                     );
@@ -1268,7 +1282,7 @@ export const ListaProductos = ({
             
             return (
               <div 
-                key={producto.id} 
+                key={`${producto.id}-${resetKey}`} 
                 className={`${sinContar ? 'ring-2 ring-red-400 rounded-2xl' : ''} transition-all duration-300`}
               >
                 <ProductoConteo
@@ -1279,7 +1293,7 @@ export const ListaProductos = ({
                   onGuardarProducto={esUsuarioSoloLectura ? undefined : handleGuardarProducto}
                   guardando={guardandoProductos.has(producto.id)}
                   isGuardado={productosGuardados.has(producto.id)}
-                  conteoInicial={conteos[producto.id]}
+                  conteoInicial={resetKey > 0 ? undefined : conteos[producto.id]}
                 />
               </div>
             );
