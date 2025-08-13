@@ -12,7 +12,6 @@ class VersionChecker {
   private checkInterval: NodeJS.Timeout | null = null;
   private isChecking = false;
   private lastUserActivity = Date.now();
-  private isUserActive = false;
 
   async initialize() {
     try {
@@ -37,32 +36,12 @@ class VersionChecker {
     // Detectar cualquier actividad del usuario
     const updateActivity = () => {
       this.lastUserActivity = Date.now();
-      this.isUserActive = true;
     };
 
     // Eventos de teclado y mouse
     document.addEventListener('keydown', updateActivity, { passive: true });
     document.addEventListener('mousedown', updateActivity, { passive: true });
     document.addEventListener('touchstart', updateActivity, { passive: true });
-    
-    // Detectar cuando hay un input con foco
-    document.addEventListener('focusin', (e) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        this.isUserActive = true;
-      }
-    }, { passive: true });
-
-    document.addEventListener('focusout', (e) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        // Esperar un poco antes de marcar como inactivo
-        setTimeout(() => {
-          const activeElement = document.activeElement;
-          if (!(activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement)) {
-            this.isUserActive = false;
-          }
-        }, 100);
-      }
-    }, { passive: true });
   }
 
   private startVersionCheck() {
@@ -98,6 +77,7 @@ class VersionChecker {
         
         // Si la versión cambió, recargar silenciosamente
         if (data.version !== this.currentVersion) {
+          console.log(`Nueva versión detectada: ${data.version} (actual: ${this.currentVersion})`);
           this.scheduleReload();
         }
       }
@@ -109,26 +89,29 @@ class VersionChecker {
   }
 
   private scheduleReload() {
-    // Si el usuario está activo o escribiendo, esperar
-    if (this.isUserActive || document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) {
-      // Revisar cada 5 segundos si el usuario dejó de estar activo
+    // Si está escribiendo en un input, esperar
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement) {
+      console.log('Usuario escribiendo, esperando 5 segundos...');
       setTimeout(() => {
         this.scheduleReload();
       }, 5000);
       return;
     }
 
-    // Verificar inactividad (más de 10 segundos sin actividad)
+    // Verificar inactividad (más de 3 segundos sin actividad)
     const inactiveTime = Date.now() - this.lastUserActivity;
-    if (inactiveTime < 10000) {
-      // Usuario estuvo activo recientemente, esperar más
+    if (inactiveTime < 3000) {
+      // Usuario estuvo activo recientemente, esperar un poco más
+      console.log(`Usuario activo hace ${inactiveTime}ms, esperando...`);
       setTimeout(() => {
         this.scheduleReload();
-      }, 10000 - inactiveTime);
+      }, 3000 - inactiveTime);
       return;
     }
 
     // Usuario inactivo, proceder con recarga silenciosa
+    console.log('Recargando página para actualizar versión...');
     this.silentReload();
   }
 
