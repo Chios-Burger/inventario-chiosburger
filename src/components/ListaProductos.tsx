@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Loader2, AlertCircle, Package2, X, Save, Clock, TrendingUp, BarChart3, Award, ArrowUp, Sparkles, ArrowUpDown, ArrowUp01, ArrowDown01, Hash, Tag, Check } from 'lucide-react';
+import { Loader2, AlertCircle, Package2, Save, Clock, TrendingUp, BarChart3, Award, ArrowUp, Sparkles, ArrowUpDown, ArrowUp01, ArrowDown01, Hash, Tag, Check } from 'lucide-react';
 import type { Producto } from '../types/index';
 import { ProductoConteo } from './ProductoConteo';
 import { Toast } from './Toast';
@@ -1080,48 +1080,48 @@ export const ListaProductos = ({
 
       {/* Progress Bar y Buscador - Sticky */}
       <div className="sticky top-16 z-30 mb-3 sm:mb-4">
-        <div className="bg-white rounded-lg shadow-md border border-gray-100 p-2 space-y-2">
+        <div className="bg-white rounded-lg shadow-md border border-gray-100 p-0.5 sm:p-2 space-y-0.5 sm:space-y-2">
           {/* Barra de progreso */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium text-gray-700">{productosGuardadosCount}/{productos.length}</span>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <span className="text-[8px] sm:text-[10px] font-medium text-gray-700">{productosGuardadosCount}/{productos.length}</span>
             
-            <div className="flex-1 flex items-center gap-1">
-              <div className="flex-1 flex items-center gap-1">
-                <span className="text-[9px] font-bold text-blue-600">A</span>
-                <div className="flex-1 h-2 bg-blue-100 rounded overflow-hidden">
+            <div className="flex-1 flex items-center gap-0.5 sm:gap-1">
+              <div className="flex-1 flex items-center gap-0.5 sm:gap-1">
+                <span className="text-[7px] sm:text-[9px] font-bold text-blue-600">A</span>
+                <div className="flex-1 h-1 sm:h-2 bg-blue-100 rounded overflow-hidden">
                   <div className="h-full bg-blue-500"
                     style={{ width: productosPorTipo.totales.A > 0 ? `${(productosPorTipo.guardados.A / productosPorTipo.totales.A) * 100}%` : '0%' }}
                   />
                 </div>
-                <span className="text-[8px] text-gray-500">
+                <span className="text-[6px] sm:text-[8px] text-gray-500">
                   {productosPorTipo.totales.A > 0 
                     ? `${Math.round((productosPorTipo.guardados.A / productosPorTipo.totales.A) * 100)}%`
                     : '0%'}
                 </span>
               </div>
               
-              <div className="flex-1 flex items-center gap-1">
-                <span className="text-[9px] font-bold text-green-600">B</span>
-                <div className="flex-1 h-2 bg-green-100 rounded overflow-hidden">
+              <div className="flex-1 flex items-center gap-0.5 sm:gap-1">
+                <span className="text-[7px] sm:text-[9px] font-bold text-green-600">B</span>
+                <div className="flex-1 h-1 sm:h-2 bg-green-100 rounded overflow-hidden">
                   <div className="h-full bg-green-500"
                     style={{ width: productosPorTipo.totales.B > 0 ? `${(productosPorTipo.guardados.B / productosPorTipo.totales.B) * 100}%` : '0%' }}
                   />
                 </div>
-                <span className="text-[8px] text-gray-500">
+                <span className="text-[6px] sm:text-[8px] text-gray-500">
                   {productosPorTipo.totales.B > 0 
                     ? `${Math.round((productosPorTipo.guardados.B / productosPorTipo.totales.B) * 100)}%`
                     : '0%'}
                 </span>
               </div>
               
-              <div className="flex-1 flex items-center gap-1">
-                <span className="text-[9px] font-bold text-yellow-600">C</span>
-                <div className="flex-1 h-2 bg-yellow-100 rounded overflow-hidden">
+              <div className="flex-1 flex items-center gap-0.5 sm:gap-1">
+                <span className="text-[7px] sm:text-[9px] font-bold text-yellow-600">C</span>
+                <div className="flex-1 h-1 sm:h-2 bg-yellow-100 rounded overflow-hidden">
                   <div className="h-full bg-yellow-500"
                     style={{ width: productosPorTipo.totales.C > 0 ? `${(productosPorTipo.guardados.C / productosPorTipo.totales.C) * 100}%` : '0%' }}
                   />
                 </div>
-                <span className="text-[8px] text-gray-500">
+                <span className="text-[6px] sm:text-[8px] text-gray-500">
                   {productosPorTipo.totales.C > 0 
                     ? `${Math.round((productosPorTipo.guardados.C / productosPorTipo.totales.C) * 100)}%`
                     : '0%'}
@@ -1129,31 +1129,31 @@ export const ListaProductos = ({
               </div>
             </div>
             
-            <span className="text-[9px] font-bold text-purple-600">{porcentajeCompletado}%</span>
-            <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-            {startTime && <Timer startTime={startTime} className="!p-0 !px-1 !py-0 !text-[9px]" />}
+            <span className="text-[7px] sm:text-[9px] font-bold text-purple-600">{porcentajeCompletado}%</span>
+            <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+            {startTime && <Timer startTime={startTime} className="!p-0 !px-0.5 sm:!px-1 !py-0 !text-[7px] sm:!text-[9px]" />}
           </div>
           
-          {/* Barra de búsqueda */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-1.5 flex items-center pointer-events-none">
-              <Search className="h-2.5 w-2.5 text-gray-400" />
-            </div>
+          {/* Barra de búsqueda con la misma altura que la sección de progreso */}
+          <div className="flex items-center gap-0.5 sm:gap-1">
             <input
-              type="text"
+              type="search"
               placeholder="Buscar..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full pl-5 pr-5 py-0.5 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-purple-100 focus:border-purple-400 transition-all text-gray-700 placeholder-gray-400 text-[10px]"
+              className="flex-[2] h-[20px] sm:h-auto px-1 py-0 bg-gray-50 border border-gray-200 rounded text-[7px] sm:text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-purple-400 leading-none"
             />
-            {busqueda && (
-              <button
-                onClick={() => setBusqueda('')}
-                className="absolute right-0.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-0.5"
-              >
-                <X className="w-2.5 h-2.5" />
-              </button>
-            )}
+            <button
+              onClick={() => setBusqueda('')}
+              disabled={!busqueda}
+              className={`flex-1 h-[20px] sm:h-auto px-1 py-0 rounded border text-[7px] sm:text-sm leading-none ${
+                busqueda 
+                  ? 'bg-gray-100 hover:bg-gray-200 text-gray-600 border-gray-200 cursor-pointer' 
+                  : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'
+              }`}
+            >
+              Limpiar
+            </button>
           </div>
         </div>
       </div>
