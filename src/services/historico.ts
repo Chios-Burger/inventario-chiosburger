@@ -212,6 +212,33 @@ export const historicoService = {
       // Obtener la unidad correcta según la bodega
       const campoUnidad = airtableService.obtenerCampoUnidad(bodegaId);
       
+      // Debug: Ver qué valores vienen de Airtable
+      if (!producto.fields['Unidad Conteo Bodega Principal'] || !producto.fields[campoUnidad]) {
+        console.warn(`⚠️ Producto sin unidades definidas:`, {
+          producto: producto.fields['Nombre Producto'],
+          codigo: codigoProducto,
+          bodegaId,
+          campoUnidad,
+          unidadBodegaPrincipal: producto.fields['Unidad Conteo Bodega Principal'],
+          unidadEspecifica: producto.fields[campoUnidad]
+        });
+      }
+      
+      // Obtener las unidades correctamente
+      const unidadLocal = producto.fields[campoUnidad]; // Unidad local de la bodega/tienda
+      const unidadBodegaPrincipal = producto.fields['Unidad Conteo Bodega Principal'];
+      
+      // Si no hay unidades definidas, mostrar error pero continuar
+      if (!unidadLocal || !unidadBodegaPrincipal) {
+        console.error(`❌ ERROR: Producto sin unidades definidas:`, {
+          producto: producto.fields['Nombre Producto'],
+          codigo: codigoProducto,
+          bodegaId,
+          unidadLocal: unidadLocal || 'NO DEFINIDA',
+          unidadBodegaPrincipal: unidadBodegaPrincipal || 'NO DEFINIDA'
+        });
+      }
+      
       return {
         id: idUnico,
         codigo: codigoProducto, // Código de Airtable
@@ -222,8 +249,8 @@ export const historicoService = {
         c3: conteo.c3,
         total,
         cantidadPedir: conteo.cantidadPedir,
-        unidad: producto.fields['Unidad Conteo Bodega Principal'] || 'unidades',
-        unidadBodega: producto.fields[campoUnidad] || 'unidades',
+        unidad: unidadLocal || 'UNIDAD NO DEFINIDA', // Unidad local para conteos
+        unidadBodega: [4, 5, 6, 7, 8].includes(bodegaId) ? (unidadBodegaPrincipal || 'UNIDAD NO DEFINIDA') : (unidadLocal || 'UNIDAD NO DEFINIDA'), // Para tiendas: bodega principal, para otras: su propia unidad
         equivalencia: producto.fields['Equivalencias Inventarios'],
         tipo: obtenerTipoProducto(producto.fields)
       };
@@ -920,8 +947,9 @@ export const historicoService = {
           c3,
           total: parseFloat(row.total) || 0,
           cantidadPedir: parseFloat(row.cant_pedir || row.cantidadSolicitada || '0') || 0,
-          unidad: row.unidad || 'unidades',
-          unidadBodega: row.uni_bod || row.uni_local || row.unidad || 'unidades',
+          // Las unidades ya vienen correctas de la BD
+          unidad: row.unidad || 'UNIDAD NO DEFINIDA',
+          unidadBodega: row.uni_bod || row.uni_local || row.unidad_bodega || 'UNIDAD NO DEFINIDA',
           equivalencia: row.equivalencia || ''
         };
       });

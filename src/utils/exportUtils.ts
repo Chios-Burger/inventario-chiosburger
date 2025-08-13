@@ -492,8 +492,8 @@ export const exportUtils = {
           this.formatearNumeroParaExport(p.c3),
           this.formatearNumeroParaExport(p.total),
           this.formatearNumeroParaExport(p.cantidadPedir),
-          p.unidad,
           p.unidadBodega,
+          p.unidad,
           p.equivalencia || ''
         ]);
       });
@@ -576,8 +576,8 @@ export const exportUtils = {
           this.formatearNumeroParaExport(p.c3),
           this.formatearNumeroParaExport(p.total),
           this.formatearNumeroParaExport(p.cantidadPedir),
-          p.unidad,
           p.unidadBodega,
+          p.unidad,
           p.equivalencia || ''
         ]);
       });
@@ -636,9 +636,9 @@ export const exportUtils = {
       p.nombre,
       `${this.formatearNumeroParaExport(p.c1)}, ${this.formatearNumeroParaExport(p.c2)}, ${this.formatearNumeroParaExport(p.c3)}`,
       this.formatearNumeroParaExport(p.total),
-      p.unidad,
+      p.unidadBodega,
       this.formatearNumeroParaExport(p.cantidadPedir),
-      p.unidadBodega
+      p.unidad
     ]);
 
     // Usar punto y coma como separador para mejor compatibilidad con Excel

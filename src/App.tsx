@@ -126,14 +126,14 @@ function App() {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-lg border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-12 sm:h-16">
             {/* Logo y título */}
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="p-1.5 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg shadow-md">
-                <Package2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <div className="p-1 sm:p-1.5 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg shadow-md">
+                <Package2 className="w-3 h-3 sm:w-5 sm:h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-sm sm:text-base font-bold text-gray-800">
+                <h1 className="text-xs sm:text-base font-bold text-gray-800">
                   Sistema de Inventario
                 </h1>
                 <p className="text-[10px] text-gray-500 hidden sm:block">ChiosBurger</p>
@@ -212,28 +212,28 @@ function App() {
             {/* Menú móvil */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="sm:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              className="sm:hidden p-1.5 text-gray-600 hover:bg-gray-100 rounded-lg"
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
           </div>
 
           {/* Menú móvil desplegable */}
           {mobileMenuOpen && (
-            <div className="sm:hidden border-t border-gray-100 py-4">
-              <nav className="flex flex-col gap-2 mb-4">
+            <div className="sm:hidden border-t border-gray-100 py-2">
+              <nav className="flex flex-col gap-1 mb-2">
                 <button
                   onClick={() => {
                     setVista('inventario');
                     setMobileMenuOpen(false);
                   }}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all text-left ${
+                  className={`px-3 py-1.5 rounded-lg font-medium text-xs transition-all text-left ${
                     vista === 'inventario' 
                       ? 'bg-purple-100 text-purple-700' 
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <Home className="w-4 h-4 inline mr-2" />
+                  <Home className="w-3 h-3 inline mr-1.5" />
                   Inventario
                 </button>
                 <button
@@ -241,13 +241,13 @@ function App() {
                     setVista('historico');
                     setMobileMenuOpen(false);
                   }}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all text-left ${
+                  className={`px-3 py-1.5 rounded-lg font-medium text-xs transition-all text-left ${
                     vista === 'historico' 
                       ? 'bg-purple-100 text-purple-700' 
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <History className="w-4 h-4 inline mr-2" />
+                  <History className="w-3 h-3 inline mr-1.5" />
                   Histórico
                 </button>
                 <button
@@ -255,13 +255,13 @@ function App() {
                     setVista('opciones-historico');
                     setMobileMenuOpen(false);
                   }}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all text-left ${
+                  className={`px-3 py-1.5 rounded-lg font-medium text-xs transition-all text-left ${
                     vista === 'opciones-historico' 
                       ? 'bg-purple-100 text-purple-700' 
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <Eye className="w-4 h-4 inline mr-2" />
+                  <Eye className="w-3 h-3 inline mr-1.5" />
                   Opciones Histórico
                 </button>
                 {/* Botón Pedidos móvil solo para usuarios autorizados */}
@@ -274,28 +274,28 @@ function App() {
                       setVista('pedidos');
                       setMobileMenuOpen(false);
                     }}
-                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all text-left ${
+                    className={`px-3 py-1.5 rounded-lg font-medium text-xs transition-all text-left ${
                       vista === 'pedidos' 
                         ? 'bg-purple-100 text-purple-700' 
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
-                    <ShoppingCart className="w-4 h-4 inline mr-2" />
+                    <ShoppingCart className="w-3 h-3 inline mr-1.5" />
                     Pedidos del Día
                   </button>
                 )}
               </nav>
               
-              <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+              <div className="flex items-center justify-between border-t border-gray-100 pt-2">
                 <div>
-                  <p className="text-sm font-medium text-gray-800">{usuario.nombre}</p>
-                  <p className="text-xs text-gray-500">{usuario.email}</p>
+                  <p className="text-xs font-medium text-gray-800">{usuario.nombre}</p>
+                  <p className="text-[10px] text-gray-500">{usuario.email}</p>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="px-4 py-2 bg-red-50 text-red-600 rounded-lg font-medium text-sm"
+                  className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg font-medium text-xs"
                 >
-                  <LogOut className="w-4 h-4 inline mr-2" />
+                  <LogOut className="w-3 h-3 inline mr-1.5" />
                   Salir
                 </button>
               </div>
