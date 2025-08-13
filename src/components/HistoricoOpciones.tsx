@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Check, Edit3, Calculator, MoreVertical, Save, XCircle, Ban, Search, Filter, X, Package, Loader2, AlertCircle } from 'lucide-react';
 import type { Producto } from '../types/index';
+import { ProductoConteo } from './ProductoConteo';
 import { Toast } from './Toast';
 import { Timer } from './Timer';
 import { airtableService } from '../services/airtable';
@@ -317,6 +318,40 @@ export const HistoricoOpciones = ({
       }
       return p;
     }));
+  };
+
+  // Función para manejar cambios del componente ProductoConteo
+  const handleConteoChange = (productoId: string, conteo: {
+    c1: number;
+    c2: number;
+    c3: number;
+    cantidadPedir: number;
+    touched?: boolean;
+  }) => {
+    setProductos(productos.map(p => {
+      if (p.id === productoId) {
+        return {
+          ...p,
+          conteos: [conteo.c1, conteo.c2, conteo.c3, 0, 0],
+          cantidadPedir: conteo.cantidadPedir
+        };
+      }
+      return p;
+    }));
+  };
+
+  // Funciones para obtener unidades (como en ListaProductos)
+  const obtenerUnidad = (producto: ProductoConConteo): string => {
+    if ([4, 5, 6, 7, 8].includes(bodegaId)) {
+      return producto.fields['Unidad Conteo Bodega Principal'] as string || 'unidades';
+    }
+    const campoUnidad = airtableService.obtenerCampoUnidad(bodegaId);
+    return producto.fields[campoUnidad as keyof typeof producto.fields] as string || 'unidades';
+  };
+
+  const obtenerUnidadBodega = (producto: ProductoConConteo): string => {
+    const campoUnidad = airtableService.obtenerCampoUnidad(bodegaId);
+    return producto.fields[campoUnidad as keyof typeof producto.fields] as string || 'unidades';
   };
 
   const toggleEditarPedido = (id: string) => {
@@ -638,8 +673,8 @@ export const HistoricoOpciones = ({
         </div>
       </div>
 
-      {/* Lista de productos */}
-      <div className="space-y-0.5 w-full pb-16" style={{ isolation: 'isolate' }}>
+      {/* Lista de productos - Estilo Inventario */}
+      <div className="space-y-2 sm:space-y-3 w-full pb-16">
         {productosFiltrados.length === 0 ? (
           <div className="text-center py-8">
             <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
@@ -652,200 +687,29 @@ export const HistoricoOpciones = ({
             const guardando = guardandoProductos.has(producto.id);
             const total = calcularTotal(producto.conteos);
             const esInactivo = producto.conteos.every(c => c === -1);
+            const sinContar = !estaGuardado && !esInactivo;
 
             return (
               <div 
                 key={producto.id} 
-                className={`bg-white rounded-lg shadow-sm overflow-hidden relative ${
-                  esInactivo ? 'opacity-60' : ''
-                } ${estaGuardado ? 'ring-2 ring-green-400' : ''}`}
+                className={`${sinContar ? 'ring-2 ring-red-400 rounded-2xl' : ''} transition-all duration-300`}
               >
-                {/* Botón calculadora circular badge */}
-                {!estaGuardado && !esInactivo && !esUsuarioSoloLectura && (
-                  <button
-                    onClick={() => setMostrarCalculadora(producto.id)}
-                    className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-gradient-to-br from-red-400 to-red-600 text-white rounded-full flex items-center justify-center hover:from-red-500 hover:to-red-700 transition-all z-10 shadow-md ring-2 ring-white"
-                  >
-                    <Calculator className="w-3 h-3" />
-                  </button>
-                )}
-
-                {/* Mitad Superior */}
-                <div className="p-1.5 border-b border-gray-200">
-                  <div className="flex">
-                    {/* Lado izquierdo (2/3) */}
-                    <div className="flex-1 pr-0.5 min-w-0">
-                      <h3 className="font-bold text-[8px] text-gray-800 pr-5 truncate leading-tight">
-                        {producto.fields['Nombre Producto'] || 'Sin nombre'}
-                      </h3>
-                      <p className="text-[7px] text-gray-600 truncate leading-tight">
-                        {producto.fields['Categoría'] || 'Sin categoría'}
-                      </p>
-                      <div className="flex items-center gap-0.5 text-[6px] leading-tight">
-                        <span className="text-gray-700 truncate">
-                          <span className="font-medium">C:</span>{producto.fields['Código'] || 'N/A'}
-                        </span>
-                        <span className="text-gray-700">
-                          <span className="font-medium">T:</span>{obtenerTipoProducto(producto.fields) || 'N/A'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Lado derecho (1/3) */}
-                    <div className="w-14 border-l border-gray-200 pl-0.5 flex-shrink-0">
-                      <p className="text-[8px] font-medium text-gray-700 leading-tight">Pedir</p>
-                      <p className="text-[7px] text-gray-500 leading-tight">
-                        {producto.fields['Unidad de medida PEDIDO BODEGA'] || 'unidades'}
-                      </p>
-                      <div className="flex items-center gap-0.5">
-                        <input
-                          type="tel"
-                          inputMode="decimal"
-                          pattern="[0-9]*[.,]?[0-9]*"
-                          step="0.01"
-                          value={producto.cantidadPedir}
-                          onChange={(e) => actualizarPedido(producto.id, parseFloat(e.target.value) || 0)}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            console.log('Input clicked - cantidadPedir');
-                          }}
-                          onTouchStart={(e) => {
-                            e.stopPropagation();
-                            console.log('Input touched - cantidadPedir');
-                          }}
-                          onFocus={(e) => e.target.select()}
-                          className="w-7 px-0 py-0 border rounded-sm text-center text-[8px] font-medium min-h-[44px] relative z-20"
-                          style={{ 
-                            WebkitUserSelect: 'text',
-                            touchAction: 'manipulation',
-                            fontSize: '16px'
-                          }}
-                          disabled={(!estaEditando && estaGuardado) || esUsuarioSoloLectura}
-                          readOnly={false}
-                          autoComplete="off"
-                          placeholder="0"
-                        />
-                        {!esUsuarioSoloLectura && (
-                          <button
-                            onClick={() => toggleEditarPedido(producto.id)}
-                            className={`p-0.5 rounded-sm transition-all ${
-                              estaEditando 
-                                ? 'bg-green-500 text-white hover:bg-green-600' 
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                            }`}
-                          >
-                            {estaEditando ? <Check className="w-2 h-2" /> : <Edit3 className="w-2 h-2" />}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mitad Inferior */}
-                <div className="p-1.5 bg-gray-50">
-                  <div>
-                    <div className="flex items-start justify-between gap-0.5">
-                      {/* Casillas de conteo con equivalencias */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-0.5">
-                      {producto.conteos.map((conteo, index) => (
-                        <input
-                          key={index}
-                          type="tel"
-                          inputMode="decimal"
-                          pattern="[0-9]*[.,]?[0-9]*"
-                          step="0.01"
-                          value={conteo >= 0 ? conteo : ''}
-                          onChange={(e) => actualizarConteo(producto.id, index, parseFloat(e.target.value) || 0)}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            console.log(`Input clicked - conteo ${index + 1}`);
-                          }}
-                          onTouchStart={(e) => {
-                            e.stopPropagation();
-                            console.log(`Input touched - conteo ${index + 1}`);
-                          }}
-                          onFocus={(e) => e.target.select()}
-                          placeholder="0"
-                          className={`flex-1 min-w-0 max-w-[1.75rem] px-0 py-0 border rounded-sm text-center text-[8px] font-medium min-h-[44px] relative z-20 ${
-                            esInactivo ? 'bg-gray-100' : 'bg-white'
-                          }`}
-                          style={{ 
-                            WebkitUserSelect: 'text',
-                            touchAction: 'manipulation',
-                            fontSize: '16px'
-                          }}
-                          disabled={estaGuardado || esInactivo || esUsuarioSoloLectura}
-                          readOnly={false}
-                          autoComplete="off"
-                        />
-                      ))}
-                        </div>
-                        {/* Equivalencias */}
-                        {producto.fields['Equivalencias Inventarios'] && (
-                          <p className="text-[7px] text-purple-600 mt-0.5 leading-tight">
-                            Eq: {producto.fields['Equivalencias Inventarios']}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Total */}
-                      <div className="mx-0.5 text-right flex-shrink-0">
-                        <p className="text-[7px] text-gray-600 leading-tight">Total</p>
-                        <p className="font-bold text-[9px] whitespace-nowrap leading-tight">
-                          {esInactivo ? 'N/A' : total.toFixed(2)}
-                        </p>
-                      <p className="text-[7px] text-gray-500 leading-tight">
-                        {producto.fields['Unidad de medida CONTEO'] || 'unidades'}
-                      </p>
-                    </div>
-
-                    {/* Menú de opciones */}
-                    {!esUsuarioSoloLectura && (
-                      <div className="relative">
-                        <button
-                          onClick={() => setMenuAbierto(menuAbierto === producto.id ? null : producto.id)}
-                          className="p-0.5 bg-gray-200 text-gray-700 rounded-sm hover:bg-gray-300 transition-all"
-                          disabled={guardando}
-                        >
-                          {guardando ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <MoreVertical className="w-3 h-3" />
-                          )}
-                        </button>
-
-                        {menuAbierto === producto.id && (
-                          <div className="absolute right-full mr-0.5 top-0 bg-white rounded shadow-lg border border-gray-200 z-10 flex">
-                            <button
-                              onClick={() => guardarProducto(producto.id)}
-                              className="p-1 hover:bg-gray-100 transition-colors"
-                              title="Guardar"
-                            >
-                              <Save className="w-3 h-3 text-green-600" />
-                            </button>
-                            <button
-                              onClick={() => productoEnCero(producto.id)}
-                              className="p-1 hover:bg-gray-100 transition-colors"
-                              title="Producto en 0"
-                            >
-                              <XCircle className="w-3 h-3 text-orange-600" />
-                            </button>
-                            <button
-                              onClick={() => productoInactivo(producto.id)}
-                              className="p-1 hover:bg-gray-100 transition-colors"
-                              title="Producto inactivo"
-                            >
-                              <Ban className="w-3 h-3 text-red-600" />
-                            </button>
-                          </div>
-                        )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <ProductoConteo
+                  producto={producto}
+                  unidad={obtenerUnidad(producto)}
+                  unidadBodega={obtenerUnidadBodega(producto)}
+                  onConteoChange={handleConteoChange}
+                  onGuardarProducto={esUsuarioSoloLectura ? undefined : (productoId) => guardarProducto(productoId)}
+                  guardando={guardando}
+                  isGuardado={estaGuardado}
+                  conteoInicial={{
+                    c1: producto.conteos[0] || 0,
+                    c2: producto.conteos[1] || 0,
+                    c3: producto.conteos[2] || 0,
+                    cantidadPedir: producto.cantidadPedir || 0,
+                    touched: true
+                  }}
+                />
               </div>
             );
           })
