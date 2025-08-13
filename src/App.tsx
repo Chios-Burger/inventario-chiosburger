@@ -13,6 +13,7 @@ import { syncService } from './services/syncService';
 import { historicoService } from './services/historico';
 import { notificationSystem } from './utils/notificationSystem';
 import { initializeMobileFixes, startMobileFixObserver } from './utils/mobileFixUtils';
+import { versionChecker } from './services/versionCheck';
 import type { Usuario } from './types/index';
 import './App.css';
 
@@ -30,6 +31,9 @@ function App() {
     // Initialize mobile fixes
     initializeMobileFixes();
     startMobileFixObserver();
+    
+    // Inicializar sistema de verificación de versión
+    versionChecker.initialize();
     
     // Verificar si hay un usuario logueado
     const usuarioGuardado = authService.getUsuarioActual();
@@ -52,6 +56,9 @@ function App() {
     
     return () => {
       // Cleanup mobile fix observer - no longer needed since it returns null
+      
+      // Detener verificación de versión
+      versionChecker.destroy();
       
       // Detener sincronización al desmontar
       historicoService.detenerSincronizacionAutomatica();

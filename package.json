@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "prebuild": "node scripts/update-version.js",
+    "build": "tsc -b && vite build && node scripts/update-version.js",
     "clean": "rm -rf dist .vite-new node_modules/.vite",
     "build:clean": "npm run clean && npm run build",
     "lint": "eslint .",
