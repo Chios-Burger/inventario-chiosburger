@@ -429,30 +429,6 @@ export const HistoricoOpcionesNuevo = ({
               </div>
             </div>
             
-            {/* Leyenda de estados para vista Prueba */}
-            {tipoVista === 'prueba' && (
-              <div className="px-3 py-1 border-b border-gray-100 bg-gray-50">
-                <p className="text-[9px] font-medium text-gray-600 mb-1">Leyenda de Estados:</p>
-                <div className="flex flex-wrap gap-3 text-[8px]">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    <span>Guardado</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                    <span>Pendiente</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                    <span>En cero</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-gray-500"></div>
-                    <span>Inactivo</span>
-                  </div>
-                </div>
-              </div>
-            )}
           </>
         )}
 
