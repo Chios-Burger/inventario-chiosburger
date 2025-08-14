@@ -129,7 +129,9 @@ export const PedidosDelDia = () => {
               nombre: producto.nombre,
               categoria: producto.categoria || '',
               tipo: producto.tipo || '',
-              unidad: producto.unidadBodega,
+              unidad: (producto.unidadBodega === 'UNIDAD NO DEFINIDA' || !producto.unidadBodega) 
+                ? 'Unidad' 
+                : producto.unidadBodega,
               pedidosPorBodega: {},
               totalPedido: 0,
               estado: 'pendiente'
