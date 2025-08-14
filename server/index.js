@@ -272,12 +272,12 @@ app.post('/api/inventario', async (req, res) => {
             producto.id, // Preservar el ID original con timestamp
             producto.codigo || producto.id, // Usar código de Airtable si existe
             producto.nombre,
-            producto.unidadBodega,
+            producto.unidad || '', // unidad va en el campo 'unidad'
             producto.total.toString(),
             formatearCantidades(producto.c1, producto.c2, producto.c3),
             NOMBRE_LOCAL_CHIOS[registro.bodegaId] || '',
             producto.cantidadPedir > 0 ? producto.cantidadPedir.toString() : '',
-            producto.unidad || '', // Ahora guarda la unidad de bodega principal
+            producto.unidadBodega || '', // unidadBodega va en el campo 'uni_bod'
             producto.categoria || '',
             producto.tipo || ''
           ];
@@ -362,9 +362,9 @@ app.post('/api/inventario', async (req, res) => {
             producto.nombre,
             formatearCantidades(producto.c1, producto.c2, producto.c3),
             producto.c1 === -1 && producto.c2 === -1 && producto.c3 === -1 ? null : producto.total,
-            producto.unidadBodega,
+            producto.unidad, // uni_local
             producto.cantidadPedir > 0 ? producto.cantidadPedir : null,
-            producto.unidad,
+            producto.unidadBodega, // uni_bod
             producto.categoria || '',
             producto.tipo || ''
           ];
@@ -384,9 +384,9 @@ app.post('/api/inventario', async (req, res) => {
             producto.nombre,
             formatearCantidades(producto.c1, producto.c2, producto.c3),
             producto.c1 === -1 && producto.c2 === -1 && producto.c3 === -1 ? null : producto.total,
-            producto.unidadBodega,
+            producto.unidad, // uni_local
             producto.cantidadPedir > 0 ? producto.cantidadPedir : null,
-            producto.unidad,
+            producto.unidadBodega, // uni_bod
             producto.categoria || '',
             producto.tipo || ''
           ];
