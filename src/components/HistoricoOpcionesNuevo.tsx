@@ -218,11 +218,11 @@ export const HistoricoOpcionesNuevo = ({
 
   // Obtener unidades
   const obtenerUnidad = (producto: ProductoConConteo): string => {
-    return producto.fields['Unidad De Conteo General'] as string || 'und';
+    return producto.fields['Unidad De Conteo General'] as string || 'unidad';
   };
 
   const obtenerUnidadBodega = (producto: ProductoConConteo): string => {
-    return producto.fields['Unidad De Conteo General'] as string || 'und';
+    return producto.fields['Unidad De Conteo General'] as string || 'unidad';
   };
 
   // Guardar producto

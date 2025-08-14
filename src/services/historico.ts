@@ -220,8 +220,8 @@ export const historicoService = {
         c3: conteo.c3,
         total,
         cantidadPedir: conteo.cantidadPedir,
-        unidad: unidadGeneral || 'UNIDAD NO DEFINIDA', // Unidad general para todo
-        unidadBodega: unidadGeneral || 'UNIDAD NO DEFINIDA', // Misma unidad para todo
+        unidad: unidadGeneral || 'unidad', // Unidad general para todo
+        unidadBodega: unidadGeneral || 'unidad', // Misma unidad para todo
         equivalencia: producto.fields['Equivalencias Inventarios'],
         tipo: obtenerTipoProducto(producto.fields)
       };
@@ -919,8 +919,8 @@ export const historicoService = {
           total: parseFloat(row.total) || 0,
           cantidadPedir: parseFloat(row.cant_pedir || row.cantidadSolicitada || '0') || 0,
           // Las unidades ya vienen correctas de la BD
-          unidad: row.unidad || 'UNIDAD NO DEFINIDA',
-          unidadBodega: row.uni_bod || row.uni_local || row.unidad_bodega || 'UNIDAD NO DEFINIDA',
+          unidad: row.unidad || 'unidad',
+          unidadBodega: row.uni_bod || row.uni_local || row.unidad_bodega || 'unidad',
           equivalencia: row.equivalencia || ''
         };
       });

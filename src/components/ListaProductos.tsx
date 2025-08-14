@@ -776,11 +776,11 @@ export const ListaProductos = ({
   }, [sePuedeGuardar, mostrarSinContarPrimero, intentoGuardarIncompleto, porcentajeCompletado, bodegaId]);
 
   const obtenerUnidad = (producto: Producto): string => {
-    return producto.fields['Unidad De Conteo General'] as string || 'unidades';
+    return producto.fields['Unidad De Conteo General'] as string || 'unidad';
   };
 
   const obtenerUnidadBodega = (producto: Producto): string => {
-    return producto.fields['Unidad De Conteo General'] as string || 'unidades';
+    return producto.fields['Unidad De Conteo General'] as string || 'unidad';
   };
 
   const metrics = showMetrics ? calculateMetrics(productos.length) : null;
