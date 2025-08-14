@@ -1,6 +1,6 @@
-import { useState, useEffect, memo, useCallback } from 'react';
+import { useState, useEffect, memo } from 'react';
 import type { Producto } from '../types/index';
-import { Calculator, Loader2, Check, Hash, Edit3, XCircle, Ban, X } from 'lucide-react';
+import { Calculator, Loader2, Check, Edit3, XCircle, Ban } from 'lucide-react';
 
 interface ProductoConteoCompactoProps {
   producto: Producto;
@@ -28,7 +28,7 @@ interface ProductoConteoCompactoProps {
 const ProductoConteoCompactoComponent = ({ 
   producto, 
   unidad,
-  unidadBodega,
+  unidadBodega: _unidadBodega,
   onConteoChange,
   onGuardarProducto,
   guardando = false,

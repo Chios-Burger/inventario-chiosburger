@@ -90,7 +90,7 @@ export const airtableService = {
     return campos[bodegaId] || null;
   },
 
-  obtenerCampoUnidad(bodegaId: number): string {
+  obtenerCampoUnidad(_bodegaId: number): string {
     return 'Unidad De Conteo General';
   },
 

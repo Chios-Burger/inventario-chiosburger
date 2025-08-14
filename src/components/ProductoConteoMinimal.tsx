@@ -28,7 +28,7 @@ interface ProductoConteoMinimalProps {
 const ProductoConteoMinimalComponent = ({ 
   producto, 
   unidad,
-  unidadBodega,
+  unidadBodega: _unidadBodega,
   onConteoChange,
   onGuardarProducto,
   guardando = false,

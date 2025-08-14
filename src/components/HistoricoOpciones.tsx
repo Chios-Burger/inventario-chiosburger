@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Check, Edit3, Calculator, MoreVertical, Save, XCircle, Ban, Search, Filter, X, Package, Loader2, AlertCircle } from 'lucide-react';
+import { Save, Search, Filter, X, Package, Loader2, AlertCircle } from 'lucide-react';
 import type { Producto } from '../types/index';
-import { ProductoConteo } from './ProductoConteo';
 import { ProductoConteoCompacto } from './ProductoConteoCompacto';
 import { Toast } from './Toast';
 import { Timer } from './Timer';
@@ -86,9 +85,7 @@ export const HistoricoOpciones = ({
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   
   // Estados para controlar edición y guardado
-  const [pedidosEditando, setPedidosEditando] = useState<Set<string>>(new Set());
   const [productosGuardados, setProductosGuardados] = useState<Set<string>>(new Set());
-  const [menuAbierto, setMenuAbierto] = useState<string | null>(null);
   const [mostrarCalculadora, setMostrarCalculadora] = useState<string | null>(null);
   const [guardandoProductos, setGuardandoProductos] = useState<Set<string>>(new Set());
   const [guardandoInventario, setGuardandoInventario] = useState(false);
@@ -303,23 +300,6 @@ export const HistoricoOpciones = ({
     return { total: productosFiltrados.length, guardados, pendientes, inactivos };
   }, [productosFiltrados, productosGuardados]);
 
-  // Funciones de actualización
-  const actualizarPedido = (id: string, valor: number) => {
-    setProductos(productos.map(p => 
-      p.id === id ? { ...p, cantidadPedir: valor } : p
-    ));
-  };
-
-  const actualizarConteo = (id: string, indice: number, valor: number) => {
-    setProductos(productos.map(p => {
-      if (p.id === id) {
-        const nuevosConteos = [...p.conteos];
-        nuevosConteos[indice] = valor;
-        return { ...p, conteos: nuevosConteos };
-      }
-      return p;
-    }));
-  };
 
   // Función para manejar cambios del componente ProductoConteo
   const handleConteoChange = (productoId: string, conteo: {
@@ -350,17 +330,6 @@ export const HistoricoOpciones = ({
     return producto.fields['Unidad De Conteo General'] as string || 'unidades';
   };
 
-  const toggleEditarPedido = (id: string) => {
-    setPedidosEditando(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  };
 
   // Guardar producto individual
   const guardarProducto = async (id: string, esAccionRapida?: boolean) => {
@@ -378,7 +347,6 @@ export const HistoricoOpciones = ({
     }
 
     setGuardandoProductos(prev => new Set(prev).add(id));
-    setMenuAbierto(null);
 
     try {
       const total = producto.conteos.filter(c => c >= 0).reduce((sum, val) => sum + val, 0);
@@ -418,32 +386,6 @@ export const HistoricoOpciones = ({
     }
   };
 
-  const productoEnCero = (id: string) => {
-    setProductos(productos.map(p => {
-      if (p.id === id) {
-        return { ...p, conteos: [0, 0, 0, 0, 0], cantidadPedir: 0 };
-      }
-      return p;
-    }));
-    guardarProducto(id, true);
-  };
-
-  const productoInactivo = (id: string) => {
-    setProductos(productos.map(p => {
-      if (p.id === id) {
-        return { ...p, conteos: [-1, -1, -1, -1, -1], cantidadPedir: -1 };
-      }
-      return p;
-    }));
-    guardarProducto(id, true);
-  };
-
-  const calcularTotal = (conteos: number[]) => {
-    const valoresValidos = conteos.filter(c => c >= 0);
-    const total = valoresValidos.reduce((sum, val) => sum + val, 0);
-    // Redondear a 2 decimales
-    return Math.round(total * 100) / 100;
-  };
 
   const limpiarFiltros = () => {
     setBusqueda('');
@@ -678,10 +620,8 @@ export const HistoricoOpciones = ({
           </div>
         ) : (
           productosFiltrados.map((producto) => {
-            const estaEditando = pedidosEditando.has(producto.id);
             const estaGuardado = productosGuardados.has(producto.id);
             const guardando = guardandoProductos.has(producto.id);
-            const total = calcularTotal(producto.conteos);
             const esInactivo = producto.conteos.every(c => c === -1);
             const sinContar = !estaGuardado && !esInactivo;
 

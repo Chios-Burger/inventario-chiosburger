@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Save, Search, Filter, Package, Loader2, AlertCircle, Check, X, TrendingUp, Clock, Eye, EyeOff, Layout, Grid3x3, List, BarChart3, Settings2 } from 'lucide-react';
+import { Save, Search, Package, Loader2, AlertCircle, X, Eye, EyeOff, Layout, Grid3x3, List, BarChart3, Settings2 } from 'lucide-react';
 import type { Producto } from '../types/index';
 import { ProductoConteoMinimal } from './ProductoConteoMinimal';
 import { ProductoConteoCompacto } from './ProductoConteoCompacto';

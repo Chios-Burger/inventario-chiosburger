@@ -1,6 +1,5 @@
 import type { RegistroHistorico, RegistroDiario, ProductoHistorico, Producto, Conteo } from '../types/index';
 import { authService } from './auth';
-import { airtableService } from './airtable';
 import { notificationSystem } from '../utils/notificationSystem';
 import { 
   obtenerFechaActual, 
@@ -145,7 +144,7 @@ export const historicoService = {
   },
   
   // Método auxiliar para obtener el campo de unidad según la bodega
-  obtenerCampoUnidad(bodegaId: number): string {
+  obtenerCampoUnidad(_bodegaId: number): string {
     return 'Unidad De Conteo General';
   },
   async guardarInventario(
