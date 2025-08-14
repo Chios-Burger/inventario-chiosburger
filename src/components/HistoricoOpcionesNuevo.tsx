@@ -4,6 +4,7 @@ import type { Producto } from '../types/index';
 import { ProductoConteoMinimal } from './ProductoConteoMinimal';
 import { ProductoConteoCompacto } from './ProductoConteoCompacto';
 import { ProductoConteo } from './ProductoConteo';
+import { ProductoConteoPrueba } from './ProductoConteoPrueba';
 import { Toast } from './Toast';
 import { airtableService } from '../services/airtable';
 import { authService } from '../services/auth';
@@ -30,10 +31,10 @@ export const HistoricoOpcionesNuevo = ({
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [vistaCompacta, setVistaCompacta] = useState(true);
-  const [tipoVista, setTipoVista] = useState<'minimal' | 'compacto' | 'normal' | 'lista'>('minimal');
+  const [tipoVista, setTipoVista] = useState<'minimal' | 'compacto' | 'normal' | 'lista' | 'prueba'>('minimal');
   const [mostrarMetricas, setMostrarMetricas] = useState(true);
   const [modoComparacion, setModoComparacion] = useState(false);
-  const [vistaComparacion, setVistaComparacion] = useState<'minimal' | 'compacto' | 'normal'>('compacto');
+  const [vistaComparacion, setVistaComparacion] = useState<'minimal' | 'compacto' | 'normal' | 'prueba'>('compacto');
   const listRef = useRef<HTMLDivElement>(null);
   const [productosVisibles, setProductosVisibles] = useState(0);
   const [productosGuardados, setProductosGuardados] = useState<Set<string>>(new Set());
@@ -56,6 +57,7 @@ export const HistoricoOpcionesNuevo = ({
         case 'compacto': alturaProducto = 100; break;
         case 'normal': alturaProducto = 140; break;
         case 'lista': alturaProducto = 40; break;
+        case 'prueba': alturaProducto = 85; break;
       }
       
       const espaciado = vistaCompacta ? 4 : 8;
@@ -407,24 +409,51 @@ export const HistoricoOpcionesNuevo = ({
 
         {/* Estadísticas */}
         {mostrarMetricas && (
-          <div className="px-3 py-2 grid grid-cols-4 gap-2 text-[10px] border-b border-gray-100">
-            <div className="text-center">
-              <p className="font-bold text-gray-800">{contadores.total}</p>
-              <p className="text-gray-500">Total</p>
+          <>
+            <div className="px-3 py-2 grid grid-cols-4 gap-2 text-[10px] border-b border-gray-100">
+              <div className="text-center">
+                <p className="font-bold text-gray-800">{contadores.total}</p>
+                <p className="text-gray-500">Total</p>
+              </div>
+              <div className="text-center">
+                <p className="font-bold text-green-600">{contadores.guardados}</p>
+                <p className="text-gray-500">Guardados</p>
+              </div>
+              <div className="text-center">
+                <p className="font-bold text-orange-600">{contadores.pendientes}</p>
+                <p className="text-gray-500">Pendientes</p>
+              </div>
+              <div className="text-center">
+                <p className="font-bold text-gray-600">{contadores.inactivos}</p>
+                <p className="text-gray-500">Inactivos</p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="font-bold text-green-600">{contadores.guardados}</p>
-              <p className="text-gray-500">Guardados</p>
-            </div>
-            <div className="text-center">
-              <p className="font-bold text-orange-600">{contadores.pendientes}</p>
-              <p className="text-gray-500">Pendientes</p>
-            </div>
-            <div className="text-center">
-              <p className="font-bold text-gray-600">{contadores.inactivos}</p>
-              <p className="text-gray-500">Inactivos</p>
-            </div>
-          </div>
+            
+            {/* Leyenda de estados para vista Prueba */}
+            {tipoVista === 'prueba' && (
+              <div className="px-3 py-1 border-b border-gray-100 bg-gray-50">
+                <p className="text-[9px] font-medium text-gray-600 mb-1">Leyenda de Estados:</p>
+                <div className="flex flex-wrap gap-3 text-[8px]">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span>Guardado</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                    <span>Pendiente</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                    <span>En cero</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-gray-500"></div>
+                    <span>Inactivo</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Controles de vista */}
@@ -467,6 +496,15 @@ export const HistoricoOpcionesNuevo = ({
                 title="Vista Lista"
               >
                 <List className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => setTipoVista('prueba')}
+                className={`p-1.5 rounded transition-colors ${
+                  tipoVista === 'prueba' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                title="Vista Prueba"
+              >
+                <span className="text-[8px] font-bold">P</span>
               </button>
             </div>
           </div>
@@ -550,6 +588,7 @@ export const HistoricoOpcionesNuevo = ({
                   <option value="minimal">Minimal</option>
                   <option value="compacto">Compacto</option>
                   <option value="normal">Normal</option>
+                  <option value="prueba">Prueba</option>
                 </select>
               </div>
               {renderProductos(vistaComparacion)}
@@ -596,7 +635,7 @@ export const HistoricoOpcionesNuevo = ({
   );
 
   // Función para renderizar productos según el tipo de vista
-  function renderProductos(vista: 'minimal' | 'compacto' | 'normal' | 'lista') {
+  function renderProductos(vista: 'minimal' | 'compacto' | 'normal' | 'lista' | 'prueba') {
     if (vista === 'lista') {
       // Vista lista (tipo tabla)
       return (
@@ -683,6 +722,20 @@ export const HistoricoOpcionesNuevo = ({
         case 'normal':
           return (
             <ProductoConteo
+              key={producto.id}
+              producto={producto}
+              unidad={obtenerUnidad(producto)}
+              unidadBodega={obtenerUnidadBodega(producto)}
+              onConteoChange={handleConteoChange}
+              onGuardarProducto={esUsuarioSoloLectura ? undefined : guardarProducto}
+              guardando={guardando}
+              isGuardado={estaGuardado}
+              conteoInicial={conteoInicial}
+            />
+          );
+        case 'prueba':
+          return (
+            <ProductoConteoPrueba
               key={producto.id}
               producto={producto}
               unidad={obtenerUnidad(producto)}
