@@ -776,18 +776,11 @@ export const ListaProductos = ({
   }, [sePuedeGuardar, mostrarSinContarPrimero, intentoGuardarIncompleto, porcentajeCompletado, bodegaId]);
 
   const obtenerUnidad = (producto: Producto): string => {
-    // Para Chios, Simón Bolón y Santo Cachón, usar la unidad de bodega principal para cantidad a pedir
-    if ([4, 5, 6, 7, 8].includes(bodegaId)) {
-      return producto.fields['Unidad Conteo Bodega Principal'] as string || 'unidades';
-    }
-    // Para las demás bodegas, usar la unidad específica de la bodega
-    const campoUnidad = airtableService.obtenerCampoUnidad(bodegaId);
-    return producto.fields[campoUnidad as keyof typeof producto.fields] as string || 'unidades';
+    return producto.fields['Unidad De Conteo General'] as string || 'unidades';
   };
 
   const obtenerUnidadBodega = (producto: Producto): string => {
-    const campoUnidad = airtableService.obtenerCampoUnidad(bodegaId);
-    return producto.fields[campoUnidad as keyof typeof producto.fields] as string || 'unidades';
+    return producto.fields['Unidad De Conteo General'] as string || 'unidades';
   };
 
   const metrics = showMetrics ? calculateMetrics(productos.length) : null;

@@ -146,18 +146,7 @@ export const historicoService = {
   
   // Método auxiliar para obtener el campo de unidad según la bodega
   obtenerCampoUnidad(bodegaId: number): string {
-    const campos: { [key: number]: string } = {
-      1: 'Unidad Conteo Bodega Principal',
-      2: 'Unidad Conteo Bodega Materia Prima',
-      3: 'Unidad Conteo Planta Producción',
-      4: 'Unidad Conteo Chios',
-      5: 'Unidad Conteo Chios',
-      6: 'Unidad Conteo Chios',
-      7: 'Unidad Conteo Simón Bolón',
-      8: 'Unidad Conteo Santo Cachón',
-      9: 'Unidad Conteo Bodega Pulmon'
-    };
-    return campos[bodegaId] || '';
+    return 'Unidad De Conteo General';
   },
   async guardarInventario(
     bodegaId: number,
@@ -209,33 +198,16 @@ export const historicoService = {
       // ID generado con timestamp de sesión
       
       
-      // Obtener la unidad correcta según la bodega
-      const campoUnidad = airtableService.obtenerCampoUnidad(bodegaId);
+      // Obtener la unidad correcta desde el campo general
+      const unidadGeneral = producto.fields['Unidad De Conteo General'];
       
       // Debug: Ver qué valores vienen de Airtable
-      if (!producto.fields['Unidad Conteo Bodega Principal'] || !producto.fields[campoUnidad]) {
-        console.warn(`⚠️ Producto sin unidades definidas:`, {
+      if (!unidadGeneral) {
+        console.warn(`⚠️ Producto sin unidad definida:`, {
           producto: producto.fields['Nombre Producto'],
           codigo: codigoProducto,
           bodegaId,
-          campoUnidad,
-          unidadBodegaPrincipal: producto.fields['Unidad Conteo Bodega Principal'],
-          unidadEspecifica: producto.fields[campoUnidad]
-        });
-      }
-      
-      // Obtener las unidades correctamente
-      const unidadLocal = producto.fields[campoUnidad]; // Unidad local de la bodega/tienda
-      const unidadBodegaPrincipal = producto.fields['Unidad Conteo Bodega Principal'];
-      
-      // Si no hay unidades definidas, mostrar error pero continuar
-      if (!unidadLocal || !unidadBodegaPrincipal) {
-        console.error(`❌ ERROR: Producto sin unidades definidas:`, {
-          producto: producto.fields['Nombre Producto'],
-          codigo: codigoProducto,
-          bodegaId,
-          unidadLocal: unidadLocal || 'NO DEFINIDA',
-          unidadBodegaPrincipal: unidadBodegaPrincipal || 'NO DEFINIDA'
+          unidadGeneral: unidadGeneral || 'NO DEFINIDA'
         });
       }
       
@@ -249,8 +221,8 @@ export const historicoService = {
         c3: conteo.c3,
         total,
         cantidadPedir: conteo.cantidadPedir,
-        unidad: unidadLocal || 'UNIDAD NO DEFINIDA', // Unidad local para conteos
-        unidadBodega: [4, 5, 6, 7, 8].includes(bodegaId) ? (unidadBodegaPrincipal || 'UNIDAD NO DEFINIDA') : (unidadLocal || 'UNIDAD NO DEFINIDA'), // Para tiendas: bodega principal, para otras: su propia unidad
+        unidad: unidadGeneral || 'UNIDAD NO DEFINIDA', // Unidad general para todo
+        unidadBodega: unidadGeneral || 'UNIDAD NO DEFINIDA', // Misma unidad para todo
         equivalencia: producto.fields['Equivalencias Inventarios'],
         tipo: obtenerTipoProducto(producto.fields)
       };

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Check, Edit3, Calculator, MoreVertical, Save, XCircle, Ban, Search, Filter, X, Package, Loader2, AlertCircle } from 'lucide-react';
 import type { Producto } from '../types/index';
 import { ProductoConteo } from './ProductoConteo';
+import { ProductoConteoCompacto } from './ProductoConteoCompacto';
 import { Toast } from './Toast';
 import { Timer } from './Timer';
 import { airtableService } from '../services/airtable';
@@ -342,16 +343,11 @@ export const HistoricoOpciones = ({
 
   // Funciones para obtener unidades (como en ListaProductos)
   const obtenerUnidad = (producto: ProductoConConteo): string => {
-    if ([4, 5, 6, 7, 8].includes(bodegaId)) {
-      return producto.fields['Unidad Conteo Bodega Principal'] as string || 'unidades';
-    }
-    const campoUnidad = airtableService.obtenerCampoUnidad(bodegaId);
-    return producto.fields[campoUnidad as keyof typeof producto.fields] as string || 'unidades';
+    return producto.fields['Unidad De Conteo General'] as string || 'unidades';
   };
 
   const obtenerUnidadBodega = (producto: ProductoConConteo): string => {
-    const campoUnidad = airtableService.obtenerCampoUnidad(bodegaId);
-    return producto.fields[campoUnidad as keyof typeof producto.fields] as string || 'unidades';
+    return producto.fields['Unidad De Conteo General'] as string || 'unidades';
   };
 
   const toggleEditarPedido = (id: string) => {
@@ -673,8 +669,8 @@ export const HistoricoOpciones = ({
         </div>
       </div>
 
-      {/* Lista de productos - Estilo Inventario */}
-      <div className="space-y-2 sm:space-y-3 w-full pb-16">
+      {/* Lista de productos - Estilo Inventario Compacto */}
+      <div className="space-y-1 w-full pb-16">
         {productosFiltrados.length === 0 ? (
           <div className="text-center py-8">
             <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
@@ -692,9 +688,9 @@ export const HistoricoOpciones = ({
             return (
               <div 
                 key={producto.id} 
-                className={`${sinContar ? 'ring-2 ring-red-400 rounded-2xl' : ''} transition-all duration-300`}
+                className={`${sinContar ? 'ring-1 ring-red-400 rounded-lg' : ''} transition-all duration-300`}
               >
-                <ProductoConteo
+                <ProductoConteoCompacto
                   producto={producto}
                   unidad={obtenerUnidad(producto)}
                   unidadBodega={obtenerUnidadBodega(producto)}

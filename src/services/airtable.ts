@@ -91,18 +91,7 @@ export const airtableService = {
   },
 
   obtenerCampoUnidad(bodegaId: number): string {
-    const campos: { [key: number]: string } = {
-      1: 'Unidad Conteo Bodega Principal',
-      2: 'Unidad Conteo Bodega Materia Prima',
-      3: 'Unidad Conteo Planta Producción',
-      4: 'Unidad Conteo Chios',
-      5: 'Unidad Conteo Chios',
-      6: 'Unidad Conteo Chios',
-      7: 'Unidad Conteo Simón Bolón',
-      8: 'Unidad Conteo Santo Cachón',
-      9: 'Unidad Conteo Bodega Pulmon'
-    };
-    return campos[bodegaId] || '';
+    return 'Unidad De Conteo General';
   },
 
   async obtenerCategoriasUnicas(): Promise<string[]> {

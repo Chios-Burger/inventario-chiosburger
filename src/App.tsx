@@ -4,7 +4,7 @@ import { Login } from './components/Login';
 import { SelectorBodega } from './components/SelectorBodega';
 import { ListaProductos } from './components/ListaProductos';
 import { Historico } from './components/Historico';
-import { HistoricoOpciones } from './components/HistoricoOpciones';
+import { HistoricoOpcionesNuevo } from './components/HistoricoOpcionesNuevo';
 import { PedidosDelDia } from './components/PedidosDelDia';
 import { Toast } from './components/Toast';
 import NotificationModal from './components/NotificationModal';
@@ -356,7 +356,7 @@ function App() {
             <Historico />
           ) : vista === 'opciones-historico' ? (
             bodegaId && bodegaNombre ? (
-              <HistoricoOpciones 
+              <HistoricoOpcionesNuevo 
                 bodegaId={bodegaId} 
                 bodegaNombre={bodegaNombre} 
               />
