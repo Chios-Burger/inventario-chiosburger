@@ -919,8 +919,8 @@ export const historicoService = {
           total: parseFloat(row.total) || 0,
           cantidadPedir: parseFloat(row.cant_pedir || row.cantidadSolicitada || '0') || 0,
           // Las unidades ya vienen correctas de la BD
-          unidad: row.unidad || 'unidad',
-          unidadBodega: row.uni_bod || row.uni_local || row.unidad_bodega || 'unidad',
+          unidad: row.unidad || 'Unidad',
+          unidadBodega: row.uni_bod || row.uni_local || row.unidad_bodega || 'Unidad',
           equivalencia: row.equivalencia || ''
         };
       });
