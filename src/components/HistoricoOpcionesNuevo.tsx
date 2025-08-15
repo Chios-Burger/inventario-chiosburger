@@ -35,6 +35,7 @@ export const HistoricoOpcionesNuevo = ({
   const [mostrarMetricas, setMostrarMetricas] = useState(true);
   const [modoComparacion, setModoComparacion] = useState(false);
   const [vistaComparacion, setVistaComparacion] = useState<'minimal' | 'compacto' | 'normal' | 'prueba'>('compacto');
+  const [opcionEquivalencias, setOpcionEquivalencias] = useState<1 | 2 | 3 | 4 | 5>(1);
   const listRef = useRef<HTMLDivElement>(null);
   const [productosVisibles, setProductosVisibles] = useState(0);
   const [productosGuardados, setProductosGuardados] = useState<Set<string>>(new Set());
@@ -482,6 +483,20 @@ export const HistoricoOpcionesNuevo = ({
               >
                 <span className="text-[8px] font-bold">P</span>
               </button>
+              {tipoVista === 'prueba' && (
+                <select 
+                  value={opcionEquivalencias} 
+                  onChange={(e) => setOpcionEquivalencias(Number(e.target.value) as 1 | 2 | 3 | 4 | 5)}
+                  className="ml-1 text-[8px] border rounded px-1 py-0.5 bg-white"
+                  title="Opciones de equivalencias"
+                >
+                  <option value="1">Eq1: Truncar</option>
+                  <option value="2">Eq2: 2 líneas</option>
+                  <option value="3">Eq3: Tooltip</option>
+                  <option value="4">Eq4: Scroll</option>
+                  <option value="5">Eq5: Pequeño</option>
+                </select>
+              )}
             </div>
           </div>
           
@@ -542,10 +557,11 @@ export const HistoricoOpcionesNuevo = ({
       </div>
 
       {/* Lista de productos */}
-      <div ref={listRef} className={`px-3 py-3 pb-20 ${modoComparacion ? 'flex gap-2' : ''}`}>
+      <div ref={listRef} className="w-full">
+        <div className="px-3 py-3 pb-20">
         {modoComparacion ? (
           // Modo comparación: dos vistas lado a lado
-          <>
+          <div className="flex gap-2">
             <div className={`flex-1 ${vistaCompacta ? 'space-y-1' : 'space-y-2'}`}>
               <div className="sticky top-0 bg-purple-50 rounded p-2 mb-2 text-center text-[10px] font-medium text-purple-700">
                 Vista: {tipoVista.charAt(0).toUpperCase() + tipoVista.slice(1)}
@@ -569,10 +585,10 @@ export const HistoricoOpcionesNuevo = ({
               </div>
               {renderProductos(vistaComparacion)}
             </div>
-          </>
+          </div>
         ) : (
           // Vista normal
-          <div className={`${vistaCompacta ? 'space-y-1' : 'space-y-2'}`}>
+          <div className={`w-full ${vistaCompacta ? 'space-y-1' : 'space-y-2'}`}>
             {productosFiltrados.length === 0 ? (
               <div className="text-center py-12">
                 <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -583,6 +599,7 @@ export const HistoricoOpcionesNuevo = ({
             )}
           </div>
         )}
+        </div>
       </div>
 
       {/* Botón flotante */}
@@ -721,6 +738,7 @@ export const HistoricoOpcionesNuevo = ({
               guardando={guardando}
               isGuardado={estaGuardado}
               conteoInicial={conteoInicial}
+              opcionEquivalencias={opcionEquivalencias}
             />
           );
         default:

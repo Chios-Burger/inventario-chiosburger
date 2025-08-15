@@ -22,6 +22,7 @@ interface ProductoConteoPruebaProps {
     cantidadPedir: number;
     touched?: boolean;
   };
+  opcionEquivalencias?: 1 | 2 | 3 | 4 | 5;
 }
 
 const ProductoConteoPruebaComponent = ({ 
@@ -32,12 +33,13 @@ const ProductoConteoPruebaComponent = ({
   onGuardarProducto,
   guardando = false,
   isGuardado = false,
-  conteoInicial
+  conteoInicial,
+  opcionEquivalencias = 1
 }: ProductoConteoPruebaProps) => {
   const [c1Input, setC1Input] = useState<string>((conteoInicial?.c1 || 0).toString());
   const [c2Input, setC2Input] = useState<string>((conteoInicial?.c2 || 0).toString());
   const [c3Input, setC3Input] = useState<string>((conteoInicial?.c3 || 0).toString());
-  const [cantidadPedirInput, setCantidadPedirInput] = useState<string>((conteoInicial?.cantidadPedir || 0).toString());
+  const [cantidadPedirInput, setCantidadPedirInput] = useState<string>(conteoInicial?.cantidadPedir ? conteoInicial.cantidadPedir.toString() : '');
 
   // Calcular el total
   const calcularTotal = () => {
@@ -77,7 +79,7 @@ const ProductoConteoPruebaComponent = ({
       setC1Input(conteoInicial.c1.toString());
       setC2Input(conteoInicial.c2.toString());
       setC3Input(conteoInicial.c3.toString());
-      setCantidadPedirInput(conteoInicial.cantidadPedir.toString());
+      setCantidadPedirInput(conteoInicial.cantidadPedir ? conteoInicial.cantidadPedir.toString() : '');
     }
   }, [conteoInicial]);
 
@@ -129,40 +131,100 @@ const ProductoConteoPruebaComponent = ({
   };
 
   const tipoProducto = getTipoProducto();
+  
+  // Renderizar equivalencias según la opción seleccionada
+  const renderEquivalencias = () => {
+    const equiv = producto.fields['Equivalencias Inventarios'];
+    if (!equiv) return <div className="h-6" />;
+    
+    switch(opcionEquivalencias) {
+      case 1: // Truncar (actual)
+        return (
+          <div className="h-6 flex items-center">
+            <span className="text-[7px] text-gray-600 truncate w-full">
+              <span className="font-medium">Eq:</span> {equiv}
+            </span>
+          </div>
+        );
+      
+      case 2: // Dos líneas
+        return (
+          <div className="h-6 flex items-start overflow-hidden">
+            <span className="text-[6px] text-gray-600 leading-tight">
+              <span className="font-medium">Eq:</span> {equiv}
+            </span>
+          </div>
+        );
+      
+      case 3: // Tooltip al hover
+        return (
+          <div className="h-6 flex items-center group relative">
+            <span className="text-[7px] text-gray-600 truncate w-full">
+              <span className="font-medium">Eq:</span> {equiv}
+            </span>
+            <div className="absolute bottom-full left-0 mb-1 p-1 bg-gray-800 text-white text-[7px] rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 max-w-xs">
+              {equiv}
+            </div>
+          </div>
+        );
+      
+      case 4: // Scroll horizontal
+        return (
+          <div className="h-6 flex items-center overflow-x-auto scrollbar-thin">
+            <span className="text-[7px] text-gray-600 whitespace-nowrap">
+              <span className="font-medium">Eq:</span> {equiv}
+            </span>
+          </div>
+        );
+      
+      case 5: // Texto más pequeño
+        return (
+          <div className="h-6 flex items-center overflow-hidden">
+            <span className="text-[5px] text-gray-600 break-all">
+              <span className="font-medium">Eq:</span> {equiv}
+            </span>
+          </div>
+        );
+      
+      default:
+        return <div className="h-6" />;
+    }
+  };
 
   return (
     <div className={`
-      relative overflow-hidden rounded-xl transition-all duration-300
+      relative overflow-hidden rounded-xl transition-all duration-300 w-full
       ${isGuardado 
-        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 shadow-lg shadow-green-100/50' 
-        : 'bg-white hover:shadow-xl shadow-md border-l-4 border-purple-500'}
+        ? 'bg-gradient-to-r from-green-50 to-emerald-50 shadow-lg shadow-green-100/50' 
+        : 'bg-white hover:shadow-xl shadow-md'}
       ${estado.color === 'bg-gray-500' ? 'opacity-75 grayscale' : ''}
     `}>
-      {/* Barra de estado superior */}
+      {/* Barra de estado izquierda */}
+      <div className={`absolute top-0 left-0 h-full w-1 ${isGuardado ? 'bg-green-500' : 'bg-purple-500'}`} />
+      {/* Barra de estado derecha */}
       <div className={`absolute top-0 right-0 h-full w-1 ${estado.color}`} />
       
-      <div className="p-3">
+      <div className="py-1 px-2 w-full">
         {/* Header en UNA SOLA LÍNEA */}
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-[11px] font-medium text-gray-800 truncate flex-1">
+        <div className="flex items-center gap-1 mb-0.5">
+          <span className="text-[9px] font-medium text-gray-800 truncate flex-[3] min-w-0">
             {producto.fields['Nombre Producto']}
           </span>
           {tipoProducto && (
-            <span className="text-[9px] text-gray-600">
+            <span className="text-[8px] text-gray-600 flex-shrink-0">
               {tipoProducto}
             </span>
           )}
-          <span className="text-[9px] text-gray-600">
+          <span className="text-[8px] text-gray-600 truncate flex-1 min-w-0 text-right">
             {producto.fields['Categoría'] || '-'}
           </span>
         </div>
 
         {/* Controles de entrada */}
-        <div className="bg-gray-50/50 rounded-lg p-2 backdrop-blur">
+        <div className="bg-gray-50/50 rounded-lg p-1 backdrop-blur w-full">
           {/* Primera línea: Cantidades y Total con unidad */}
-          <div className="flex items-end gap-1 mb-1">
+          <div className="flex items-center gap-1 mb-0.5">
             <div className="flex-1">
-              <label className="text-[7px] font-semibold text-gray-600 uppercase tracking-wider block">C1</label>
               <input
                 type="search"
                 value={c1Input}
@@ -174,7 +236,6 @@ const ProductoConteoPruebaComponent = ({
             </div>
 
             <div className="flex-1">
-              <label className="text-[7px] font-semibold text-gray-600 uppercase tracking-wider block">C2</label>
               <input
                 type="search"
                 value={c2Input}
@@ -186,7 +247,6 @@ const ProductoConteoPruebaComponent = ({
             </div>
 
             <div className="flex-1">
-              <label className="text-[7px] font-semibold text-gray-600 uppercase tracking-wider block">C3</label>
               <input
                 type="search"
                 value={c3Input}
@@ -199,7 +259,6 @@ const ProductoConteoPruebaComponent = ({
 
             {/* Total con unidad */}
             <div className="flex-1">
-              <label className="text-[7px] font-semibold text-gray-600 uppercase tracking-wider block">Total</label>
               <div className="h-6 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded flex items-center justify-center gap-0.5 font-bold text-[9px] px-1">
                 <span>{total}</span>
                 <span className="text-[7px] opacity-90">{unidad}</span>
@@ -208,25 +267,37 @@ const ProductoConteoPruebaComponent = ({
           </div>
 
           {/* Segunda línea: Pedir, unidad y equivalencia */}
-          <div className="flex items-center gap-2 mb-1">
-            <div className="flex items-center gap-1">
-              <label className="text-[7px] font-semibold text-gray-600 uppercase">Pedir:</label>
+          <div className="grid grid-cols-4 gap-1 mb-0.5">
+            {/* Columna 1: Input PEDIR */}
+            <div className="col-span-1">
               <input
                 type="search"
                 value={cantidadPedirInput}
-                onChange={(e) => handleInputChange(e.target.value, setCantidadPedirInput, 'cantidadPedir')}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Solo permitir números positivos o vacío
+                  if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                    handleInputChange(value, setCantidadPedirInput, 'cantidadPedir');
+                  }
+                }}
                 onKeyDown={handleKeyDown}
-                className="w-16 h-5 text-[9px] text-center font-medium border border-amber-300 bg-amber-50 rounded focus:border-amber-500 focus:outline-none"
+                placeholder="PEDIR"
+                className="w-full h-6 text-[10px] text-center font-medium border border-amber-300 bg-amber-50 rounded focus:border-amber-500 focus:outline-none placeholder:text-amber-400 placeholder:text-[9px]"
                 disabled={guardando}
               />
-              <span className="text-[7px] text-amber-600 font-medium">{unidadBodega}</span>
             </div>
             
-            {producto.fields['Equivalencias Inventarios'] && (
-              <span className="text-[7px] text-gray-600">
-                <span className="font-medium">Equiv:</span> {producto.fields['Equivalencias Inventarios']}
-              </span>
-            )}
+            {/* Columna 2: Unidad */}
+            <div className="col-span-1">
+              <div className="h-6 bg-amber-100 border border-amber-300 rounded w-full flex items-center justify-center">
+                <span className="text-[9px] text-amber-700 font-medium">{unidadBodega}</span>
+              </div>
+            </div>
+            
+            {/* Columnas 3 y 4: Equivalencias */}
+            <div className="col-span-2">
+              {renderEquivalencias()}
+            </div>
           </div>
 
           {/* Tercera línea: Botones */}
