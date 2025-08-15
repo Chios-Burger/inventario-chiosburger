@@ -35,7 +35,6 @@ export const HistoricoOpcionesNuevo = ({
   const [mostrarMetricas, setMostrarMetricas] = useState(true);
   const [modoComparacion, setModoComparacion] = useState(false);
   const [vistaComparacion, setVistaComparacion] = useState<'minimal' | 'compacto' | 'normal' | 'prueba'>('compacto');
-  const [opcionEquivalencias, setOpcionEquivalencias] = useState<1 | 2 | 3 | 4 | 5>(1);
   const listRef = useRef<HTMLDivElement>(null);
   const [productosVisibles, setProductosVisibles] = useState(0);
   const [productosGuardados, setProductosGuardados] = useState<Set<string>>(new Set());
@@ -483,20 +482,6 @@ export const HistoricoOpcionesNuevo = ({
               >
                 <span className="text-[8px] font-bold">P</span>
               </button>
-              {tipoVista === 'prueba' && (
-                <select 
-                  value={opcionEquivalencias} 
-                  onChange={(e) => setOpcionEquivalencias(Number(e.target.value) as 1 | 2 | 3 | 4 | 5)}
-                  className="ml-1 text-[8px] border rounded px-1 py-0.5 bg-white"
-                  title="Opciones de equivalencias"
-                >
-                  <option value="1">Eq1: Truncar</option>
-                  <option value="2">Eq2: 2 líneas</option>
-                  <option value="3">Eq3: Tooltip</option>
-                  <option value="4">Eq4: Scroll</option>
-                  <option value="5">Eq5: Pequeño</option>
-                </select>
-              )}
             </div>
           </div>
           
@@ -738,7 +723,6 @@ export const HistoricoOpcionesNuevo = ({
               guardando={guardando}
               isGuardado={estaGuardado}
               conteoInicial={conteoInicial}
-              opcionEquivalencias={opcionEquivalencias}
             />
           );
         default:

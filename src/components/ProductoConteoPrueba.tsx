@@ -22,7 +22,6 @@ interface ProductoConteoPruebaProps {
     cantidadPedir: number;
     touched?: boolean;
   };
-  opcionEquivalencias?: 1 | 2 | 3 | 4 | 5;
 }
 
 const ProductoConteoPruebaComponent = ({ 
@@ -33,8 +32,7 @@ const ProductoConteoPruebaComponent = ({
   onGuardarProducto,
   guardando = false,
   isGuardado = false,
-  conteoInicial,
-  opcionEquivalencias = 1
+  conteoInicial
 }: ProductoConteoPruebaProps) => {
   const [c1Input, setC1Input] = useState<string>((conteoInicial?.c1 || 0).toString());
   const [c2Input, setC2Input] = useState<string>((conteoInicial?.c2 || 0).toString());
@@ -131,65 +129,6 @@ const ProductoConteoPruebaComponent = ({
   };
 
   const tipoProducto = getTipoProducto();
-  
-  // Renderizar equivalencias según la opción seleccionada
-  const renderEquivalencias = () => {
-    const equiv = producto.fields['Equivalencias Inventarios'];
-    if (!equiv) return <div className="h-6" />;
-    
-    switch(opcionEquivalencias) {
-      case 1: // Truncar (actual)
-        return (
-          <div className="h-6 flex items-center">
-            <span className="text-[7px] text-gray-600 truncate w-full">
-              <span className="font-medium">Eq:</span> {equiv}
-            </span>
-          </div>
-        );
-      
-      case 2: // Dos líneas
-        return (
-          <div className="h-6 flex items-start overflow-hidden">
-            <span className="text-[6px] text-gray-600 leading-tight">
-              <span className="font-medium">Eq:</span> {equiv}
-            </span>
-          </div>
-        );
-      
-      case 3: // Tooltip al hover
-        return (
-          <div className="h-6 flex items-center group relative">
-            <span className="text-[7px] text-gray-600 truncate w-full">
-              <span className="font-medium">Eq:</span> {equiv}
-            </span>
-            <div className="absolute bottom-full left-0 mb-1 p-1 bg-gray-800 text-white text-[7px] rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 max-w-xs">
-              {equiv}
-            </div>
-          </div>
-        );
-      
-      case 4: // Scroll horizontal
-        return (
-          <div className="h-6 flex items-center overflow-x-auto scrollbar-thin">
-            <span className="text-[7px] text-gray-600 whitespace-nowrap">
-              <span className="font-medium">Eq:</span> {equiv}
-            </span>
-          </div>
-        );
-      
-      case 5: // Texto más pequeño
-        return (
-          <div className="h-6 flex items-center overflow-hidden">
-            <span className="text-[5px] text-gray-600 break-all">
-              <span className="font-medium">Eq:</span> {equiv}
-            </span>
-          </div>
-        );
-      
-      default:
-        return <div className="h-6" />;
-    }
-  };
 
   return (
     <div className={`
@@ -296,7 +235,15 @@ const ProductoConteoPruebaComponent = ({
             
             {/* Columnas 3 y 4: Equivalencias */}
             <div className="col-span-2">
-              {renderEquivalencias()}
+              {producto.fields['Equivalencias Inventarios'] ? (
+                <div className="h-6 flex items-start overflow-hidden">
+                  <span className="text-[6px] text-black font-bold leading-tight">
+                    <span className="font-bold">Eq:</span> {producto.fields['Equivalencias Inventarios']}
+                  </span>
+                </div>
+              ) : (
+                <div className="h-6" />
+              )}
             </div>
           </div>
 
