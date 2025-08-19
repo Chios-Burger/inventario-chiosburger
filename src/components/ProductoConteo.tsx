@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useCallback } from 'react';
+import { useState, useEffect, memo } from 'react';
 import type { Producto } from '../types/index';
 import { Loader2, Check, Hash, Edit3, XCircle, Ban } from 'lucide-react';
 

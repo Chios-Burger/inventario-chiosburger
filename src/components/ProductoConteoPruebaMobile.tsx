@@ -1,6 +1,6 @@
 import { useState, useEffect, memo, useCallback } from 'react';
 import type { Producto } from '../types/index';
-import { Loader2, Check, Hash, Edit3, XCircle, Ban } from 'lucide-react';
+import { Loader2, Edit3, XCircle, Ban } from 'lucide-react';
 
 interface ProductoConteoPruebaMobileProps {
   producto: Producto;
