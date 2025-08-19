@@ -4,12 +4,13 @@ import type { Producto } from '../types/index';
 import { ProductoConteoMinimal } from './ProductoConteoMinimal';
 import { ProductoConteoCompacto } from './ProductoConteoCompacto';
 import { ProductoConteo } from './ProductoConteo';
-import { ProductoConteoPrueba } from './ProductoConteoPrueba';
+import { ProductoConteoPruebaMobile } from './ProductoConteoPruebaMobile';
 import { Toast } from './Toast';
 import { airtableService } from '../services/airtable';
 import { authService } from '../services/auth';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useDebounce } from '../hooks/useDebounce';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 interface HistoricoOpcionesNuevoProps {
   bodegaId: number;
@@ -43,6 +44,7 @@ export const HistoricoOpcionesNuevo = ({
   const [toast, setToast] = useState<{message: string; type: 'success' | 'error' | 'info' | 'offline' | 'warning'} | null>(null);
   const isOnline = useOnlineStatus();
   const debouncedBusqueda = useDebounce(busqueda, 300);
+  const deviceInfo = useIsMobile();
 
   // Calcular productos visibles sin scroll
   useEffect(() => {
@@ -60,7 +62,12 @@ export const HistoricoOpcionesNuevo = ({
         case 'prueba': alturaProducto = 85; break;
       }
       
-      const espaciado = vistaCompacta ? 4 : 8;
+      // FASE 3: Espaciado reducido en móvil + vista prueba
+      let espaciado = vistaCompacta ? 4 : 8;
+      if (tipoVista === 'prueba' && deviceInfo.isMobile) {
+        espaciado = 2; // Solo 2px de espacio en móvil
+      }
+      
       const productosCalculados = Math.floor(containerHeight / (alturaProducto + espaciado));
       setProductosVisibles(productosCalculados);
     };
@@ -68,7 +75,7 @@ export const HistoricoOpcionesNuevo = ({
     calcularProductosVisibles();
     window.addEventListener('resize', calcularProductosVisibles);
     return () => window.removeEventListener('resize', calcularProductosVisibles);
-  }, [tipoVista, vistaCompacta]);
+  }, [tipoVista, vistaCompacta, deviceInfo.isMobile]);
 
   // Cargar productos
   const cargarProductos = async () => {
@@ -429,6 +436,35 @@ export const HistoricoOpcionesNuevo = ({
               </div>
             </div>
             
+            {/* Información del dispositivo - Solo en vista Prueba */}
+            {tipoVista === 'prueba' && (
+              <div className="px-3 py-2 bg-gradient-to-r from-purple-50 to-blue-50 border-b border-purple-100">
+                <div className="text-[10px] font-medium text-purple-700 mb-1">
+                  📱 FASE 2 - Componente Condicional Activo:
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[9px]">
+                  <div>
+                    <span className="font-medium">Dispositivo:</span> {deviceInfo.isMobile ? '📱 Móvil' : '💻 Desktop'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Componente:</span> {deviceInfo.isMobile ? 'ConteoPruebaMobile' : 'ProductoConteo (Completo)'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Resolución:</span> {deviceInfo.screenWidth}×{deviceInfo.screenHeight}px
+                  </div>
+                  <div>
+                    <span className="font-medium">Breakpoint:</span> {deviceInfo.screenWidth < 768 ? '< 768px (móvil)' : '>= 768px (desktop)'}
+                  </div>
+                </div>
+                <div className="mt-2 p-1 bg-white/70 rounded text-[9px]">
+                  <span className="font-bold text-blue-700">
+                    {deviceInfo.isMobile ? 
+                      '📱 Usando: ProductoConteoPruebaMobile (minimalista)' : 
+                      '💻 Usando: ProductoConteo (versión completa como inventario)'}
+                  </span>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -543,7 +579,12 @@ export const HistoricoOpcionesNuevo = ({
 
       {/* Lista de productos */}
       <div ref={listRef} className="w-full">
-        <div className="px-3 py-3 pb-20">
+        <div className={`${
+          // FASE 3: Reducir padding en móvil + vista prueba
+          tipoVista === 'prueba' && deviceInfo.isMobile
+            ? 'px-2 py-2 pb-20'  // Menos padding en móvil
+            : 'px-3 py-3 pb-20'   // Padding normal
+        }`}>
         {modoComparacion ? (
           // Modo comparación: dos vistas lado a lado
           <div className="flex gap-2">
@@ -573,7 +614,12 @@ export const HistoricoOpcionesNuevo = ({
           </div>
         ) : (
           // Vista normal
-          <div className={`w-full ${vistaCompacta ? 'space-y-1' : 'space-y-2'}`}>
+          <div className={`w-full ${
+            // FASE 3: Espaciado mínimo en móvil + vista prueba
+            tipoVista === 'prueba' && deviceInfo.isMobile 
+              ? 'space-y-0.5' // 2px de espacio en móvil
+              : vistaCompacta ? 'space-y-1' : 'space-y-2'
+          }`}>
             {productosFiltrados.length === 0 ? (
               <div className="text-center py-12">
                 <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -712,19 +758,38 @@ export const HistoricoOpcionesNuevo = ({
             />
           );
         case 'prueba':
-          return (
-            <ProductoConteoPrueba
-              key={producto.id}
-              producto={producto}
-              unidad={obtenerUnidad(producto)}
-              unidadBodega={obtenerUnidadBodega(producto)}
-              onConteoChange={handleConteoChange}
-              onGuardarProducto={esUsuarioSoloLectura ? undefined : guardarProducto}
-              guardando={guardando}
-              isGuardado={estaGuardado}
-              conteoInicial={conteoInicial}
-            />
-          );
+          // FASE 2: Condicional según dispositivo
+          if (deviceInfo.isMobile) {
+            // Móvil: usar componente minimalista
+            return (
+              <ProductoConteoPruebaMobile
+                key={producto.id}
+                producto={producto}
+                unidad={obtenerUnidad(producto)}
+                unidadBodega={obtenerUnidadBodega(producto)}
+                onConteoChange={handleConteoChange}
+                onGuardarProducto={esUsuarioSoloLectura ? undefined : guardarProducto}
+                guardando={guardando}
+                isGuardado={estaGuardado}
+                conteoInicial={conteoInicial}
+              />
+            );
+          } else {
+            // Desktop: usar componente completo como inventario
+            return (
+              <ProductoConteo
+                key={producto.id}
+                producto={producto}
+                unidad={obtenerUnidad(producto)}
+                unidadBodega={obtenerUnidadBodega(producto)}
+                onConteoChange={handleConteoChange}
+                onGuardarProducto={esUsuarioSoloLectura ? undefined : guardarProducto}
+                guardando={guardando}
+                isGuardado={estaGuardado}
+                conteoInicial={conteoInicial}
+              />
+            );
+          }
         default:
           return null;
       }

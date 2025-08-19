@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Loader2, AlertCircle, Package2, Save, Clock, TrendingUp, BarChart3, Award, ArrowUp, Sparkles, ArrowUpDown, ArrowUp01, ArrowDown01, Hash, Tag, Check } from 'lucide-react';
 import type { Producto } from '../types/index';
 import { ProductoConteo } from './ProductoConteo';
+import { ProductoConteoPruebaMobile } from './ProductoConteoPruebaMobile';
 import { Toast } from './Toast';
 import { Timer } from './Timer';
 import { airtableService } from '../services/airtable';
@@ -9,6 +10,7 @@ import { historicoService } from '../services/historico';
 import { authService } from '../services/auth';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useDebounce } from '../hooks/useDebounce';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 interface ListaProductosProps {
   bodegaId: number;
@@ -118,6 +120,7 @@ export const ListaProductos = ({
   bodegaId, 
   bodegaNombre 
 }: ListaProductosProps) => {
+  const deviceInfo = useIsMobile();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1250,16 +1253,29 @@ export const ListaProductos = ({
                         key={`${producto.id}-${resetKey}`} 
                         className={`${sinContar ? 'ring-2 ring-red-400 rounded-2xl' : ''} transition-all duration-300`}
                       >
-                        <ProductoConteo
-                          producto={producto}
-                          unidad={obtenerUnidad(producto)}
-                          unidadBodega={obtenerUnidadBodega(producto)}
-                          onConteoChange={handleConteoChange}
-                          onGuardarProducto={esUsuarioSoloLectura ? undefined : handleGuardarProducto}
-                          guardando={guardandoProductos.has(producto.id)}
-                          isGuardado={productosGuardados.has(producto.id)}
-                          conteoInicial={resetKey > 0 ? undefined : conteos[producto.id]}
-                        />
+                        {deviceInfo.isMobile ? (
+                          <ProductoConteoPruebaMobile
+                            producto={producto}
+                            unidad={obtenerUnidad(producto)}
+                            unidadBodega={obtenerUnidadBodega(producto)}
+                            onConteoChange={handleConteoChange}
+                            onGuardarProducto={esUsuarioSoloLectura ? undefined : handleGuardarProducto}
+                            guardando={guardandoProductos.has(producto.id)}
+                            isGuardado={productosGuardados.has(producto.id)}
+                            conteoInicial={resetKey > 0 ? undefined : conteos[producto.id]}
+                          />
+                        ) : (
+                          <ProductoConteo
+                            producto={producto}
+                            unidad={obtenerUnidad(producto)}
+                            unidadBodega={obtenerUnidadBodega(producto)}
+                            onConteoChange={handleConteoChange}
+                            onGuardarProducto={esUsuarioSoloLectura ? undefined : handleGuardarProducto}
+                            guardando={guardandoProductos.has(producto.id)}
+                            isGuardado={productosGuardados.has(producto.id)}
+                            conteoInicial={resetKey > 0 ? undefined : conteos[producto.id]}
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -1278,16 +1294,29 @@ export const ListaProductos = ({
                 key={`${producto.id}-${resetKey}`} 
                 className={`${sinContar ? 'ring-2 ring-red-400 rounded-2xl' : ''} transition-all duration-300`}
               >
-                <ProductoConteo
-                  producto={producto}
-                  unidad={obtenerUnidad(producto)}
-                  unidadBodega={obtenerUnidadBodega(producto)}
-                  onConteoChange={handleConteoChange}
-                  onGuardarProducto={esUsuarioSoloLectura ? undefined : handleGuardarProducto}
-                  guardando={guardandoProductos.has(producto.id)}
-                  isGuardado={productosGuardados.has(producto.id)}
-                  conteoInicial={resetKey > 0 ? undefined : conteos[producto.id]}
-                />
+                {deviceInfo.isMobile ? (
+                  <ProductoConteoPruebaMobile
+                    producto={producto}
+                    unidad={obtenerUnidad(producto)}
+                    unidadBodega={obtenerUnidadBodega(producto)}
+                    onConteoChange={handleConteoChange}
+                    onGuardarProducto={esUsuarioSoloLectura ? undefined : handleGuardarProducto}
+                    guardando={guardandoProductos.has(producto.id)}
+                    isGuardado={productosGuardados.has(producto.id)}
+                    conteoInicial={resetKey > 0 ? undefined : conteos[producto.id]}
+                  />
+                ) : (
+                  <ProductoConteo
+                    producto={producto}
+                    unidad={obtenerUnidad(producto)}
+                    unidadBodega={obtenerUnidadBodega(producto)}
+                    onConteoChange={handleConteoChange}
+                    onGuardarProducto={esUsuarioSoloLectura ? undefined : handleGuardarProducto}
+                    guardando={guardandoProductos.has(producto.id)}
+                    isGuardado={productosGuardados.has(producto.id)}
+                    conteoInicial={resetKey > 0 ? undefined : conteos[producto.id]}
+                  />
+                )}
               </div>
             );
           })
