@@ -245,23 +245,41 @@ export const ListaProductos = ({
 
   // Cargar datos
   useEffect(() => {
-    const datosGuardados = localStorage.getItem(`conteos_${bodegaId}`);
-    if (datosGuardados) {
-      setConteos(JSON.parse(datosGuardados));
-      // Mensaje eliminado
-    }
+    // Verificar si ya se guardó inventario HOY
+    const ultimoGuardado = localStorage.getItem(`ultimoGuardado_${bodegaId}`);
+    const hoy = new Date().toLocaleDateString('en-CA'); // Formato YYYY-MM-DD
     
-    // Cargar productos guardados del localStorage
-    const productosGuardadosLocal = localStorage.getItem(`productosGuardados_${bodegaId}`);
-    if (productosGuardadosLocal) {
-      setProductosGuardados(new Set(JSON.parse(productosGuardadosLocal)));
-    }
-    
-    // Cargar estado de intento de guardar incompleto
-    const intentoGuardarIncompletoLocal = localStorage.getItem(`intentoGuardarIncompleto_${bodegaId}`);
-    if (intentoGuardarIncompletoLocal === 'true') {
-      console.log('📌 Cargando estado de reordenamiento desde localStorage');
-      setIntentoGuardarIncompleto(true);
+    if (ultimoGuardado === hoy) {
+      // Ya se guardó inventario hoy, limpiar datos antiguos
+      console.log('✅ Inventario ya guardado hoy. Iniciando sesión limpia...');
+      localStorage.removeItem(`conteos_${bodegaId}`);
+      localStorage.removeItem(`productosGuardados_${bodegaId}`);
+      localStorage.removeItem(`intentoGuardarIncompleto_${bodegaId}`);
+      
+      // Estados empiezan limpios
+      setConteos({});
+      setProductosGuardados(new Set());
+      setIntentoGuardarIncompleto(false);
+    } else {
+      // No se ha guardado hoy, cargar datos si existen
+      const datosGuardados = localStorage.getItem(`conteos_${bodegaId}`);
+      if (datosGuardados) {
+        setConteos(JSON.parse(datosGuardados));
+        console.log('📂 Cargando inventario en progreso...');
+      }
+      
+      // Cargar productos guardados del localStorage
+      const productosGuardadosLocal = localStorage.getItem(`productosGuardados_${bodegaId}`);
+      if (productosGuardadosLocal) {
+        setProductosGuardados(new Set(JSON.parse(productosGuardadosLocal)));
+      }
+      
+      // Cargar estado de intento de guardar incompleto
+      const intentoGuardarIncompletoLocal = localStorage.getItem(`intentoGuardarIncompleto_${bodegaId}`);
+      if (intentoGuardarIncompletoLocal === 'true') {
+        console.log('📌 Cargando estado de reordenamiento desde localStorage');
+        setIntentoGuardarIncompleto(true);
+      }
     }
     
     cargarProductos();
@@ -706,6 +724,10 @@ export const ListaProductos = ({
           productosGuardados, // Enviar solo los productos guardados explícitamente
           duracion
         );
+        
+        // Marcar fecha de último guardado exitoso
+        const hoy = new Date().toLocaleDateString('en-CA'); // Formato YYYY-MM-DD
+        localStorage.setItem(`ultimoGuardado_${bodegaId}`, hoy);
         
         // Limpiar datos locales
         localStorage.removeItem(`conteos_${bodegaId}`);
