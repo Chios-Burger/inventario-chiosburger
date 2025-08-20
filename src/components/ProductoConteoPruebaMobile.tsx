@@ -384,7 +384,7 @@ const ProductoConteoPruebaMobileComponent = ({
             />
 
             {/* Total con unidad - Directo en el grid */}
-            <div className={`col-span-1 h-[20px] rounded flex items-center justify-center gap-0.5 font-bold text-[8px] px-1 box-border ${
+            <div className={`col-span-1 h-[20px] rounded flex items-center justify-center font-bold text-[8px] px-1 box-border ${
               isInactive ? 'bg-gray-100 border border-gray-300' : 
               'bg-gradient-to-r from-blue-500 to-purple-500 text-white border border-blue-500'
             }`}>
@@ -392,8 +392,8 @@ const ProductoConteoPruebaMobileComponent = ({
                 <span className="text-gray-500">N/A</span>
               ) : (
                 <>
-                  <span>{maxDecimals > 0 ? total.toFixed(maxDecimals) : total}</span>
-                  <span className="text-[6px] opacity-90">{unidadBodega}</span>
+                  <span className="leading-[20px]">{maxDecimals > 0 ? total.toFixed(maxDecimals) : total}</span>
+                  <span className="text-[7px] leading-[20px] ml-0.5 opacity-90">{unidadBodega}</span>
                 </>
               )}
             </div>
@@ -421,13 +421,13 @@ const ProductoConteoPruebaMobileComponent = ({
             />
             
             {/* Columna 2: Unidad - DIRECTO EN EL GRID */}
-            <div className="col-span-1 h-[20px] bg-amber-100 border border-amber-300 rounded flex items-center justify-center box-border">
+            <div className="col-span-1 h-[20px] flex items-center justify-center box-border">
               <span className="text-[8px] text-amber-700 font-medium">{unidad}</span>
             </div>
             
             {/* Columnas 3 y 4: Equivalencias - DIRECTO EN EL GRID */}
             {producto.fields['Equivalencias Inventarios'] ? (
-              <div className="col-span-2 h-[20px] flex items-center overflow-hidden bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded px-1 box-border">
+              <div className="col-span-2 h-[20px] flex items-center overflow-hidden px-1 box-border">
                 <span className="text-[6px] text-blue-800 font-bold">
                   <span className="font-bold">Eq:</span> {producto.fields['Equivalencias Inventarios']}
                 </span>
