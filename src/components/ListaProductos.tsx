@@ -245,35 +245,35 @@ export const ListaProductos = ({
 
   // Cargar datos
   useEffect(() => {
-    // Verificar si ya se guardó inventario HOY
+    // Verificar si existe un guardado previo exitoso
     const ultimoGuardado = localStorage.getItem(`ultimoGuardado_${bodegaId}`);
-    const hoy = new Date().toLocaleDateString('en-CA'); // Formato YYYY-MM-DD
-    
-    if (ultimoGuardado === hoy) {
-      // Ya se guardó inventario hoy, limpiar datos antiguos
-      console.log('✅ Inventario ya guardado hoy. Iniciando sesión limpia...');
+
+    if (ultimoGuardado) {
+      // Existe un guardado previo (no importa la fecha), limpiar todo para empezar nuevo inventario
+      console.log('✅ Inventario previo detectado. Iniciando sesión limpia...');
       localStorage.removeItem(`conteos_${bodegaId}`);
       localStorage.removeItem(`productosGuardados_${bodegaId}`);
       localStorage.removeItem(`intentoGuardarIncompleto_${bodegaId}`);
-      
+      // NO borrar ultimoGuardado - mantener la marca de que ya se guardó
+
       // Estados empiezan limpios
       setConteos({});
       setProductosGuardados(new Set());
       setIntentoGuardarIncompleto(false);
     } else {
-      // No se ha guardado hoy, cargar datos si existen
+      // No hay guardado previo, cargar datos si existen (trabajo en progreso)
       const datosGuardados = localStorage.getItem(`conteos_${bodegaId}`);
       if (datosGuardados) {
         setConteos(JSON.parse(datosGuardados));
         console.log('📂 Cargando inventario en progreso...');
       }
-      
+
       // Cargar productos guardados del localStorage
       const productosGuardadosLocal = localStorage.getItem(`productosGuardados_${bodegaId}`);
       if (productosGuardadosLocal) {
         setProductosGuardados(new Set(JSON.parse(productosGuardadosLocal)));
       }
-      
+
       // Cargar estado de intento de guardar incompleto
       const intentoGuardarIncompletoLocal = localStorage.getItem(`intentoGuardarIncompleto_${bodegaId}`);
       if (intentoGuardarIncompletoLocal === 'true') {
@@ -281,7 +281,7 @@ export const ListaProductos = ({
         setIntentoGuardarIncompleto(true);
       }
     }
-    
+
     cargarProductos();
   }, [bodegaId]);
 
@@ -1164,14 +1164,17 @@ export const ListaProductos = ({
             <button
               onClick={() => setBusqueda('')}
               disabled={!busqueda}
-              className={`flex-1 h-[20px] sm:h-auto px-1 py-0 rounded border text-[7px] sm:text-sm leading-none ${
-                busqueda 
-                  ? 'bg-gray-100 hover:bg-gray-200 text-gray-600 border-gray-200 cursor-pointer' 
+              className={`flex-[0.5] h-[20px] sm:h-auto px-1 py-0 rounded border text-[7px] sm:text-sm leading-none ${
+                busqueda
+                  ? 'bg-gray-100 hover:bg-gray-200 text-gray-600 border-gray-200 cursor-pointer'
                   : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'
               }`}
             >
               Limpiar
             </button>
+            <div className="flex-[0.5] h-[20px] sm:h-auto px-1 py-0 rounded border bg-gray-50 text-gray-600 border-gray-200 text-[7px] sm:text-sm leading-none text-center flex items-center justify-center">
+              V.1
+            </div>
           </div>
         </div>
       </div>
