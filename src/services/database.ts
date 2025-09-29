@@ -9,14 +9,16 @@ const TABLA_POR_BODEGA: { [key: number]: string } = {
   5: 'tomasFisicas',          // Chios Floreana
   6: 'tomasFisicas',          // Chios Portugal
   7: 'toma_simon_bolon',      // Simón Bolón
-  8: 'toma_santo_cachon'      // Santo Cachón
+  8: 'toma_santo_cachon',     // Santo Cachón
+  10: 'tomasFisicas'          // Bodega Santo Chios
 };
 
 // Nombres de locales para Chios
 const NOMBRE_LOCAL_CHIOS: { [key: number]: string } = {
   4: 'Real Audiencia',
   5: 'Floreana',
-  6: 'Portugal'
+  6: 'Portugal',
+  10: 'Santo Chios'
 };
 
 export const databaseService = {

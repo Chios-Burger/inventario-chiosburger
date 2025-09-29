@@ -307,7 +307,7 @@ export const historicoService = {
       
       if (usuario.esAdmin) {
         // Los administradores ven todas las bodegas
-        bodegasAConsultar = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        bodegasAConsultar = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       } else {
         // Los usuarios normales solo ven sus bodegas permitidas
         bodegasAConsultar = usuario.bodegasPermitidas;
@@ -419,7 +419,7 @@ export const historicoService = {
       
       // Obtener TODOS los históricos de TODAS las bodegas, sin filtrar por permisos
       const todosLosHistoricos: RegistroHistorico[] = [];
-      const todasLasBodegas = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+      const todasLasBodegas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       
       // Convertir fecha ISO (YYYY-MM-DD) a formato display (DD/MM/YYYY) para comparar con registros antiguos
       const [year, month, day] = fecha.split('-');
@@ -764,7 +764,8 @@ export const historicoService = {
       6: 'Chios Portugal',
       7: 'Simón Bolón',
       8: 'Santo Cachón',
-      9: 'Bodega Pulmon'
+      9: 'Bodega Pulmon',
+      10: 'Bodega Santo Chios'
     };
     
     // Log para verificar estructura de datos de BD

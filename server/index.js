@@ -64,14 +64,16 @@ const TABLA_POR_BODEGA = {
   '6': 'tomasFisicas',
   '7': 'toma_simon_bolon',
   '8': 'toma_santo_cachon',
-  '9': 'toma_bodegapulmon'
+  '9': 'toma_bodegapulmon',
+  '10': 'tomasFisicas'
 };
 
 // Nombres de locales para Chios
 const NOMBRE_LOCAL_CHIOS = {
   4: 'Real Audiencia',
   5: 'Floreana',
-  6: 'Portugal'
+  6: 'Portugal',
+  10: 'Santo Chios'
 };
 
 // Función para generar ID único
@@ -232,13 +234,19 @@ app.get('/api/health', async (req, res) => {
 // Endpoint para guardar inventario
 app.post('/api/inventario', async (req, res) => {
   const registro = req.body;
-  
+
+  // Si es bodega 10 (Santo Chios), cambiar el usuario a "Santo Chios Portugal"
+  if (registro.bodegaId === 10) {
+    registro.usuario = 'Santo Chios Portugal';
+  }
+
   console.log('📥 Servidor recibió:', {
     bodegaId: registro.bodegaId,
     totalProductos: registro.productos?.length,
-    primerProductoId: registro.productos?.[0]?.id
+    primerProductoId: registro.productos?.[0]?.id,
+    usuario: registro.usuario
   });
-  
+
   const client = await pool.connect();
   
   try {

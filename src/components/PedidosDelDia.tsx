@@ -33,8 +33,8 @@ export const PedidosDelDia = () => {
   const puedeEditar = usuario?.email === 'bodegaprincipal@chiosburger.com';
 
   // Filtrar solo las bodegas que son locales (excluyendo bodegas de almacenamiento)
-  const bodegasLocales = BODEGAS.filter(b => 
-    ['Chios Real Audiencia', 'Chios Floreana', 'Chios Portugal', 'Santo Cachón', 'Simón Bolón'].includes(b.nombre)
+  const bodegasLocales = BODEGAS.filter(b =>
+    ['Chios Real Audiencia', 'Chios Floreana', 'Chios Portugal', 'Santo Cachón', 'Simón Bolón', 'Bodega Santo Chios'].includes(b.nombre)
   );
 
   useEffect(() => {
@@ -418,7 +418,9 @@ export const PedidosDelDia = () => {
                   {filtroBodega === 'todos' ? (
                     bodegasLocales.map(bodega => (
                       <th key={bodega.id} className="text-center p-4 font-medium text-gray-700 min-w-[100px]">
-                        {bodega.nombre.replace('Chios ', '').replace('Santo ', '').replace('Simón ', '')}
+                        {bodega.nombre === 'Bodega Santo Chios'
+                          ? 'Bodega Santo Chios'
+                          : bodega.nombre.replace('Chios ', '').replace('Santo ', '').replace('Simón ', '')}
                       </th>
                     ))
                   ) : (

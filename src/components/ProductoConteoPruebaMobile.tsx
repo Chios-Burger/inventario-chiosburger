@@ -314,7 +314,7 @@ const ProductoConteoPruebaMobileComponent = ({
           </span>
           {tipoProducto && (
             <span className="text-[8px] text-purple-600 flex-shrink-0">
-              {tipoProducto}
+              {producto.fields['Código'] || ''}{producto.fields['Código'] ? '-' : ''}{tipoProducto}
             </span>
           )}
           <span className="text-[8px] text-gray-600 truncate flex-1 min-w-0 text-right">

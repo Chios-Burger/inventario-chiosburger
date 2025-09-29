@@ -85,7 +85,8 @@ export const airtableService = {
       6: 'Conteo Chios',
       7: 'Conteo Simón Bolón',
       8: 'Conteo Santo Cachón',
-      9: 'Conteo Bodega Pulmon'
+      9: 'Conteo Bodega Pulmon',
+      10: 'Conteo Santo Chios'
     };
     return campos[bodegaId] || null;
   },
@@ -98,7 +99,7 @@ export const airtableService = {
     let todasLasCategorias: Set<string> = new Set();
     
     // Obtener productos de todas las bodegas
-    for (let bodegaId = 1; bodegaId <= 9; bodegaId++) {
+    for (let bodegaId = 1; bodegaId <= 10; bodegaId++) {
       try {
         const productos = await this.obtenerProductos(bodegaId);
         productos.forEach(producto => {

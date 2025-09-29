@@ -21,7 +21,7 @@ export const exportUtils = {
 
   // Determinar si una bodega es de tipo local (Chios, Simón, Santo, Cachón)
   esBodegaLocal(nombreBodega: string): boolean {
-    const locales = ['Chios', 'Simón Bolón', 'Santo Cachón'];
+    const locales = ['Chios', 'Simón Bolón', 'Santo Cachón', 'Bodega Santo Chios'];
     return locales.some(local => nombreBodega.includes(local));
   },
   // Función auxiliar para formatear números con decimales precisos

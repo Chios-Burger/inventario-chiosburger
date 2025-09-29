@@ -14,7 +14,8 @@ export const BODEGAS = [
   { id: 6, nombre: 'Chios Portugal', campo: 'Conteo Chios', unidad: 'Unidad Conteo Chios' },
   { id: 7, nombre: 'Simón Bolón', campo: 'Conteo Simón Bolón', unidad: 'Unidad Conteo Simón Bolón' },
   { id: 8, nombre: 'Santo Cachón', campo: 'Conteo Santo Cachón', unidad: 'Unidad Conteo Santo Cachón' },
-  { id: 9, nombre: 'Bodega Pulmon', campo: 'Conteo Bodega Pulmon', unidad: 'Unidad Conteo Bodega Pulmon' }
+  { id: 9, nombre: 'Bodega Pulmon', campo: 'Conteo Bodega Pulmon', unidad: 'Unidad Conteo Bodega Pulmon' },
+  { id: 10, nombre: 'Bodega Santo Chios', campo: 'Conteo Santo Chios', unidad: 'Unidad Conteo Santo Chios' }
 ];
 
 export const USUARIOS = [
@@ -22,14 +23,14 @@ export const USUARIOS = [
     email: 'gerencia@chiosburger.com',
     pin: '9999',
     nombre: 'Gerencia',
-    bodegasPermitidas: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    bodegasPermitidas: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     esAdmin: true
   },
   {
     email: 'analisis@chiosburger.com',
     pin: '8888',
     nombre: 'Análisis',
-    bodegasPermitidas: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    bodegasPermitidas: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     esAdmin: true
   },
   {
@@ -71,7 +72,7 @@ export const USUARIOS = [
     email: 'portugal@chiosburger.com',
     pin: '6789',
     nombre: 'Chios Portugal',
-    bodegasPermitidas: [6],
+    bodegasPermitidas: [6, 10],
     esAdmin: false
   },
   {
@@ -92,7 +93,7 @@ export const USUARIOS = [
     email: 'contabilidad@chiosburger.com',
     pin: '1122',
     nombre: 'Contabilidad',
-    bodegasPermitidas: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    bodegasPermitidas: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     esAdmin: true
   }
 ];
