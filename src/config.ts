@@ -15,7 +15,7 @@ export const BODEGAS = [
   { id: 7, nombre: 'Simón Bolón', campo: 'Conteo Simón Bolón', unidad: 'Unidad Conteo Simón Bolón' },
   { id: 8, nombre: 'Santo Cachón', campo: 'Conteo Santo Cachón', unidad: 'Unidad Conteo Santo Cachón' },
   { id: 9, nombre: 'Bodega Pulmon', campo: 'Conteo Bodega Pulmon', unidad: 'Unidad Conteo Bodega Pulmon' },
-  { id: 10, nombre: 'Bodega Santo Chios', campo: 'Conteo Santo Chios', unidad: 'Unidad Conteo Santo Chios' }
+  { id: 10, nombre: 'Bodega Santo Chios', campo: 'Conteo Santo Cachón', unidad: 'Unidad Conteo Santo Cachón' }
 ];
 
 export const USUARIOS = [

@@ -86,7 +86,7 @@ export const airtableService = {
       7: 'Conteo Simón Bolón',
       8: 'Conteo Santo Cachón',
       9: 'Conteo Bodega Pulmon',
-      10: 'Conteo Santo Chios'
+      10: 'Conteo Santo Cachón'
     };
     return campos[bodegaId] || null;
   },
