@@ -156,6 +156,10 @@ export const ListaProductos = ({
   // Estados para agrupación
   const [agruparPorCategoria, setAgruparPorCategoria] = useState(false);
   const [ordenarPorTipo, setOrdenarPorTipo] = useState(false);
+
+  // Estado para tamaño de tarjetas móviles (porcentaje dinámico)
+  const [sizePercentageInput, setSizePercentageInput] = useState<string>('0');
+  const [sizePercentage, setSizePercentage] = useState<number>(0);
   
   // Función para obtener el tipo de producto
   const obtenerTipoProducto = (campos: any): string => {
@@ -956,6 +960,7 @@ export const ListaProductos = ({
       )}
 
 
+
       {/* Header con título */}
       <div className="mb-4 sm:mb-8">
         <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-8 mb-4 sm:mb-6 border border-gray-100">
@@ -976,6 +981,38 @@ export const ListaProductos = ({
               </p>
             </div>
           </div>
+
+          {/* Selector de tamaño - Solo móvil */}
+          {deviceInfo.isMobile && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-gray-600">Tamaño tarjetas:</label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={sizePercentageInput}
+                    onChange={(e) => setSizePercentageInput(e.target.value)}
+                    className="w-14 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 text-center"
+                    placeholder="0"
+                  />
+                  <span className="text-xs text-gray-600 font-medium">%</span>
+                  <button
+                    onClick={() => {
+                      const value = parseInt(sizePercentageInput) || 0;
+                      const clamped = Math.min(100, Math.max(0, value));
+                      setSizePercentage(clamped);
+                      setSizePercentageInput(clamped.toString());
+                    }}
+                    className="ml-2 px-3 py-1 bg-gradient-to-r from-purple-500 to-blue-600 text-white text-xs font-bold rounded-lg hover:shadow-md transition-all"
+                  >
+                    APLICAR
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         
@@ -1173,7 +1210,7 @@ export const ListaProductos = ({
               Limpiar
             </button>
             <div className="flex-[0.5] h-[20px] sm:h-auto px-1 py-0 rounded border bg-gray-50 text-gray-600 border-gray-200 text-[7px] sm:text-sm leading-none text-center flex items-center justify-center">
-              V.1
+              V.2
             </div>
           </div>
         </div>
@@ -1288,6 +1325,7 @@ export const ListaProductos = ({
                             guardando={guardandoProductos.has(producto.id)}
                             isGuardado={productosGuardados.has(producto.id)}
                             conteoInicial={resetKey > 0 ? undefined : conteos[producto.id]}
+                            sizePercentage={sizePercentage}
                           />
                         ) : (
                           <ProductoConteo
@@ -1329,6 +1367,7 @@ export const ListaProductos = ({
                     guardando={guardandoProductos.has(producto.id)}
                     isGuardado={productosGuardados.has(producto.id)}
                     conteoInicial={resetKey > 0 ? undefined : conteos[producto.id]}
+                    sizePercentage={sizePercentage}
                   />
                 ) : (
                   <ProductoConteo
