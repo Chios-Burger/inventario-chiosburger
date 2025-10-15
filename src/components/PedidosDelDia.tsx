@@ -293,11 +293,21 @@ export const PedidosDelDia = () => {
       if (filtroBodega === 'todos') {
         bodegasLocales.forEach(bodega => {
           fila[bodega.nombre] = pedido.pedidosPorBodega[bodega.id] || 0;
+          // Agregar movimiento si existe
+          const movimiento = pedido.movimientosPorBodega[bodega.id];
+          if (movimiento) {
+            fila[`${bodega.nombre} - Movimiento`] = movimiento;
+          }
         });
       } else {
         const bodegaSeleccionada = bodegasLocales.find(b => b.id === parseInt(filtroBodega));
         if (bodegaSeleccionada) {
           fila[bodegaSeleccionada.nombre] = pedido.pedidosPorBodega[parseInt(filtroBodega)] || 0;
+          // Agregar movimiento si existe
+          const movimiento = pedido.movimientosPorBodega[parseInt(filtroBodega)];
+          if (movimiento) {
+            fila[`${bodegaSeleccionada.nombre} - Movimiento`] = movimiento;
+          }
         }
       }
 

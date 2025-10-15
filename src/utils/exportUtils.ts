@@ -1230,7 +1230,7 @@ export const exportUtils = {
       <table>
         <thead>
           <tr>
-            <th colspan="${bodegaFiltrada ? 5 : (4 + bodegasLocales.length)}" class="categoria-header">
+            <th colspan="${bodegaFiltrada ? 6 : (4 + bodegasLocales.length * 2)}" class="categoria-header">
               ${categoria} (${productos.length} productos)
             </th>
           </tr>
@@ -1239,8 +1239,10 @@ export const exportUtils = {
             <th>Producto</th>
             ${bodegaFiltrada ? `
               <th class="text-center">Cantidad</th>
+              <th class="text-center">Movimiento</th>
             ` : bodegasLocales.map(bodega => `
               <th class="text-center">${bodega.nombre.replace('Chios ', '').replace('Santo ', '').replace('Simón ', '')}</th>
+              <th class="text-center">Mov.</th>
             `).join('')}
             <th class="text-center">Total</th>
             <th class="text-center">Estado</th>
@@ -1255,8 +1257,10 @@ export const exportUtils = {
                 <td>${pedido.nombre}</td>
                 ${bodegaFiltrada ? `
                   <td class="text-center">${pedido.pedidosPorBodega[bodegaFiltrada.id] || '-'}</td>
+                  <td class="text-center">${pedido.movimientosPorBodega?.[bodegaFiltrada.id] || '-'}</td>
                 ` : bodegasLocales.map(bodega => `
                   <td class="text-center">${pedido.pedidosPorBodega[bodega.id] || '-'}</td>
+                  <td class="text-center">${pedido.movimientosPorBodega?.[bodega.id] || '-'}</td>
                 `).join('')}
                 <td class="text-center total-pedido">${formatNum(pedido.totalPedido)} ${pedido.unidad}</td>
                 <td class="text-center ${pedido.estado === 'preparado' ? 'estado-preparado' : 'estado-pendiente'}">
