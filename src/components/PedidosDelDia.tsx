@@ -231,21 +231,60 @@ export const PedidosDelDia = () => {
     );
   };
 
-  const pedidosFiltrados = pedidosConsolidados.filter(pedido => {
-    const cumpleBusqueda = busqueda === '' ||
-      pedido.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-      pedido.codigo.toLowerCase().includes(busqueda.toLowerCase());
+  const pedidosFiltrados = pedidosConsolidados
+    .map(pedido => {
+      // Aplicar filtros básicos de búsqueda y categoría
+      const cumpleBusqueda = busqueda === '' ||
+        pedido.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+        pedido.codigo.toLowerCase().includes(busqueda.toLowerCase());
 
-    const cumpleCategoria = filtroCategoria === 'todos' || pedido.categoria === filtroCategoria;
+      const cumpleCategoria = filtroCategoria === 'todos' || pedido.categoria === filtroCategoria;
 
-    const cumpleBodega = filtroBodega === 'todos' ||
-      pedido.pedidosPorBodega[parseInt(filtroBodega)] > 0;
+      if (!cumpleBusqueda || !cumpleCategoria) {
+        return null;
+      }
 
-    const cumpleMovimiento = filtroMovimientos.length === 0 ||
-      Object.values(pedido.movimientosPorBodega).some(mov => filtroMovimientos.includes(mov));
+      // Filtrar bodegas según movimientos y bodega seleccionada
+      const pedidosFiltradosPorBodega: { [bodegaId: number]: number } = {};
+      const movimientosFiltradosPorBodega: { [bodegaId: number]: string } = {};
+      let totalFiltrado = 0;
 
-    return cumpleBusqueda && cumpleCategoria && cumpleBodega && cumpleMovimiento;
-  });
+      Object.keys(pedido.pedidosPorBodega).forEach(bodegaIdStr => {
+        const bodegaId = parseInt(bodegaIdStr);
+        const cantidad = pedido.pedidosPorBodega[bodegaId];
+
+        // Verificar filtro de bodega
+        const cumpleFiltroBodega = filtroBodega === 'todos' || bodegaId === parseInt(filtroBodega);
+
+        // Verificar filtro de movimientos
+        const movimiento = pedido.movimientosPorBodega[bodegaId];
+        const cumpleFiltroMovimiento = filtroMovimientos.length === 0 ||
+          (movimiento && filtroMovimientos.includes(movimiento));
+
+        // Solo incluir esta bodega si cumple ambos filtros
+        if (cumpleFiltroBodega && cumpleFiltroMovimiento && cantidad > 0) {
+          pedidosFiltradosPorBodega[bodegaId] = cantidad;
+          if (movimiento) {
+            movimientosFiltradosPorBodega[bodegaId] = movimiento;
+          }
+          totalFiltrado += cantidad;
+        }
+      });
+
+      // Si después del filtro no queda ninguna bodega, no mostrar el producto
+      if (Object.keys(pedidosFiltradosPorBodega).length === 0) {
+        return null;
+      }
+
+      // Retornar producto con datos filtrados
+      return {
+        ...pedido,
+        pedidosPorBodega: pedidosFiltradosPorBodega,
+        movimientosPorBodega: movimientosFiltradosPorBodega,
+        totalPedido: totalFiltrado
+      };
+    })
+    .filter((pedido): pedido is PedidoConsolidado => pedido !== null);
 
   const categorias = [...new Set(pedidosConsolidados.map(p => p.categoria))].filter(Boolean).sort();
 
@@ -285,31 +324,30 @@ export const PedidosDelDia = () => {
         'Producto': pedido.nombre,
         'Categoría': pedido.categoria,
         'Tipo': pedido.tipo,
-        'Unidad': pedido.unidad,
-        'Total Pedido': pedido.totalPedido,
-        'Estado': pedido.estado === 'preparado' ? 'Preparado' : 'Pendiente'
+        'Unidad': pedido.unidad
       };
 
+      // Agregar columnas de bodegas intercaladas con movimientos
       if (filtroBodega === 'todos') {
         bodegasLocales.forEach(bodega => {
+          // Agregar cantidad de la bodega
           fila[bodega.nombre] = pedido.pedidosPorBodega[bodega.id] || 0;
-          // Agregar movimiento si existe
+          // Agregar movimiento inmediatamente después
           const movimiento = pedido.movimientosPorBodega[bodega.id];
-          if (movimiento) {
-            fila[`${bodega.nombre} - Movimiento`] = movimiento;
-          }
+          fila[`${bodega.nombre} - Mov`] = movimiento || '-';
         });
       } else {
         const bodegaSeleccionada = bodegasLocales.find(b => b.id === parseInt(filtroBodega));
         if (bodegaSeleccionada) {
           fila[bodegaSeleccionada.nombre] = pedido.pedidosPorBodega[parseInt(filtroBodega)] || 0;
-          // Agregar movimiento si existe
           const movimiento = pedido.movimientosPorBodega[parseInt(filtroBodega)];
-          if (movimiento) {
-            fila[`${bodegaSeleccionada.nombre} - Movimiento`] = movimiento;
-          }
+          fila[`${bodegaSeleccionada.nombre} - Mov`] = movimiento || '-';
         }
       }
+
+      // Agregar columnas finales
+      fila['Total Pedido'] = pedido.totalPedido;
+      fila['Estado'] = pedido.estado === 'preparado' ? 'Preparado' : 'Pendiente';
 
       return fila;
     });
