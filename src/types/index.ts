@@ -31,6 +31,10 @@ export interface Producto {
     'Unidad Conteo Simón Bolón'?: string;
     'Unidad Conteo Santo Cachón'?: string;
     'Unidad Conteo Bodega Pulmon'?: string;
+    // Campos de movimientos
+    'Mov. Chios'?: string;
+    'Mov. Simon'?: string;
+    'Mov. Santo'?: string;
     // Permitir acceso dinámico a campos
     [key: string]: any;
   };
@@ -80,6 +84,9 @@ export interface ProductoHistorico {
   unidadBodega: string;
   cantidadPedir: number;
   equivalencia?: string;
+  movChios?: string; // Mov. Chios
+  movSimon?: string; // Mov. Simon
+  movSanto?: string; // Mov. Santo
 }
 
 export interface RegistroHistorico {

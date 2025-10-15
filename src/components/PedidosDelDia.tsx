@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Package, Calendar, Search, Download, CheckCircle, Clock, Filter, FileText } from 'lucide-react';
 import { authService } from '../services/auth';
 import { historicoService } from '../services/historico';
+import { airtableService } from '../services/airtable';
 import { exportUtils } from '../utils/exportUtils';
 import { BODEGAS } from '../config';
-import type { RegistroHistorico } from '../types/index';
+import type { RegistroHistorico, Producto } from '../types/index';
 import { fechaAISO, obtenerFechaActual } from '../utils/dateUtils';
+import MultiSelect from './MultiSelect';
 
 interface PedidoConsolidado {
   productoId: string;
@@ -15,6 +17,7 @@ interface PedidoConsolidado {
   tipo: string;
   unidad: string;
   pedidosPorBodega: { [bodegaId: number]: number };
+  movimientosPorBodega: { [bodegaId: number]: string };
   totalPedido: number;
   estado?: 'pendiente' | 'preparado' | 'entregado';
 }
@@ -24,6 +27,7 @@ export const PedidosDelDia = () => {
   const [fecha, setFecha] = useState(fechaAISO(obtenerFechaActual()));
   const [filtroBodega, setFiltroBodega] = useState('todos');
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
+  const [filtroMovimientos, setFiltroMovimientos] = useState<string[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [cargando, setCargando] = useState(true);
   const [vistaConsolidada, setVistaConsolidada] = useState(true);
@@ -41,19 +45,80 @@ export const PedidosDelDia = () => {
     cargarPedidos();
   }, [fecha]);
 
+  const enriquecerConDatosAirtable = async (pedidos: PedidoConsolidado[]): Promise<PedidoConsolidado[]> => {
+    try {
+      console.log('🔍 Enriqueciendo pedidos con datos de Airtable...');
+
+      // Obtener productos de todas las bodegas locales de Airtable
+      const productosAirtable: Producto[] = [];
+      for (const bodega of bodegasLocales) {
+        try {
+          const productos = await airtableService.obtenerProductos(bodega.id);
+          productosAirtable.push(...productos);
+        } catch (error) {
+          console.error(`Error al obtener productos de bodega ${bodega.id}:`, error);
+        }
+      }
+
+      console.log(`📦 Total productos obtenidos de Airtable: ${productosAirtable.length}`);
+
+      // Crear un mapa de código -> producto para búsqueda rápida
+      const mapaProductos = new Map<string, Producto>();
+      productosAirtable.forEach(p => {
+        const codigo = p.fields['Código'] || p.fields['Codigo'];
+        if (codigo) {
+          mapaProductos.set(codigo, p);
+        }
+      });
+
+      // Enriquecer cada pedido consolidado con datos de movimiento
+      const pedidosEnriquecidos = pedidos.map(pedido => {
+        const productoAirtable = mapaProductos.get(pedido.codigo);
+
+        if (productoAirtable) {
+          // Actualizar movimientos por bodega según los datos de Airtable
+          Object.keys(pedido.pedidosPorBodega).forEach(bodegaIdStr => {
+            const bodegaId = parseInt(bodegaIdStr);
+            let movimiento = '';
+
+            if ([4, 5, 6].includes(bodegaId)) {
+              movimiento = productoAirtable.fields['Mov. Chios'] || '';
+            } else if (bodegaId === 7) {
+              movimiento = productoAirtable.fields['Mov. Simon'] || '';
+            } else if ([8, 10].includes(bodegaId)) {
+              movimiento = productoAirtable.fields['Mov. Santo'] || '';
+            }
+
+            if (movimiento) {
+              pedido.movimientosPorBodega[bodegaId] = movimiento;
+            }
+          });
+        }
+
+        return pedido;
+      });
+
+      console.log('✅ Pedidos enriquecidos con datos de movimiento');
+      return pedidosEnriquecidos;
+    } catch (error) {
+      console.error('❌ Error al enriquecer con datos de Airtable:', error);
+      return pedidos; // Devolver pedidos originales si hay error
+    }
+  };
+
   const cargarPedidos = async () => {
     try {
       setCargando(true);
-      
+
       // Para usuarios especiales, obtener TODOS los históricos sin filtrar por permisos
       const usuariosEspeciales = ['bodegaprincipal@chiosburger.com', 'gerencia@chiosburger.com', 'analiasis@chiosburger.com'];
       let registros: RegistroHistorico[] = [];
-      
+
       console.log('🔍 DEPURACIÓN - Cargando pedidos del día');
       console.log('Usuario actual:', usuario?.email);
       console.log('Es usuario especial:', usuario && usuariosEspeciales.includes(usuario.email));
       console.log('Fecha solicitada:', fecha);
-      
+
       if (usuario && usuariosEspeciales.includes(usuario.email)) {
         // Obtener todos los registros de la fecha, sin importar permisos
         console.log('📥 Obteniendo registros SIN FILTRO para usuario especial');
@@ -65,17 +130,17 @@ export const PedidosDelDia = () => {
         console.log('📥 Obteniendo registros CON FILTRO de permisos');
         registros = await historicoService.obtenerHistoricosPorFecha(fecha);
       }
-      
+
       // Filtrar solo registros de locales
-      const registrosLocales = registros.filter(r => 
+      const registrosLocales = registros.filter(r =>
         bodegasLocales.some(b => b.id === r.bodegaId)
       );
-      
+
       console.log('📍 Registros de locales encontrados:', registrosLocales.length);
       registrosLocales.forEach(registro => {
         const bodega = bodegasLocales.find(b => b.id === registro.bodegaId);
         console.log(`  - ${bodega?.nombre}: ${registro.productos.length} productos`);
-        
+
         // Mostrar productos con cantidadPedir > 0
         const productosConPedido = registro.productos.filter(p => p.cantidadPedir > 0);
         if (productosConPedido.length > 0) {
@@ -87,10 +152,14 @@ export const PedidosDelDia = () => {
           console.log(`    ⚠️ Sin productos con cantidadPedir > 0`);
         }
       });
-      
+
       // Consolidar pedidos
-      const consolidado = consolidarPedidos(registrosLocales);
+      let consolidado = consolidarPedidos(registrosLocales);
       console.log('📊 Total productos consolidados con pedidos:', consolidado.length);
+
+      // Enriquecer con datos de Airtable
+      consolidado = await enriquecerConDatosAirtable(consolidado);
+
       setPedidosConsolidados(consolidado);
     } catch (error) {
       console.error('❌ Error al cargar pedidos:', error);
@@ -118,10 +187,10 @@ export const PedidosDelDia = () => {
         if (producto.cantidadPedir > 0) {
           totalProductosConPedido++;
           console.log(`  ✅ ${producto.nombre}: cantidadPedir = ${producto.cantidadPedir}`);
-          
+
           // Usar código como clave principal, o nombre si no hay código
           const key = producto.codigo || producto.nombre;
-          
+
           if (!pedidosMap.has(key)) {
             pedidosMap.set(key, {
               productoId: producto.id,
@@ -129,18 +198,19 @@ export const PedidosDelDia = () => {
               nombre: producto.nombre,
               categoria: producto.categoria || '',
               tipo: producto.tipo || '',
-              unidad: (producto.unidadBodega === 'UNIDAD NO DEFINIDA' || !producto.unidadBodega) 
-                ? 'Unidad' 
+              unidad: (producto.unidadBodega === 'UNIDAD NO DEFINIDA' || !producto.unidadBodega)
+                ? 'Unidad'
                 : producto.unidadBodega,
               pedidosPorBodega: {},
+              movimientosPorBodega: {},
               totalPedido: 0,
               estado: 'pendiente'
             });
           }
-          
+
           const pedido = pedidosMap.get(key)!;
           // Sumar si ya existe un pedido de esta bodega
-          pedido.pedidosPorBodega[registro.bodegaId] = 
+          pedido.pedidosPorBodega[registro.bodegaId] =
             (pedido.pedidosPorBodega[registro.bodegaId] || 0) + producto.cantidadPedir;
           pedido.totalPedido += producto.cantidadPedir;
         } else if (producto.cantidadPedir === 0) {
@@ -162,16 +232,19 @@ export const PedidosDelDia = () => {
   };
 
   const pedidosFiltrados = pedidosConsolidados.filter(pedido => {
-    const cumpleBusqueda = busqueda === '' || 
+    const cumpleBusqueda = busqueda === '' ||
       pedido.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
       pedido.codigo.toLowerCase().includes(busqueda.toLowerCase());
-    
+
     const cumpleCategoria = filtroCategoria === 'todos' || pedido.categoria === filtroCategoria;
-    
-    const cumpleBodega = filtroBodega === 'todos' || 
+
+    const cumpleBodega = filtroBodega === 'todos' ||
       pedido.pedidosPorBodega[parseInt(filtroBodega)] > 0;
-    
-    return cumpleBusqueda && cumpleCategoria && cumpleBodega;
+
+    const cumpleMovimiento = filtroMovimientos.length === 0 ||
+      Object.values(pedido.movimientosPorBodega).some(mov => filtroMovimientos.includes(mov));
+
+    return cumpleBusqueda && cumpleCategoria && cumpleBodega && cumpleMovimiento;
   });
 
   const categorias = [...new Set(pedidosConsolidados.map(p => p.categoria))].filter(Boolean).sort();
@@ -216,7 +289,7 @@ export const PedidosDelDia = () => {
         'Total Pedido': pedido.totalPedido,
         'Estado': pedido.estado === 'preparado' ? 'Preparado' : 'Pendiente'
       };
-      
+
       if (filtroBodega === 'todos') {
         bodegasLocales.forEach(bodega => {
           fila[bodega.nombre] = pedido.pedidosPorBodega[bodega.id] || 0;
@@ -227,7 +300,7 @@ export const PedidosDelDia = () => {
           fila[bodegaSeleccionada.nombre] = pedido.pedidosPorBodega[parseInt(filtroBodega)] || 0;
         }
       }
-      
+
       return fila;
     });
 
@@ -289,7 +362,7 @@ export const PedidosDelDia = () => {
 
       {/* Filtros */}
       <div className="bg-white rounded-2xl shadow-sm p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               <Calendar className="w-4 h-4 inline mr-1" />
@@ -302,7 +375,7 @@ export const PedidosDelDia = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               <Filter className="w-4 h-4 inline mr-1" />
@@ -319,7 +392,7 @@ export const PedidosDelDia = () => {
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               <Filter className="w-4 h-4 inline mr-1" />
@@ -336,7 +409,20 @@ export const PedidosDelDia = () => {
               ))}
             </select>
           </div>
-          
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Filter className="w-4 h-4 inline mr-1" />
+              Movimientos
+            </label>
+            <MultiSelect
+              options={['Traslado', 'Egreso', 'N/A']}
+              selectedValues={filtroMovimientos}
+              onChange={setFiltroMovimientos}
+              placeholder="Todos los movimientos"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               <Search className="w-4 h-4 inline mr-1" />

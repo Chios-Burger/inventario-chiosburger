@@ -223,7 +223,10 @@ export const historicoService = {
         unidad: unidadGeneral || 'unidad', // Unidad general para todo
         unidadBodega: unidadGeneral || 'unidad', // Misma unidad para todo
         equivalencia: producto.fields['Equivalencias Inventarios'],
-        tipo: obtenerTipoProducto(producto.fields)
+        tipo: obtenerTipoProducto(producto.fields),
+        movChios: producto.fields['Mov. Chios'],
+        movSimon: producto.fields['Mov. Simon'],
+        movSanto: producto.fields['Mov. Santo']
       };
     }).filter(Boolean) as ProductoHistorico[];
 
