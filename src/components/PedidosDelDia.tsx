@@ -111,7 +111,7 @@ export const PedidosDelDia = () => {
       setCargando(true);
 
       // Para usuarios especiales, obtener TODOS los históricos sin filtrar por permisos
-      const usuariosEspeciales = ['bodegaprincipal@chiosburger.com', 'gerencia@chiosburger.com', 'analisis@chiosburger.com'];
+      const usuariosEspeciales = ['bodegaprincipal@chiosburger.com', 'gerencia@chiosburger.com', 'analiasis@chiosburger.com'];
       let registros: RegistroHistorico[] = [];
 
       console.log('🔍 DEPURACIÓN - Cargando pedidos del día');

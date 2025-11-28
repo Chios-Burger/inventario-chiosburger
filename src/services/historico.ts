@@ -45,21 +45,19 @@ function obtenerTipoProducto(fields: any): string {
 }
 
 
-// Función para generar ID único con formato: YYMMDD-[número]codigo+timestamp+indice
-// El índice garantiza unicidad incluso si hay productos con el mismo código
-function generarIdUnico(fecha: string, bodegaId: number, codigoProducto: string, timestampSesion: number, indiceProducto: number): string {
+// Función para generar ID único con formato: YYMMDD-[número]codigo+timestamp
+function generarIdUnico(fecha: string, bodegaId: number, codigoProducto: string, timestampSesion: number): string {
   // Convertir fecha a formato YYMMDD
   const fechaParts = fecha.split('-');
   if (fechaParts.length !== 3) {
     // Si la fecha no tiene el formato esperado, usar utilidad
     return generarIdUnicoUtil();
   }
-
+  
   const fechaFormateada = fechaParts[0].substring(2) + fechaParts[1] + fechaParts[2];
-
-  // Usar el timestamp de sesión + índice único para garantizar unicidad
-  // Formato: YYMMDD-bodegaIdCodigo+timestamp_indice
-  return `${fechaFormateada}-${bodegaId}${codigoProducto}+${timestampSesion}_${indiceProducto}`;
+  
+  // Usar el timestamp de sesión proporcionado
+  return `${fechaFormateada}-${bodegaId}${codigoProducto}+${timestampSesion}`;
 }
 
 // Intervalo para sincronización automática
@@ -172,20 +170,18 @@ export const historicoService = {
     console.log('🕐 Timestamp único para toda la sesión:', timestampSesion);
 
     // Convertir productos guardados a formato histórico
-    // Usar índice para garantizar unicidad de IDs incluso con códigos duplicados
-    let indiceProducto = 0;
     const productosHistorico: ProductoHistorico[] = Array.from(productosGuardados).map((productoId) => {
       const producto = productos.find(p => p.id === productoId);
       const conteo = conteos[productoId];
-
+      
       if (!producto || !conteo) return null;
 
       const total = conteo.c1 + conteo.c2 + conteo.c3;
-
-
+      
+      
       // Obtener el código del producto desde los campos de Airtable
       let codigoProducto = '';
-
+      
       // Intentar obtener el código real del producto si existe
       if (producto.fields['Código']) {
         codigoProducto = producto.fields['Código'] as string;
@@ -195,12 +191,10 @@ export const historicoService = {
         // Si no hay código, usar los primeros caracteres del ID
         codigoProducto = producto.id.substring(0, 8);
       }
-
-      // Generar ID único con el nuevo formato usando el timestamp de sesión + índice
-      // El índice garantiza unicidad incluso si hay productos con el mismo código
-      const idUnico = generarIdUnico(fechaISO, bodegaId, codigoProducto, timestampSesion, indiceProducto);
-      indiceProducto++; // Incrementar para el siguiente producto
-      // ID generado con timestamp de sesión + índice único
+      
+      // Generar ID único con el nuevo formato usando el timestamp de sesión
+      const idUnico = generarIdUnico(fechaISO, bodegaId, codigoProducto, timestampSesion);
+      // ID generado con timestamp de sesión
       
       
       // Obtener la unidad correcta desde el campo general
