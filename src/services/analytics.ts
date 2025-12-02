@@ -17,7 +17,7 @@ export const initAnalytics = () => {
         password: true, // Siempre enmascarar passwords
       },
     },
-    loaded: (posthog) => {
+    loaded: () => {
       console.log('📊 PostHog Analytics inicializado');
     },
   });
