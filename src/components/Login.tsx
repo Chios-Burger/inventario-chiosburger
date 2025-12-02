@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LogIn, Mail, Lock, AlertCircle, Package2 } from 'lucide-react';
 import { authService } from '../services/auth';
+import { identifyUser, trackLogin, trackError } from '../services/analytics';
 
 interface LoginProps {
   onLogin: () => void;
@@ -23,14 +24,26 @@ export const Login = ({ onLogin }: LoginProps) => {
       console.log('🔍 Resultado login:', usuario);
       
       if (usuario) {
+        // Identificar usuario en PostHog
+        identifyUser(email, {
+          nombre: usuario.nombre,
+          rol: usuario.esAdmin ? 'admin' : 'user',
+          bodegas_permitidas: usuario.bodegasPermitidas,
+        });
+
+        // Trackear login exitoso (la bodega se trackeará cuando la seleccione)
+        trackLogin(email, 'pendiente_seleccion', 0);
+
         // Simular delay de autenticación
         await new Promise(resolve => setTimeout(resolve, 1000));
         onLogin();
       } else {
         setError('Credenciales incorrectas');
+        trackError('login_failed', 'Credenciales incorrectas', undefined, { email });
       }
     } catch (err) {
       setError('Error al iniciar sesión');
+      trackError('login_error', 'Error al iniciar sesión', undefined, { email });
     } finally {
       setLoading(false);
     }
