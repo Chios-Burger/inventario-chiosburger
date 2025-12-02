@@ -11,6 +11,7 @@ import { authService } from '../services/auth';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useDebounce } from '../hooks/useDebounce';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { trackPedidoEnviado, trackInventorySync, trackError } from '../services/analytics';
 
 interface ListaProductosProps {
   bodegaId: number;
@@ -728,22 +729,54 @@ export const ListaProductos = ({
           productosGuardados, // Enviar solo los productos guardados explícitamente
           duracion
         );
-        
+
+        // TRACKING: Preparar datos de pedidos para analytics
+        const productosConPedido = Array.from(productosGuardados)
+          .map(productoId => {
+            const producto = productos.find(p => p.id === productoId);
+            const conteo = conteos[productoId];
+            if (!producto || !conteo || !conteo.cantidadPedir || conteo.cantidadPedir <= 0) return null;
+            return {
+              codigo: producto.fields['Código'] || producto.fields['Codigo'] || '',
+              nombre: producto.fields['Nombre Producto'] || '',
+              cantidad: conteo.cantidadPedir
+            };
+          })
+          .filter(Boolean) as Array<{ codigo: string; nombre: string; cantidad: number }>;
+
+        // TRACKING: Enviar evento de pedido si hay productos con pedido
+        if (productosConPedido.length > 0) {
+          const totalItems = productosConPedido.reduce((sum, p) => sum + p.cantidad, 0);
+          trackPedidoEnviado(
+            usuario?.email || 'unknown',
+            bodegaNombre,
+            bodegaId,
+            {
+              totalProductos: productosConPedido.length,
+              totalItems,
+              productos: productosConPedido
+            }
+          );
+        }
+
+        // TRACKING: Sync exitoso
+        trackInventorySync(bodegaNombre, true, productosGuardados.size);
+
         // Marcar fecha de último guardado exitoso
         const hoy = new Date().toLocaleDateString('en-CA'); // Formato YYYY-MM-DD
         localStorage.setItem(`ultimoGuardado_${bodegaId}`, hoy);
-        
+
         // Limpiar datos locales
         localStorage.removeItem(`conteos_${bodegaId}`);
         localStorage.removeItem(`productosGuardados_${bodegaId}`);
         localStorage.removeItem(`intentoGuardarIncompleto_${bodegaId}`);
-        
+
         // Resetear estados
         setIntentoGuardarIncompleto(false);
         setConteos({}); // Limpiar conteos en memoria
         setProductosGuardados(new Set()); // Limpiar productos guardados
         setResetKey(prev => prev + 1); // Incrementar key para forzar re-renderizado
-        
+
         setToast({ message: '🎉 Inventario guardado exitosamente', type: 'success' });
         
         // Deshabilitar botón por 1 minuto
@@ -766,10 +799,17 @@ export const ListaProductos = ({
         setTimeout(() => setShowMetrics(true), 500);
       } else {
         setToast({ message: '📱 Guardado offline', type: 'offline' });
+        trackInventorySync(bodegaNombre, false, productosGuardados.size, 'Guardado offline');
       }
     } catch (error) {
       console.error('Error al guardar inventario:', error);
       setToast({ message: 'Error al guardar el inventario', type: 'error' });
+      trackError('inventory_save_error', (error as Error).message, (error as Error).stack, {
+        bodegaId,
+        bodegaNombre,
+        productosCount: productosGuardados.size
+      });
+      trackInventorySync(bodegaNombre, false, productosGuardados.size, (error as Error).message);
     } finally {
       // Ocultar mensaje de guardado
       setGuardandoInventario(false);
